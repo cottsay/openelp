@@ -1,0 +1,27 @@
+.TH OPENELPD 1
+.SH NAME
+openelpd \- an open source EchoLink proxy daemon
+.SH SYNOPSIS
+.B openelpd
+[\fB\-F\fR]
+[configuration file]
+.SH DESCRIPTION
+\fBEchoLink\fR is a software system for connecting licensed radio amateurs to communicate over the internet using Voice over IP (VoIP). EchoLink clients require that UDP ports 5198 and 5199 be "forwarded" to the machine running the client. When this is not allowed or otherwise not possible, a proxy is used to listen for data on these ports and forward this data to a client over a TCP stream.
+.TP
+\fBOpenELP\fR, an Open Source EchoLink Proxy, is a performance-oriented proxy which can be used with EchoLink software. It uses a compatible protocol, and a compatible configuration file syntax with the Java EchoLink proxy available availbale from the EchoLink website.
+.SH OPTIONS
+.TP
+.BR \-F
+If specified, this parameter causes the main thread to run in the foreground, and not daemonize. Child threads are still created for each additional port, but the main thread does not return unless the proxy is shut down.
+.TP
+If unspecified, the proxy configuration file is expected to be named ELProxy.conf and in the working directory.
+.SH BUGS
+Any bugs should be reported to the project repository at http://github.com/cottsay/openelp/issues
+.SH AUTHORS
+\fBOpenELP\fR was created by Scott K Logan, KM0H <logans@cottsay.net>
+.TP
+See the Authors file included with this program for a full list of authors and contributors.
+.TP
+EchoLink(r) is a registered trademark of Synergenics, LLC
+.SH SEE ALSO
+\fBqtel\fR(1)
