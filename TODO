@@ -1,0 +1,21 @@
+Features:
+* Configuration file
+* Logging/Debugging Subsystem
+* WIN32 service
+* Systemd unit
+* Windows Installer
+* Public proxy registration
+
+Basic Settings:
+* Port
+* Password
+* Callsign Allow/Deny
+
+Additional Settings:
+* TCP Retry Count
+* Keepalive
+* Keepalive Interval
+* Max data packet size
+* Buffer size
+* Configurable SO_REUSEADDR
+* Outgoing TCP connections always use 5200

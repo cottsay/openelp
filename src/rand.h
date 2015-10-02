@@ -35,13 +35,13 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#ifndef _openelink_rand_h
-#define _openelink_rand_h
+#ifndef _rand_h
+#define _rand_h
 
 #include <stdint.h>
 
-int rand_init();
+int rand_init(void);
 int rand_get(uint32_t *rand_val);
-void rand_free();
+void rand_free(void);
 
-#endif /* _openelink_rand_h */
+#endif /* _rand_h */

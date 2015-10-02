@@ -45,7 +45,10 @@
 #define _openelp_h
 
 #include <stdint.h>
-#include <unistd.h>
+
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 
 /*!
  * @brief Length in bytes of the expected password response from the client
@@ -175,13 +178,21 @@ enum PROXY_STATUS
 	PROXY_STATUS_SHUTDOWN,
 };
 
+#ifdef _WIN32
+#  pragma pack(push,1)
+#endif
 struct proxy_msg
 {
 	uint8_t type;
 	uint32_t address;
 	uint32_t size;
 	uint8_t data[];
+#ifdef _WIN32
+};
+#  pragma pack(pop)
+#else
 } __attribute__((packed));
+#endif
 
 struct proxy_handle
 {

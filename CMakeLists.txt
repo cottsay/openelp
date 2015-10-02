@@ -37,7 +37,11 @@ include_directories(
   ${OPENELP_SOURCE_DIR}
   )
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+if(UNIX)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+else()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3 /WX /D_CRT_SECURE_NO_WARNINGS")
+endif()
 
 add_subdirectory(doc)
 add_subdirectory(${OPENELP_SOURCE_DIR})

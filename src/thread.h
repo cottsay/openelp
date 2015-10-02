@@ -35,8 +35,8 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#ifndef _openelink_thread_h
-#define _openelink_thread_h
+#ifndef _thread_h
+#define _thread_h
 
 #include "mutex.h"
 
@@ -54,4 +54,4 @@ int thread_start(struct proxy_thread *pt);
 int thread_join(struct proxy_thread *pt);
 void thread_free(struct proxy_thread *pt);
 
-#endif /* _openelink_thread_h */
+#endif /* _thread_h */

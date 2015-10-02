@@ -1,5 +1,5 @@
 /*!
- * @file rand.c
+ * @file conf.c
  *
  * @section LICENSE
  *
@@ -35,26 +35,5 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#include "rand.h"
-
-#include <time.h>
-#include <stdlib.h>
-
-int rand_init(void)
-{
-	srand((unsigned int)time(NULL));
-
-	return 0;
-}
-
-int rand_get(uint32_t *rand_val)
-{
-	*rand_val = rand();
-
-	return 0;
-}
-
-void rand_free(void)
-{
-}
+#include "conf.h"
 

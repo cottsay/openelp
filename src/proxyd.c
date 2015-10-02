@@ -37,8 +37,10 @@
 
 #include "openelp/openelp.h"
 
-#include <signal.h>
-#include <sys/stat.h>
+#ifndef _WIN32
+#  include <signal.h>
+#  include <sys/stat.h>
+#endif
 
 #include <errno.h>
 #include <stdio.h>
@@ -64,6 +66,7 @@ struct proxy_opts
  */
 struct proxy_handle ph;
 
+#ifndef _WIN32
 /*
  * Signal Handling
  */
@@ -73,18 +76,23 @@ void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 
 	proxy_shutdown(&ph);
 }
+#endif
 
 /*
  * Functions
  */
-void print_usage()
+void print_usage(void)
 {
+#ifndef _WIN32
 	printf("Usage: openelinkproxyd [-F] [--help] [<config path>]\n");
+#else
+	printf("Usage: openelinkproxyd [--help] [<config path>]\n");
+#endif
 }
 
 void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 {
-	size_t i;
+	int i;
 	size_t j;
 	size_t arg_len;
 
@@ -108,9 +116,11 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 				{
 					switch (argv[i][j])
 					{
+#ifndef _WIN32
 					case 'F':
 						opts->foreground = 1;
 						break;
+#endif
 					default:
 						fprintf(stderr, "Invalid flag '%c'\n", argv[i][j]);
 						exit(-EINVAL);
@@ -142,15 +152,20 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 int main(int argc, const char *argv[])
 {
 	struct proxy_opts opts;
+#ifndef _WIN32
 	struct sigaction sigact;
+#endif
 	int ret;
 
 	memset(&opts, 0x0, sizeof(struct proxy_opts));
+#ifndef _WIN32
 	memset(&sigact, 0x0, sizeof(struct sigaction));
+#endif
 	memset(&ph, 0x0, sizeof(struct proxy_handle));
 
 	parse_args(argc, argv, &opts);
 
+#ifndef _WIN32
 	// Daemonize
 	if (!opts.foreground)
 	{
@@ -196,6 +211,7 @@ int main(int argc, const char *argv[])
 
 	sigaction(SIGINT, &sigact, NULL);
 	sigaction(SIGTERM, &sigact, NULL);
+#endif
 
 	// Configure the proxy handle
 	ph.config_path = (opts.config_path != NULL) ? opts.config_path : default_config_path;

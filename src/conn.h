@@ -35,11 +35,14 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#ifndef _openelink_conn_h
-#define _openelink_conn_h
+#ifndef _conn_h
+#define _conn_h
 
 #include <stdint.h>
-#include <unistd.h>
+
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 
 enum CONN_TYPE
 {
@@ -66,4 +69,4 @@ void conn_drop(struct proxy_conn *pc);
 void conn_close(struct proxy_conn *pc);
 void conn_shutdown(struct proxy_conn *pc);
 
-#endif /* _openelink_conn_h */
+#endif /* _conn_h */

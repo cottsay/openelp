@@ -1,12 +1,12 @@
 /*!
- * @file rand.c
+ * @file thread_win.c
  *
  * @section LICENSE
  *
  * Copyright &copy; 2015, Scott K Logan
- * 
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -35,26 +35,107 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#include "rand.h"
+#include "thread.h"
+#include "mutex.h"
 
-#include <time.h>
+#include <windows.h>
+
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
-int rand_init(void)
+struct thread_priv
 {
-	srand((unsigned int)time(NULL));
+	HANDLE thread;
+	DWORD thread_id;
+	struct mutex_handle mutex;
+};
+
+DWORD WINAPI thread_wrapper(LPVOID ctx)
+{
+	struct proxy_thread *pt = (struct proxy_thread *)ctx;
+
+	pt->func_ptr(pt);
 
 	return 0;
 }
 
-int rand_get(uint32_t *rand_val)
+int thread_init(struct proxy_thread *pt)
 {
-	*rand_val = rand();
+	struct thread_priv *priv;
+	int ret;
+
+	if (pt->priv == NULL)
+	{
+		pt->priv = malloc(sizeof(struct thread_priv));
+	}
+
+	if (pt->priv == NULL)
+	{
+		return -ENOMEM;
+	}
+
+	memset(pt->priv, 0x0, sizeof(struct thread_priv));
+
+	priv = (struct thread_priv *)pt->priv;
+
+	ret = mutex_init(&priv->mutex);
+	if (ret < 0)
+	{
+		goto thread_init_exit;
+	}
 
 	return 0;
+
+thread_init_exit:
+	free(pt->priv);
+	pt->priv = NULL;
+
+	return ret;
 }
 
-void rand_free(void)
+int thread_start(struct proxy_thread *pt)
 {
+	struct thread_priv *priv = (struct thread_priv *)pt->priv;
+
+	mutex_lock(&priv->mutex);
+
+	priv->thread = CreateThread(NULL, 0, thread_wrapper, pt, 0, &priv->thread_id);
+
+	mutex_unlock(&priv->mutex);
+
+	return priv->thread == NULL ? -ECHILD : 0;
 }
 
+int thread_join(struct proxy_thread *pt)
+{
+	struct thread_priv *priv = (struct thread_priv *)pt->priv;
+
+	mutex_lock(&priv->mutex);
+
+	WaitForSingleObject(priv->thread, INFINITE);
+
+	CloseHandle(priv->thread);
+
+	priv->thread = NULL;
+	priv->thread_id = 0;
+
+	mutex_unlock(&priv->mutex);
+
+	return -ENOSYS;
+}
+
+void thread_free(struct proxy_thread *pt)
+{
+	struct thread_priv *priv = (struct thread_priv *)pt->priv;
+
+	if (pt->priv != NULL)
+	{
+		thread_join(pt);
+
+		mutex_free(&priv->mutex);
+
+		free(pt->priv);
+		pt->priv = NULL;
+	}
+}

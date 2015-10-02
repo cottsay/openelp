@@ -51,6 +51,7 @@
 // It seems that the native client can't handle messages from proxies which are
 // larger than 4096 or so
 #define CONN_BUFF_LEN 4096
+#define CONN_BUFF_LEN_HEADERLESS CONN_BUFF_LEN - sizeof(struct proxy_msg)
 
 #if PROXY_PASS_RES_LEN != DIGEST_LEN
 #error Password Response Length Mismatch
@@ -66,7 +67,7 @@ struct forwarder_context
 struct proxy_priv
 {
 	char password[256];
-	uint32_t port;
+	uint16_t port;
 
 	struct proxy_conn conn_client;
 	uint8_t conn_client_buff[CONN_BUFF_LEN];
@@ -107,6 +108,7 @@ int proxy_init(struct proxy_handle *ph)
 			{
 				ph->priv = malloc(sizeof(struct proxy_priv));
 			}
+
 			if (ph->priv == NULL)
 			{
 				return -ENOMEM;
@@ -118,6 +120,13 @@ int proxy_init(struct proxy_handle *ph)
 			// Read config file (TODO)
 			strcpy(priv->password, "asdf1234");
 			priv->port = 8100;
+
+			// Initialize RNG
+			ret = rand_init();
+			if (ret < 0)
+			{
+				goto proxy_init_exit;
+			}
 
 			// Initialize mutexes
 			ret = mutex_init(&priv->conn_client_mutex);
@@ -214,6 +223,8 @@ void proxy_free(struct proxy_handle *ph)
 	{
 		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 
+		proxy_close(ph);
+
 		// Free threads
 		thread_free(&priv->conn_tcp_forwarder);
 		thread_free(&priv->conn_udp2_forwarder);
@@ -227,6 +238,9 @@ void proxy_free(struct proxy_handle *ph)
 
 		// Free mutexes
 		mutex_free(&priv->conn_client_mutex);
+
+		// Free RNG
+		rand_free();
 
 		free(ph->priv);
 		ph->priv = NULL;
@@ -263,10 +277,10 @@ int proxy_open(struct proxy_handle *ph)
 
 void proxy_close(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
-
 	if (ph->status > PROXY_STATUS_DOWN)
 	{
+		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+
 		conn_close(&priv->conn_tcp);
 		conn_close(&priv->conn_udp2);
 		conn_close(&priv->conn_udp1);
@@ -282,10 +296,10 @@ void proxy_close(struct proxy_handle *ph)
 
 void proxy_drop(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
-
-	if (ph->status > PROXY_STATUS_DOWN)
+	if (ph->status > PROXY_STATUS_AVAILABLE)
 	{
+		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+
 		conn_close(&priv->conn_tcp);
 		conn_close(&priv->conn_udp2);
 		conn_close(&priv->conn_udp1);
@@ -301,10 +315,10 @@ void proxy_drop(struct proxy_handle *ph)
 
 void proxy_shutdown(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
-
 	if (ph->status > PROXY_STATUS_DOWN)
 	{
+		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+
 		conn_shutdown(&priv->conn_client);
 
 		ph->status = PROXY_STATUS_SHUTDOWN;
@@ -313,19 +327,20 @@ void proxy_shutdown(struct proxy_handle *ph)
 
 int proxy_process(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
-	int ret;
-
 	if (ph->status == PROXY_STATUS_SHUTDOWN)
 	{
+		proxy_drop(ph);
+		printf("Proxy is shutting down...\n");
 		proxy_close(ph);
 	}
 	else if (ph->status == PROXY_STATUS_AVAILABLE)
 	{
+		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 		uint32_t nonce;
 		char nonce_str[9];
 		uint8_t response[PROXY_PASS_RES_LEN];
 		size_t idx, j;
+		int ret;
 
 		printf("Waiting for a client...\n");
 
@@ -468,7 +483,9 @@ int proxy_process(struct proxy_handle *ph)
 	}
 	else
 	{
+		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 		struct proxy_msg *msg = (struct proxy_msg *)priv->conn_client_buff;
+		int ret;
 
 		ret = conn_recv(&priv->conn_client, priv->conn_client_buff, sizeof(struct proxy_msg));
 		if (ret < 0)
@@ -484,6 +501,8 @@ int proxy_process(struct proxy_handle *ph)
 		switch(msg->type)
 		{
 		case PROXY_MSG_TYPE_TCP_OPEN:
+			//printf("> TCP_OPEN\n");
+
 			// Attempt to connect
 			ret = conn_connect(&priv->conn_tcp, msg->address, 5200);
 
@@ -505,9 +524,11 @@ int proxy_process(struct proxy_handle *ph)
 
 			break;
 		case PROXY_MSG_TYPE_TCP_DATA:
+			//printf("> TCP_DATA     %d\n", msg->size);
+
 			{
 				size_t msg_size = msg->size;
-				uint8_t tcp_ret = 0;
+				int tcp_ret = 0;
 
 				while (msg_size > 0)
 				{
@@ -527,7 +548,7 @@ int proxy_process(struct proxy_handle *ph)
 					// Send the data
 					if (tcp_ret == 0)
 					{
-						tcp_ret = conn_send(&priv->conn_tcp, priv->conn_client_buff, curr_msg_size);
+						tcp_ret = conn_send(&priv->conn_tcp, priv->conn_client_buff, ret);
 						if (tcp_ret < 0)
 						{
 							conn_close(&priv->conn_tcp);
@@ -543,21 +564,24 @@ int proxy_process(struct proxy_handle *ph)
 
 			break;
 		case PROXY_MSG_TYPE_TCP_CLOSE:
-			conn_close(&priv->conn_tcp);
+			//printf("> TCP_CLOSE\n");
 
-			send_tcp_close(ph);
+			conn_close(&priv->conn_tcp);
 
 			break;
 		case PROXY_MSG_TYPE_UDP_DATA:
+			//printf("> UDP_DATA     %d\n", msg->size);
+
 			{
 				size_t msg_size = msg->size;
+				uint32_t addr = msg->address;
 
 				while (msg_size > 0)
 				{
-					size_t curr_msg_size = msg_size > CONN_BUFF_LEN - sizeof(struct proxy_msg) ? CONN_BUFF_LEN - sizeof(struct proxy_msg) : msg_size;
+					size_t curr_msg_size = msg_size > CONN_BUFF_LEN ? CONN_BUFF_LEN : msg_size;
 
 					// Get the data segment from the client
-					ret = conn_recv(&priv->conn_client, msg->data, curr_msg_size);
+					ret = conn_recv(&priv->conn_client, priv->conn_client_buff, curr_msg_size);
 					if (ret < 0)
 					{
 						proxy_handle_client_error(ph, ret);
@@ -568,9 +592,10 @@ int proxy_process(struct proxy_handle *ph)
 					msg_size -= ret;
 
 					// Send the data
-					ret = conn_send_to(&priv->conn_udp1, msg->data, curr_msg_size, msg->address, 5198);
+					ret = conn_send_to(&priv->conn_udp1, priv->conn_client_buff, ret, addr, 5198);
 					if (ret < 0)
 					{
+						fprintf(stderr, "WARNING: Failed to send UDP_DATA packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
 						// Drop?
 					}
 				}
@@ -578,15 +603,18 @@ int proxy_process(struct proxy_handle *ph)
 
 			break;
 		case PROXY_MSG_TYPE_UDP_CONTROL:
+			//printf("> UDP_CONTROL  %d\n", msg->size);
+
 			{
 				size_t msg_size = msg->size;
+				uint32_t addr = msg->address;
 
 				while (msg_size > 0)
 				{
-					size_t curr_msg_size = msg_size > CONN_BUFF_LEN - sizeof(struct proxy_msg) ? CONN_BUFF_LEN - sizeof(struct proxy_msg) : msg_size;
+					size_t curr_msg_size = msg_size > CONN_BUFF_LEN ? CONN_BUFF_LEN : msg_size;
 
 					// Get the data segment from the client
-					ret = conn_recv(&priv->conn_client, msg->data, curr_msg_size);
+					ret = conn_recv(&priv->conn_client, priv->conn_client_buff, curr_msg_size);
 					if (ret < 0)
 					{
 						proxy_handle_client_error(ph, ret);
@@ -597,18 +625,13 @@ int proxy_process(struct proxy_handle *ph)
 					msg_size -= ret;
 
 					// Send the data
-					ret = conn_send_to(&priv->conn_udp2, msg->data, curr_msg_size, msg->address, 5199);
+					ret = conn_send_to(&priv->conn_udp2, priv->conn_client_buff, ret, addr, 5199);
 					if (ret < 0)
 					{
+						fprintf(stderr, "WARNING: Failed to send UDP_CONTROL packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
 						// Drop?
 					}
 				}
-			}
-
-			ret = conn_send_to(&priv->conn_udp2, msg->data, msg->size, msg->address, 5199);
-			if (ret < 0)
-			{
-				// Drop?
 			}
 
 			break;
@@ -628,13 +651,20 @@ void proxy_handle_client_error(struct proxy_handle *ph, int ret)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 
-	if (ret == -EPIPE || ret == -ECONNRESET)
+	switch (ret)
 	{
-		printf("Disconnected client '%s'.\n", priv->client_callsign);
-	}
-	else
-	{
+	case -ENOTCONN:
+		return;
+	case -ECONNRESET:
+	case -EPIPE:
+		if (ph->status > PROXY_STATUS_AVAILABLE)
+		{
+			printf("Disconnected client '%s'.\n", priv->client_callsign);
+		}
+		break;
+	default:
 		fprintf(stderr, "Error %d: %s\nCommunications error with client '%s' . Dropping...\n", -ret, strerror(-ret), priv->client_callsign);
+		break;
 	}
 
 	proxy_drop(ph);
@@ -650,6 +680,8 @@ int send_system(struct proxy_handle *ph, enum SYSTEM_MSG msg)
 	message->type = PROXY_MSG_TYPE_SYSTEM;
 	message->size = 1;
 	message->data[0] = msg;
+
+	//printf("< SYSTEM\n");
 
 	mutex_lock(&priv->conn_client_mutex);
 
@@ -670,6 +702,8 @@ int send_tcp_close(struct proxy_handle *ph)
 	message.type = PROXY_MSG_TYPE_TCP_CLOSE;
 	message.size = 0;
 
+	//printf("< TCP_CLOSE\n");
+
 	mutex_lock(&priv->conn_client_mutex);
 
 	ret = conn_send(&priv->conn_client, (uint8_t *)&message, sizeof(struct proxy_msg));
@@ -689,6 +723,8 @@ int send_tcp_status(struct proxy_handle *ph, uint32_t status)
 	message->type = PROXY_MSG_TYPE_TCP_STATUS;
 	message->size = 4;
 	memcpy(message->data, &status, 4);
+
+	//printf("< TCP_STATUS   %u\n", status);
 
 	mutex_lock(&priv->conn_client_mutex);
 
@@ -745,28 +781,24 @@ void * tcp_forwarder(void *ctx)
 	struct proxy_thread *pt = (struct proxy_thread *)ctx;
 	struct forwarder_context *fc = (struct forwarder_context *)pt->func_ctx;
 	struct proxy_priv *priv = (struct proxy_priv *)fc->ph->priv;
-	uint8_t buf[CONN_BUFF_LEN];
-	struct proxy_msg msg;
+	uint8_t buf[CONN_BUFF_LEN] = { 0x0 };
+	struct proxy_msg *msg = (struct proxy_msg *)buf;
 	int ret;
 
-	msg.type = fc->type;
+	msg->type = fc->type;
 
 	do
 	{
-		ret = conn_recv_any(fc->conn, buf, CONN_BUFF_LEN, NULL);
+		ret = conn_recv_any(fc->conn, msg->data, CONN_BUFF_LEN_HEADERLESS, NULL);
 		if (ret > 0)
 		{
-			msg.size = ret;
+			msg->size = ret;
+
+			//printf("< TCP_DATA     %d\n", msg->size);
 
 			mutex_lock(&priv->conn_client_mutex);
 
-			// Send the header
-			ret = conn_send(&priv->conn_client, (uint8_t *)&msg, sizeof(struct proxy_msg));
-			if (ret >= 0)
-			{
-				// Send the data
-				ret = conn_send(&priv->conn_client, buf, msg.size);
-			}
+			ret = conn_send(&priv->conn_client, (uint8_t *)msg, sizeof(struct proxy_msg) + msg->size);
 
 			mutex_unlock(&priv->conn_client_mutex);
 
@@ -774,6 +806,8 @@ void * tcp_forwarder(void *ctx)
 			if (ret < 0)
 			{
 				proxy_handle_client_error(fc->ph, ret);
+
+				conn_close(fc->conn);
 
 				return NULL;
 			}
@@ -785,14 +819,14 @@ void * tcp_forwarder(void *ctx)
 	}
 	while (ret >= 0);
 
-	// This is an error with this connection
+	conn_close(fc->conn);
+
 	ret = send_tcp_close(fc->ph);
-	if (ret < 0 && ret != -ENOTCONN)
+	if (ret < 0)
 	{
+		// This is an error with this connection
 		proxy_handle_client_error(fc->ph, ret);
 	}
-
-	conn_close(fc->conn);
 
 	return NULL;
 }
@@ -802,28 +836,31 @@ void * udp_forwarder(void *ctx)
 	struct proxy_thread *pt = (struct proxy_thread *)ctx;
 	struct forwarder_context *fc = (struct forwarder_context *)pt->func_ctx;
 	struct proxy_priv *priv = (struct proxy_priv *)fc->ph->priv;
-	uint8_t buf[CONN_BUFF_LEN];
-	struct proxy_msg msg;
+	uint8_t buf[CONN_BUFF_LEN] = { 0x0 };
+	struct proxy_msg *msg = (struct proxy_msg *)buf;
 	int ret = 0;
 
-	msg.type = fc->type;
+	msg->type = fc->type;
 
 	do
 	{
-		ret = conn_recv_any(fc->conn, buf, CONN_BUFF_LEN, &msg.address);
+		ret = conn_recv_any(fc->conn, msg->data, CONN_BUFF_LEN_HEADERLESS, &msg->address);
 		if (ret > 0)
 		{
-			msg.size = ret;
+			msg->size = ret;
+
+			/*if (fc->type == PROXY_MSG_TYPE_UDP_DATA)
+			{
+				printf("< UDP_DATA     %d\n", msg->size);
+			}
+			else
+			{
+				printf("< UDP_CONTROL  %d\n", msg->size);
+			}*/
 
 			mutex_lock(&priv->conn_client_mutex);
 
-			// Send the header
-			ret = conn_send(&priv->conn_client, (uint8_t *)&msg, sizeof(struct proxy_msg));
-			if (ret >= 0)
-			{
-				// Send the data
-				ret = conn_send(&priv->conn_client, buf, msg.size);
-			}
+			ret = conn_send(&priv->conn_client, (uint8_t *)msg, sizeof(struct proxy_msg) + msg->size);
 
 			mutex_unlock(&priv->conn_client_mutex);
 
@@ -831,6 +868,8 @@ void * udp_forwarder(void *ctx)
 			if (ret < 0)
 			{
 				proxy_handle_client_error(fc->ph, ret);
+
+				conn_close(fc->conn);
 
 				return NULL;
 			}
@@ -842,14 +881,22 @@ void * udp_forwarder(void *ctx)
 	}
 	while (ret >= 0);
 
+	conn_close(fc->conn);
+
 	// This is an error with this connection
 	// This is pretty bad - we shouldn't have issues receiving on a
 	// UDP port like this. We better just shut it all down...
-	if (ret != -EPIPE && ret != -ECONNRESET)
+	switch (ret)
 	{
+	case -ECONNRESET:
+	case -ENOTCONN:
+	case -EPIPE:
+		break;
+	default:
 		fprintf(stderr, "UDP communication error. Disconnecting...\n");
 		fprintf(stderr, "Error %d: %s\n", -ret, strerror(-ret));
 		proxy_drop(fc->ph);
+		break;
 	}
 
 	return NULL;

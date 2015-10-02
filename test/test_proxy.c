@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-int test_proxy_password_response()
+int test_proxy_password_response(void)
 {
 	const uint32_t nonce = 0x4d3b6d47;
 	const char password[] = "asdf1234";
@@ -31,7 +31,7 @@ int test_proxy_password_response()
 	return ret;
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	int ret;
 

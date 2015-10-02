@@ -35,8 +35,8 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#ifndef _openelink_mutex_h
-#define _openelink_mutex_h
+#ifndef _mutex_h
+#define _mutex_h
 
 struct mutex_handle
 {
@@ -47,6 +47,7 @@ int mutex_init(struct mutex_handle *mutex);
 int mutex_lock(struct mutex_handle *mutex);
 int mutex_lock_shared(struct mutex_handle *mutex);
 int mutex_unlock(struct mutex_handle *mutex);
+int mutex_unlock_shared(struct mutex_handle *mutex);
 void mutex_free(struct mutex_handle *mutex);
 
-#endif /* _openelink_mutex_h */
+#endif /* _mutex_h */

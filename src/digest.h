@@ -35,15 +35,18 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#ifndef _openelink_digest_h
-#define _openelink_digest_h
+#ifndef _digest_h
+#define _digest_h
 
 #include <stdint.h>
-#include <unistd.h>
+
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 
 #define DIGEST_LEN 16
 
 void digest_get(const uint8_t *data, const size_t len, uint8_t result[DIGEST_LEN]);
 int digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1]);
 
-#endif /* _openelink_md5_h */
+#endif /* _md5_h */

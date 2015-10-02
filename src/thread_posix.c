@@ -1,5 +1,5 @@
 /*!
- * @file thread.c
+ * @file thread_posix.c
  *
  * @section LICENSE
  *
@@ -45,6 +45,7 @@
 
 struct thread_priv
 {
+	uint8_t dirty;
 	pthread_t thread;
 	struct mutex_handle mutex;
 };
@@ -87,9 +88,13 @@ int thread_start(struct proxy_thread *pt)
 	struct thread_priv *priv = (struct thread_priv *)pt->priv;
 	int ret;
 
+	thread_join(pt);
+
 	mutex_lock(&priv->mutex);
 
 	ret = pthread_create(&priv->thread, NULL, pt->func_ptr, pt);
+
+	priv->dirty = !(ret);
 
 	mutex_unlock(&priv->mutex);
 
@@ -103,18 +108,20 @@ int thread_join(struct proxy_thread *pt)
 
 	mutex_lock(&priv->mutex);
 
-	if (!priv->thread)
+	if (!priv->dirty)
 	{
 		ret = 0;
 	}
 	else
 	{
 		ret = pthread_join(priv->thread, NULL);
-	}
 
-	if (ret == 0)
-	{
-		memset(&priv->thread, 0x0, sizeof(pthread_t));
+		priv->dirty = 0;
+
+		if (ret == 0)
+		{
+			memset(&priv->thread, 0x0, sizeof(pthread_t));
+		}
 	}
 
 	mutex_unlock(&priv->mutex);

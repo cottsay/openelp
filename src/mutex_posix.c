@@ -1,5 +1,5 @@
 /*!
- * @file mutex.c
+ * @file mutex_posix.c
  *
  * @section LICENSE
  *
@@ -57,6 +57,7 @@ int mutex_init(struct mutex_handle *mutex)
 	{
 		mutex->priv = malloc(sizeof(struct mutex_priv));
 	}
+
 	if (mutex->priv == NULL)
 	{
 		return -ENOMEM;
@@ -105,6 +106,11 @@ int mutex_unlock(struct mutex_handle *mutex)
 	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
 
 	return pthread_rwlock_unlock(&priv->lock);
+}
+
+int mutex_unlock_shared(struct mutex_handle *mutex)
+{
+	return mutex_unlock(mutex);
 }
 
 void mutex_free(struct mutex_handle *mutex)

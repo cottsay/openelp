@@ -1,12 +1,12 @@
 /*!
- * @file rand.c
+ * @file mutex_win.c
  *
  * @section LICENSE
  *
  * Copyright &copy; 2015, Scott K Logan
- * 
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -35,26 +35,83 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#include "rand.h"
+#include "mutex.h"
 
-#include <time.h>
+#include <windows.h>
+#include <synchapi.h>
+
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
-int rand_init(void)
+struct mutex_priv
 {
-	srand((unsigned int)time(NULL));
+	SRWLOCK lock;
+};
+
+int mutex_init(struct mutex_handle *mutex)
+{
+	struct mutex_priv *priv;
+
+	if (mutex->priv == NULL)
+	{
+		mutex->priv = malloc(sizeof(struct mutex_priv));
+	}
+
+	if (mutex->priv == NULL)
+	{
+		return -ENOMEM;
+	}
+
+	memset(mutex->priv, 0x0, sizeof(struct mutex_priv));
+
+	priv = (struct mutex_priv *)mutex->priv;
+
+	InitializeSRWLock(&priv->lock);
 
 	return 0;
 }
 
-int rand_get(uint32_t *rand_val)
+int mutex_lock(struct mutex_handle *mutex)
 {
-	*rand_val = rand();
+	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
+
+	AcquireSRWLockExclusive(&priv->lock);
 
 	return 0;
 }
 
-void rand_free(void)
+int mutex_lock_shared(struct mutex_handle *mutex)
 {
+	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
+
+	AcquireSRWLockShared(&priv->lock);
+
+	return 0;
 }
 
+int mutex_unlock(struct mutex_handle *mutex)
+{
+	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
+
+	ReleaseSRWLockExclusive(&priv->lock);
+
+	return 0;
+}
+
+int mutex_unlock_shared(struct mutex_handle *mutex)
+{
+	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
+
+	ReleaseSRWLockShared(&priv->lock);
+
+	return 0;
+}
+
+void mutex_free(struct mutex_handle *mutex)
+{
+	if (mutex->priv != NULL)
+	{
+		free(mutex->priv);
+	}
+}
