@@ -38,4 +38,22 @@
 #ifndef _conf_h
 #define _conf_h
 
+#include <stdint.h>
+#include <stdio.h>
+
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
+
+#include "openelp/openelp.h"
+
+#define CONF_LINE_SIZE 512
+
+int conf_init(struct proxy_conf *conf);
+void conf_free(struct proxy_conf *conf);
+int conf_parse_line(const char *line, struct proxy_conf *conf);
+int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf);
+int conf_parse_stream(FILE *stream, struct proxy_conf *conf);
+int conf_parse_file(const char *file, struct proxy_conf *conf);
+
 #endif /* _conf_h */

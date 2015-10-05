@@ -50,7 +50,7 @@
 /*
  * Constants
  */
-const char default_config_path[] = "/etc/openelink/ELProxy.conf";
+const char default_config_path[] = "ELProxy.conf";
 
 /*
  * Definitions
@@ -136,6 +136,7 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 			if (opts->config_path == NULL)
 			{
 				opts->config_path = argv[i];
+				continue;
 			}
 			else
 			{
@@ -164,6 +165,43 @@ int main(int argc, const char *argv[])
 	memset(&ph, 0x0, sizeof(struct proxy_handle));
 
 	parse_args(argc, argv, &opts);
+	if (opts.config_path == NULL)
+	{
+		opts.config_path = default_config_path;
+	}
+
+#ifndef _WIN32
+	// Handle SIGINT/SIGTERM
+	sigact.sa_sigaction = graceful_shutdown;
+	sigact.sa_flags |= SA_SIGINFO;
+
+	sigaction(SIGINT, &sigact, NULL);
+	sigaction(SIGTERM, &sigact, NULL);
+#endif
+
+	// Initialize proxy
+	ret = proxy_init(&ph);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Failed to initialize proxy (%d): %s\n", -ret, strerror(-ret));
+		exit(ret);
+	}
+
+	// Load the config
+	ret = proxy_load_conf(&ph, opts.config_path);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Failed to load config from '%s' (%d): %s\n", opts.config_path, -ret, strerror(-ret));
+		exit(ret);
+	}
+
+	// Start listening
+	ret = proxy_open(&ph);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Failed to open proxy (%d): %s\n", -ret, strerror(-ret));
+		goto proxyd_exit;
+	}
 
 #ifndef _WIN32
 	// Daemonize
@@ -204,33 +242,7 @@ int main(int argc, const char *argv[])
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
 	}
-
-	// Handle SIGINT/SIGTERM
-	sigact.sa_sigaction = graceful_shutdown;
-	sigact.sa_flags |= SA_SIGINFO;
-
-	sigaction(SIGINT, &sigact, NULL);
-	sigaction(SIGTERM, &sigact, NULL);
 #endif
-
-	// Configure the proxy handle
-	ph.config_path = (opts.config_path != NULL) ? opts.config_path : default_config_path;
-
-	// Initialize
-	ret = proxy_init(&ph);
-	if (ret < 0)
-	{
-		fprintf(stderr, "Failed to initialize proxy (%d): %s\n", -ret, strerror(-ret));
-		exit(ret);
-	}
-
-	// Start listening
-	ret = proxy_open(&ph);
-	if (ret < 0)
-	{
-		fprintf(stderr, "Failed to open proxy (%d): %s\n", -ret, strerror(-ret));
-		goto proxyd_exit;
-	}
 
 	// Main dispatch loop
 	while (ph.status > PROXY_STATUS_DOWN)

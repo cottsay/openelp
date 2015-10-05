@@ -37,3 +37,155 @@
 
 #include "conf.h"
 
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int conf_init(struct proxy_conf *conf)
+{
+	conf->password = NULL;
+	conf->port = 8100;
+
+	return 0;
+}
+
+void conf_free(struct proxy_conf *conf)
+{
+	if (conf->password != NULL)
+	{
+		free(conf->password);
+		conf->password = NULL;
+	}
+}
+
+int conf_parse_line(const char *line, struct proxy_conf *conf)
+{
+	const char *key = line;
+	size_t key_len = 0;
+	const char *val;
+	size_t val_len = 0;
+
+	// Find the beginning of the key
+	for (; *key == ' ' && *key == '\t'; key++);
+
+	// If the line is a comment or empty, ignore it
+	if (*key == '#' || *key == '\0' || *key == '=')
+	{
+		return 0;
+	}
+
+	// Find the '='
+	for(; key[key_len] != '='; key_len++)
+	{
+		// If the line doesn't have '=', ignore it
+		if (key[key_len] == '\0')
+		{
+			return 0;
+		}
+	};
+
+	val = &key[key_len + 1];
+
+	// Backtrack if there is a space
+	for(; key_len > 0 && (key[key_len - 1] == ' ' || key[key_len - 1] == '\t'); key_len--);
+
+	// Find the beginning of the key
+	for (; *val == ' ' && *val == '\t'; val++);
+
+	for(; val[val_len] != '\0'; val_len++);
+
+	// Backtrack if there is a space
+	for(; val_len > 0 && (val[val_len - 1] == ' ' || val[val_len - 1] == '\t' || val[val_len - 1] == '\n' || val[val_len - 1] == '\r'); val_len--);
+
+	return conf_parse_pair(key, key_len, val, val_len, conf);
+}
+
+int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf)
+{
+	char dummy;
+
+	switch (key_len)
+	{
+	case 4:
+		if (strncmp(key, "Port", key_len) == 0)
+		{
+			if (sscanf(val, "%hu%1s", &conf->port, &dummy) != 1)
+			{
+				fprintf(stderr, "Invalid configuration value for 'Port': '%*s'\n", (int)val_len, val);
+
+				return -EINVAL;
+			}
+		}
+	case 8:
+		if (strncmp(key, "Password", key_len) == 0)
+		{
+			if (conf->password != NULL)
+			{
+				free(conf->password);
+			}
+
+			conf->password = malloc(val_len + 1);
+			if (conf->password == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memcpy(conf->password, val, val_len);
+			conf->password[val_len] = '\0';
+
+			if (strcmp(conf->password, "notset") == 0)
+			{
+				free(conf->password);
+				conf->password = NULL;
+
+				fprintf(stderr, "Error: Missing password\n");
+
+				return -EINVAL;
+			}
+		}
+	}
+
+	return 0;
+}
+
+int conf_parse_stream(FILE *stream, struct proxy_conf *conf)
+{
+	char *line = NULL;
+	size_t line_len = 0;
+	int ret = 0;
+
+	while (getline(&line, &line_len, stream) > 0)
+	{
+		ret = conf_parse_line(line, conf);
+
+		free(line);
+		line = NULL;
+
+		if (ret < 0)
+		{
+			return ret;
+		}
+	}
+
+	free(line);
+
+	return 0;
+}
+
+int conf_parse_file(const char *file, struct proxy_conf *conf)
+{
+	FILE *stream = fopen(file, "r");
+	int ret;
+
+	if (stream == NULL)
+	{
+		return -errno;
+	}
+
+	ret = conf_parse_stream(stream, conf);
+
+	fclose(stream);
+
+	return ret;
+}

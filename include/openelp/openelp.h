@@ -194,16 +194,23 @@ struct proxy_msg
 } __attribute__((packed));
 #endif
 
+struct proxy_conf
+{
+	char *password;
+	uint16_t port;
+};
+
 struct proxy_handle
 {
-	const char *config_path;
 	uint8_t status;
+	struct proxy_conf conf;
 	void *priv;
 };
 
 /*
  * Resource Management
  */
+int proxy_load_conf(struct proxy_handle *ph, const char *path);
 int proxy_init(struct proxy_handle *ph);
 void proxy_free(struct proxy_handle *ph);
 int proxy_open(struct proxy_handle *ph);
@@ -216,14 +223,13 @@ void proxy_shutdown(struct proxy_handle *ph);
 /*
  * Message Processing
  */
-int process_msg(struct proxy_handle *proxy, struct proxy_msg *msg, size_t len);
-int process_system_msg(struct proxy_handle *proxy, struct proxy_msg *msg);
-int process_tcp_open_msg(struct proxy_handle *proxy, struct proxy_msg *msg);
-int process_tcp_data_msg(struct proxy_handle *proxy, struct proxy_msg *msg, size_t len);
-int process_tcp_close_msg(struct proxy_handle *proxy, struct proxy_msg *msg);
-int process_tcp_status_msg(struct proxy_handle *proxy, struct proxy_msg *msg);
-int process_udp_data_msg(struct proxy_handle *proxy, struct proxy_msg *msg, size_t len);
-int process_udp_control_msg(struct proxy_handle *proxy, struct proxy_msg *msg, size_t len);
+int process_new_client(struct proxy_handle *ph);
+int process_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int process_tcp_open_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int process_tcp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int process_tcp_close_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int process_udp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int process_udp_control_msg(struct proxy_handle *ph, struct proxy_msg *msg);
 
 /*
  * Messages

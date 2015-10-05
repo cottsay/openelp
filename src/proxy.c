@@ -37,6 +37,7 @@
 
 #include "openelp/openelp.h"
 
+#include "conf.h"
 #include "conn.h"
 #include "digest.h"
 #include "mutex.h"
@@ -66,9 +67,6 @@ struct forwarder_context
 
 struct proxy_priv
 {
-	char password[256];
-	uint16_t port;
-
 	struct proxy_conn conn_client;
 	uint8_t conn_client_buff[CONN_BUFF_LEN];
 	struct mutex_handle conn_client_mutex;
@@ -94,6 +92,11 @@ void * udp_forwarder(void *);
 /*
  * Functions
  */
+int proxy_load_conf(struct proxy_handle *ph, const char *path)
+{
+	return conf_parse_file(path, &ph->conf);
+}
+
 int proxy_init(struct proxy_handle *ph)
 {
 	int ret = 0;
@@ -117,10 +120,6 @@ int proxy_init(struct proxy_handle *ph)
 			memset(ph->priv, 0x0, sizeof(struct proxy_priv));
 			priv = (struct proxy_priv *)ph->priv;
 
-			// Read config file (TODO)
-			strcpy(priv->password, "asdf1234");
-			priv->port = 8100;
-
 			// Initialize RNG
 			ret = rand_init();
 			if (ret < 0)
@@ -130,6 +129,13 @@ int proxy_init(struct proxy_handle *ph)
 
 			// Initialize mutexes
 			ret = mutex_init(&priv->conn_client_mutex);
+			if (ret < 0)
+			{
+				goto proxy_init_exit;
+			}
+
+			// Initialize config
+			ret = conf_init(&ph->conf);
 			if (ret < 0)
 			{
 				goto proxy_init_exit;
@@ -236,6 +242,9 @@ void proxy_free(struct proxy_handle *ph)
 		conn_free(&priv->conn_udp2);
 		conn_free(&priv->conn_client);
 
+		// Free config
+		conf_free(&ph->conf);
+
 		// Free mutexes
 		mutex_free(&priv->conn_client_mutex);
 
@@ -264,7 +273,7 @@ int proxy_open(struct proxy_handle *ph)
 	}
 
 	// TODO: Specifiable port
-	ret = conn_listen(&priv->conn_client, priv->port);
+	ret = conn_listen(&priv->conn_client, ph->conf.port);
 	if (ret < 0)
 	{
 		return ret;
@@ -327,21 +336,17 @@ void proxy_shutdown(struct proxy_handle *ph)
 
 int proxy_process(struct proxy_handle *ph)
 {
-	if (ph->status == PROXY_STATUS_SHUTDOWN)
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	int ret;
+
+	switch (ph->status)
 	{
+	case PROXY_STATUS_SHUTDOWN:
 		proxy_drop(ph);
 		printf("Proxy is shutting down...\n");
 		proxy_close(ph);
-	}
-	else if (ph->status == PROXY_STATUS_AVAILABLE)
-	{
-		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
-		uint32_t nonce;
-		char nonce_str[9];
-		uint8_t response[PROXY_PASS_RES_LEN];
-		size_t idx, j;
-		int ret;
-
+		break;
+	case PROXY_STATUS_AVAILABLE:
 		printf("Waiting for a client...\n");
 
 		ret = conn_listen_wait(&priv->conn_client);
@@ -350,143 +355,14 @@ int proxy_process(struct proxy_handle *ph)
 			return ret == -EINTR ? 0 : ret;
 		}
 
-		printf("Client connected. Authorizing...\n");
-
-		ret = get_nonce(&nonce);
+		ret = process_new_client(ph);
 		if (ret < 0)
 		{
 			return ret;
 		}
 
-		ret = snprintf(nonce_str, 9, "%08x", nonce);
-		if (ret != 8)
-		{
-			return -EINVAL;
-		}
-
-		// Generate the expected auth response
-		ret = get_password_response(nonce, priv->password, response);
-		if (ret < 0)
-		{
-			return ret;
-		}
-
-		// Send the nonce
-		ret = conn_send(&priv->conn_client, (uint8_t *)nonce_str, 8);
-		if (ret < 0)
-		{
-			fprintf(stderr, "Communications error with client. Dropping...\n");
-
-			conn_drop(&priv->conn_client);
-
-			return 0;
-		}
-
-		// We can expect to receive a newline-terminated callsign and a 16-byte
-		// password response.
-		// Since this is variable-length, initially look only for 16 bytes. The
-		// callsign will be part of that, and we can figure out how much we're
-		// missing.
-		ret = conn_recv(&priv->conn_client, priv->conn_client_buff, 16);
-		if (ret < 0)
-		{
-			fprintf(stderr, "Communications error with client. Dropping...\n");
-
-			conn_drop(&priv->conn_client);
-
-			return 0;
-		}
-
-		for (idx = 0; idx < 11 && priv->conn_client_buff[idx] != '\n'; idx++);
-
-		if (idx >= 11)
-		{
-			fprintf(stderr, "Communications error with client. Dropping...\n");
-
-			conn_drop(&priv->conn_client);
-
-			return 0;
-		}
-
-		strncpy(priv->client_callsign, (char *)priv->conn_client_buff, idx);
-
-		ret = conn_recv(&priv->conn_client, &priv->conn_client_buff[16], idx + 1);
-		if (ret < 0)
-		{
-			fprintf(stderr, "Communications error with client '%s'. Dropping...\n", priv->client_callsign);
-
-			conn_drop(&priv->conn_client);
-
-			return 0;
-		}
-
-		for (idx += 1, j = 0; j < PROXY_PASS_RES_LEN; idx++, j++)
-		{
-			if (response[j] != priv->conn_client_buff[idx])
-			{
-				fprintf(stderr, "Wrong password from client '%s'. Dropping...\n", priv->client_callsign);
-
-				ret = send_system(ph, SYSTEM_MSG_BAD_PASSWORD);
-
-				conn_drop(&priv->conn_client);
-
-				return 0;
-			}
-		}
-
-		// TODO: Verify the callsign before accepting the connection
-
-		ret = conn_listen(&priv->conn_udp1, 5198);
-		if (ret < 0)
-		{
-			fprintf(stderr, "Failed to open UDP data port (5198). Dropping...\n");
-			fprintf(stderr, "Error (%d) %s\n", -ret, strerror(-ret));
-
-			proxy_drop(ph);
-
-			return 0;
-		}
-
-		ret = thread_start(&priv->conn_udp1_forwarder);
-		if (ret < 0)
-		{
-			fprintf(stderr, "Failed to start UDP data forwarder. Dropping...\n");
-
-			proxy_drop(ph);
-
-			return 0;
-		}
-
-		ret = conn_listen(&priv->conn_udp2, 5199);
-		if (ret < 0)
-		{
-			fprintf(stderr, "Failed to open UDP control port (5199). Dropping...\n");
-
-			proxy_drop(ph);
-
-			return 0;
-		}
-
-		ret = thread_start(&priv->conn_udp2_forwarder);
-		if (ret < 0)
-		{
-			fprintf(stderr, "Failed to start UDP control forwarder. Dropping...\n");
-
-			proxy_drop(ph);
-
-			return 0;
-		}
-
-		printf("Connected to client '%s'.\n", priv->client_callsign);
-
-		ph->status = PROXY_STATUS_IN_USE;
-	}
-	else
-	{
-		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
-		struct proxy_msg *msg = (struct proxy_msg *)priv->conn_client_buff;
-		int ret;
-
+		break;
+	default:
 		ret = conn_recv(&priv->conn_client, priv->conn_client_buff, sizeof(struct proxy_msg));
 		if (ret < 0)
 		{
@@ -498,149 +374,330 @@ int proxy_process(struct proxy_handle *ph)
 			return 0;
 		}
 
-		switch(msg->type)
+		ret = process_msg(ph, (struct proxy_msg *)priv->conn_client_buff);
+		if (ret < 0)
 		{
-		case PROXY_MSG_TYPE_TCP_OPEN:
-			//printf("> TCP_OPEN\n");
+			return ret;
+		}
+	}
 
-			// Attempt to connect
-			ret = conn_connect(&priv->conn_tcp, msg->address, 5200);
+	return 0;
+}
 
-			if (ret >= 0)
-			{
-				ret = thread_start(&priv->conn_tcp_forwarder);
-				if (ret < 0)
-				{
-					conn_close(&priv->conn_tcp);
-				}
-			}
+int process_new_client(struct proxy_handle *ph)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	uint32_t nonce;
+	char nonce_str[9];
+	uint8_t response[PROXY_PASS_RES_LEN];
+	size_t idx, j;
+	int ret;
 
-			// Report results
-			ret = send_tcp_status(ph, ret);
-			if (ret < 0)
-			{
-				proxy_handle_client_error(ph, ret);
-			}
+	printf("Client connected. Authorizing...\n");
 
-			break;
-		case PROXY_MSG_TYPE_TCP_DATA:
-			//printf("> TCP_DATA     %d\n", msg->size);
+	ret = get_nonce(&nonce);
+	if (ret < 0)
+	{
+		return ret;
+	}
 
-			{
-				size_t msg_size = msg->size;
-				int tcp_ret = 0;
+	ret = snprintf(nonce_str, 9, "%08x", nonce);
+	if (ret != 8)
+	{
+		return -EINVAL;
+	}
 
-				while (msg_size > 0)
-				{
-					size_t curr_msg_size = msg_size > CONN_BUFF_LEN ? CONN_BUFF_LEN : msg_size;
+	// Generate the expected auth response
+	ret = get_password_response(nonce, ph->conf.password, response);
+	if (ret < 0)
+	{
+		return ret;
+	}
 
-					// Get the data segment from the client
-					ret = conn_recv(&priv->conn_client, priv->conn_client_buff, curr_msg_size);
-					if (ret < 0)
-					{
-						proxy_handle_client_error(ph, ret);
+	// Send the nonce
+	ret = conn_send(&priv->conn_client, (uint8_t *)nonce_str, 8);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Communications error with client. Dropping...\n");
 
-						return 0;
-					}
+		conn_drop(&priv->conn_client);
 
-					msg_size -= ret;
+		return 0;
+	}
 
-					// Send the data
-					if (tcp_ret == 0)
-					{
-						tcp_ret = conn_send(&priv->conn_tcp, priv->conn_client_buff, ret);
-						if (tcp_ret < 0)
-						{
-							conn_close(&priv->conn_tcp);
-						}
-					}
-				}
+	// We can expect to receive a newline-terminated callsign and a 16-byte
+	// password response.
+	// Since this is variable-length, initially look only for 16 bytes. The
+	// callsign will be part of that, and we can figure out how much we're
+	// missing.
+	ret = conn_recv(&priv->conn_client, priv->conn_client_buff, 16);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Communications error with client. Dropping...\n");
 
-				if (tcp_ret != 0)
-				{
-					send_tcp_close(ph);
-				}
-			}
+		conn_drop(&priv->conn_client);
 
-			break;
-		case PROXY_MSG_TYPE_TCP_CLOSE:
-			//printf("> TCP_CLOSE\n");
+		return 0;
+	}
 
-			conn_close(&priv->conn_tcp);
+	for (idx = 0; idx < 11 && priv->conn_client_buff[idx] != '\n'; idx++);
 
-			break;
-		case PROXY_MSG_TYPE_UDP_DATA:
-			//printf("> UDP_DATA     %d\n", msg->size);
+	if (idx >= 11)
+	{
+		fprintf(stderr, "Communications error with client. Dropping...\n");
 
-			{
-				size_t msg_size = msg->size;
-				uint32_t addr = msg->address;
+		conn_drop(&priv->conn_client);
 
-				while (msg_size > 0)
-				{
-					size_t curr_msg_size = msg_size > CONN_BUFF_LEN ? CONN_BUFF_LEN : msg_size;
+		return 0;
+	}
 
-					// Get the data segment from the client
-					ret = conn_recv(&priv->conn_client, priv->conn_client_buff, curr_msg_size);
-					if (ret < 0)
-					{
-						proxy_handle_client_error(ph, ret);
+	strncpy(priv->client_callsign, (char *)priv->conn_client_buff, idx);
 
-						return 0;
-					}
+	ret = conn_recv(&priv->conn_client, &priv->conn_client_buff[16], idx + 1);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Communications error with client '%s'. Dropping...\n", priv->client_callsign);
 
-					msg_size -= ret;
+		conn_drop(&priv->conn_client);
 
-					// Send the data
-					ret = conn_send_to(&priv->conn_udp1, priv->conn_client_buff, ret, addr, 5198);
-					if (ret < 0)
-					{
-						fprintf(stderr, "WARNING: Failed to send UDP_DATA packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
-						// Drop?
-					}
-				}
-			}
+		return 0;
+	}
 
-			break;
-		case PROXY_MSG_TYPE_UDP_CONTROL:
-			//printf("> UDP_CONTROL  %d\n", msg->size);
+	for (idx += 1, j = 0; j < PROXY_PASS_RES_LEN; idx++, j++)
+	{
+		if (response[j] != priv->conn_client_buff[idx])
+		{
+			fprintf(stderr, "Wrong password from client '%s'. Dropping...\n", priv->client_callsign);
 
-			{
-				size_t msg_size = msg->size;
-				uint32_t addr = msg->address;
+			ret = send_system(ph, SYSTEM_MSG_BAD_PASSWORD);
 
-				while (msg_size > 0)
-				{
-					size_t curr_msg_size = msg_size > CONN_BUFF_LEN ? CONN_BUFF_LEN : msg_size;
-
-					// Get the data segment from the client
-					ret = conn_recv(&priv->conn_client, priv->conn_client_buff, curr_msg_size);
-					if (ret < 0)
-					{
-						proxy_handle_client_error(ph, ret);
-
-						return 0;
-					}
-
-					msg_size -= ret;
-
-					// Send the data
-					ret = conn_send_to(&priv->conn_udp2, priv->conn_client_buff, ret, addr, 5199);
-					if (ret < 0)
-					{
-						fprintf(stderr, "WARNING: Failed to send UDP_CONTROL packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
-						// Drop?
-					}
-				}
-			}
-
-			break;
-		default:
-			fprintf(stderr, "Got a bad type '%02x'\n", msg->type);
-
-			proxy_handle_client_error(ph, -EINVAL);
+			conn_drop(&priv->conn_client);
 
 			return 0;
+		}
+	}
+
+	// TODO: Verify the callsign before accepting the connection
+
+	ret = conn_listen(&priv->conn_udp1, 5198);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Failed to open UDP data port (5198). Dropping...\n");
+		fprintf(stderr, "Error (%d) %s\n", -ret, strerror(-ret));
+
+		proxy_drop(ph);
+
+		return 0;
+	}
+
+	ret = thread_start(&priv->conn_udp1_forwarder);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Failed to start UDP data forwarder. Dropping...\n");
+
+		proxy_drop(ph);
+
+		return 0;
+	}
+
+	ret = conn_listen(&priv->conn_udp2, 5199);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Failed to open UDP control port (5199). Dropping...\n");
+
+		proxy_drop(ph);
+
+		return 0;
+	}
+
+	ret = thread_start(&priv->conn_udp2_forwarder);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Failed to start UDP control forwarder. Dropping...\n");
+
+		proxy_drop(ph);
+
+		return 0;
+	}
+
+	printf("Connected to client '%s'.\n", priv->client_callsign);
+
+	ph->status = PROXY_STATUS_IN_USE;
+
+	return 0;
+}
+
+int process_msg(struct proxy_handle *ph, struct proxy_msg *msg)
+{
+	switch(msg->type)
+	{
+	case PROXY_MSG_TYPE_TCP_OPEN:
+		return process_tcp_open_msg(ph, msg);
+	case PROXY_MSG_TYPE_TCP_DATA:
+		return process_tcp_data_msg(ph, msg);
+	case PROXY_MSG_TYPE_TCP_CLOSE:
+		return process_tcp_close_msg(ph, msg);
+	case PROXY_MSG_TYPE_UDP_DATA:
+		return process_udp_data_msg(ph, msg);
+	case PROXY_MSG_TYPE_UDP_CONTROL:
+		return process_udp_control_msg(ph, msg);
+	default:
+		fprintf(stderr, "Got a bad type '%02x'\n", msg->type);
+		proxy_handle_client_error(ph, -EINVAL);
+
+		return 0;
+	}
+}
+
+int process_tcp_open_msg(struct proxy_handle *ph, struct proxy_msg *msg)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	int ret;
+
+	//printf("> TCP_OPEN\n");
+
+	// Attempt to connect
+	ret = conn_connect(&priv->conn_tcp, msg->address, 5200);
+	if (ret >= 0)
+	{
+		ret = thread_start(&priv->conn_tcp_forwarder);
+		if (ret < 0)
+		{
+			conn_close(&priv->conn_tcp);
+		}
+	}
+
+	// Report results
+	ret = send_tcp_status(ph, ret);
+	if (ret < 0)
+	{
+		proxy_handle_client_error(ph, ret);
+	}
+
+	return 0;
+}
+
+int process_tcp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	size_t msg_size = msg->size;
+	size_t curr_msg_size;
+	int tcp_ret = 0;
+	int ret;
+
+	//printf("> TCP_DATA     %d\n", msg->size);
+
+	while (msg_size > 0)
+	{
+		curr_msg_size = msg_size > CONN_BUFF_LEN ? CONN_BUFF_LEN : msg_size;
+
+		// Get the data segment from the client
+		ret = conn_recv(&priv->conn_client, priv->conn_client_buff, curr_msg_size);
+		if (ret < 0)
+		{
+			proxy_handle_client_error(ph, ret);
+
+			return 0;
+		}
+
+		msg_size -= ret;
+
+		// Send the data
+		if (tcp_ret == 0)
+		{
+			tcp_ret = conn_send(&priv->conn_tcp, priv->conn_client_buff, ret);
+			if (tcp_ret < 0)
+			{
+				conn_close(&priv->conn_tcp);
+			}
+		}
+	}
+
+	if (tcp_ret != 0)
+	{
+		send_tcp_close(ph);
+	}
+
+	return 0;
+}
+
+int process_tcp_close_msg(struct proxy_handle *ph, struct proxy_msg *msg)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+
+	//printf("> TCP_CLOSE\n");
+
+	conn_close(&priv->conn_tcp);
+
+	return 0;
+}
+
+int process_udp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	size_t msg_size = msg->size;
+	uint32_t addr = msg->address;
+	int ret;
+
+	//printf("> UDP_DATA     %d\n", msg->size);
+
+	while (msg_size > 0)
+	{
+		size_t curr_msg_size = msg_size > CONN_BUFF_LEN ? CONN_BUFF_LEN : msg_size;
+
+		// Get the data segment from the client
+		ret = conn_recv(&priv->conn_client, priv->conn_client_buff, curr_msg_size);
+		if (ret < 0)
+		{
+			proxy_handle_client_error(ph, ret);
+
+			return 0;
+		}
+
+		msg_size -= ret;
+
+		// Send the data
+		ret = conn_send_to(&priv->conn_udp1, priv->conn_client_buff, ret, addr, 5198);
+		if (ret < 0)
+		{
+			fprintf(stderr, "WARNING: Failed to send UDP_DATA packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
+			// Drop?
+		}
+	}
+
+	return 0;
+}
+
+int process_udp_control_msg(struct proxy_handle *ph, struct proxy_msg *msg)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	size_t msg_size = msg->size;
+	uint32_t addr = msg->address;
+	int ret;
+
+	//printf("> UDP_CONTROL  %d\n", msg->size);
+
+	while (msg_size > 0)
+	{
+		size_t curr_msg_size = msg_size > CONN_BUFF_LEN ? CONN_BUFF_LEN : msg_size;
+
+		// Get the data segment from the client
+		ret = conn_recv(&priv->conn_client, priv->conn_client_buff, curr_msg_size);
+		if (ret < 0)
+		{
+			proxy_handle_client_error(ph, ret);
+
+			return 0;
+		}
+
+		msg_size -= ret;
+
+		// Send the data
+		ret = conn_send_to(&priv->conn_udp2, priv->conn_client_buff, ret, addr, 5199);
+		if (ret < 0)
+		{
+			fprintf(stderr, "WARNING: Failed to send UDP_CONTROL packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
+			// Drop?
 		}
 	}
 
