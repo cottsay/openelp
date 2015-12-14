@@ -72,7 +72,7 @@ struct proxy_handle ph;
  */
 void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 {
-	printf("Caught signal\n");
+	proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
 
 	proxy_shutdown(&ph);
 }
@@ -122,7 +122,7 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 						break;
 #endif
 					default:
-						fprintf(stderr, "Invalid flag '%c'\n", argv[i][j]);
+						fprintf(stderr, "ERROR: Invalid flag '%c'\n", argv[i][j]);
 						exit(-EINVAL);
 						break;
 					}
@@ -140,12 +140,12 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 			}
 			else
 			{
-				fprintf(stderr, "Config path already specified\n");
+				fprintf(stderr, "ERROR: Config path already specified\n");
 				exit(-EINVAL);
 			}
 		}
 
-		fprintf(stderr, "Invalid option '%s'\n", argv[i]);
+		fprintf(stderr, "ERROR: Invalid option '%s'\n", argv[i]);
 		exit(-EINVAL);
 	}
 }
@@ -191,15 +191,15 @@ int main(int argc, const char *argv[])
 	ret = proxy_load_conf(&ph, opts.config_path);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Failed to load config from '%s' (%d): %s\n", opts.config_path, -ret, strerror(-ret));
-		exit(ret);
+		proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to load config from '%s' (%d): %s\n", opts.config_path, -ret, strerror(-ret));
+		goto proxyd_exit;
 	}
 
 	// Start listening
 	ret = proxy_open(&ph);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Failed to open proxy (%d): %s\n", -ret, strerror(-ret));
+		proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to open proxy (%d): %s\n", -ret, strerror(-ret));
 		goto proxyd_exit;
 	}
 
@@ -214,8 +214,9 @@ int main(int argc, const char *argv[])
 
 		if (pid < 0)
 		{
-			fprintf(stderr, "Error forking daemon process\n");
-			return pid;
+			proxy_log(&ph, LOG_LEVEL_FATAL, "Error forking daemon process\n");
+			ret = pid;
+			goto proxyd_exit;
 		}
 
 		if (pid > 0)
@@ -228,13 +229,17 @@ int main(int argc, const char *argv[])
 		sid = setsid();
 		if (sid < 0)
 		{
-			fprintf(stderr, "Process error (%d): %s\n", errno, strerror(errno));
+			proxy_log(&ph, LOG_LEVEL_FATAL, "Process error (%d): %s\n", errno, strerror(errno));
+			ret = errno;
+			goto proxyd_exit;
 			exit(-errno);
 		}
 
 		if (chdir("/") < 0)
 		{
-			fprintf(stderr, "Failed to change dir (%d): %s\n", errno, strerror(errno));
+			proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to change dir (%d): %s\n", errno, strerror(errno));
+			ret = errno;
+			goto proxyd_exit;
 			exit(-errno);
 		}
 
@@ -250,7 +255,7 @@ int main(int argc, const char *argv[])
 		ret = proxy_process(&ph);
 		if (ret < 0)
 		{
-			fprintf(stderr, "Message processing failure (%d): %s\n", -ret, strerror(-ret));
+			proxy_log(&ph, LOG_LEVEL_FATAL, "Message processing failure (%d): %s\n", -ret, strerror(-ret));
 			break;
 		}
 	}

@@ -40,6 +40,7 @@
 #include "conf.h"
 #include "conn.h"
 #include "digest.h"
+#include "log.h"
 #include "mutex.h"
 #include "rand.h"
 #include "thread.h"
@@ -67,6 +68,8 @@ struct forwarder_context
 
 struct proxy_priv
 {
+	struct log_handle log;
+
 	struct proxy_conn conn_client;
 	uint8_t conn_client_buff[CONN_BUFF_LEN];
 	struct mutex_handle conn_client_mutex;
@@ -122,6 +125,13 @@ int proxy_init(struct proxy_handle *ph)
 
 			// Initialize RNG
 			ret = rand_init();
+			if (ret < 0)
+			{
+				goto proxy_init_exit;
+			}
+
+			// Initialize log
+			ret = log_init(&priv->log);
 			if (ret < 0)
 			{
 				goto proxy_init_exit;
@@ -248,6 +258,9 @@ void proxy_free(struct proxy_handle *ph)
 		// Free mutexes
 		mutex_free(&priv->conn_client_mutex);
 
+		// Free logger
+		log_free(&priv->log);
+
 		// Free RNG
 		rand_free();
 
@@ -334,6 +347,21 @@ void proxy_shutdown(struct proxy_handle *ph)
 	}
 }
 
+void proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	va_list args;
+
+	if (priv == NULL || lvl > priv->log.level)
+	{
+		return;
+	}
+
+	va_start(args, fmt);
+	log_vprintf(&priv->log, lvl, fmt, args);
+	va_end(args);
+}
+
 int proxy_process(struct proxy_handle *ph)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
@@ -343,11 +371,11 @@ int proxy_process(struct proxy_handle *ph)
 	{
 	case PROXY_STATUS_SHUTDOWN:
 		proxy_drop(ph);
-		printf("Proxy is shutting down...\n");
+		proxy_log(ph, LOG_LEVEL_INFO, "Proxy is shutting down...\n");
 		proxy_close(ph);
 		break;
 	case PROXY_STATUS_AVAILABLE:
-		printf("Waiting for a client...\n");
+		proxy_log(ph, LOG_LEVEL_INFO, "Waiting for a client...\n");
 
 		ret = conn_listen_wait(&priv->conn_client);
 		if (ret < 0)
@@ -393,7 +421,7 @@ int process_new_client(struct proxy_handle *ph)
 	size_t idx, j;
 	int ret;
 
-	printf("Client connected. Authorizing...\n");
+	proxy_log(ph, LOG_LEVEL_INFO, "Client connected. Authorizing...\n");
 
 	ret = get_nonce(&nonce);
 	if (ret < 0)
@@ -418,7 +446,7 @@ int process_new_client(struct proxy_handle *ph)
 	ret = conn_send(&priv->conn_client, (uint8_t *)nonce_str, 8);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Communications error with client. Dropping...\n");
+		proxy_log(ph, LOG_LEVEL_WARN, "Communications error with client. Dropping...\n");
 
 		conn_drop(&priv->conn_client);
 
@@ -433,7 +461,7 @@ int process_new_client(struct proxy_handle *ph)
 	ret = conn_recv(&priv->conn_client, priv->conn_client_buff, 16);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Communications error with client. Dropping...\n");
+		proxy_log(ph, LOG_LEVEL_WARN, "Communications error with client. Dropping...\n");
 
 		conn_drop(&priv->conn_client);
 
@@ -444,7 +472,7 @@ int process_new_client(struct proxy_handle *ph)
 
 	if (idx >= 11)
 	{
-		fprintf(stderr, "Communications error with client. Dropping...\n");
+		proxy_log(ph, LOG_LEVEL_WARN, "Communications error with client. Dropping...\n");
 
 		conn_drop(&priv->conn_client);
 
@@ -456,7 +484,7 @@ int process_new_client(struct proxy_handle *ph)
 	ret = conn_recv(&priv->conn_client, &priv->conn_client_buff[16], idx + 1);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Communications error with client '%s'. Dropping...\n", priv->client_callsign);
+		proxy_log(ph, LOG_LEVEL_WARN, "Communications error with client '%s'. Dropping...\n", priv->client_callsign);
 
 		conn_drop(&priv->conn_client);
 
@@ -467,7 +495,7 @@ int process_new_client(struct proxy_handle *ph)
 	{
 		if (response[j] != priv->conn_client_buff[idx])
 		{
-			fprintf(stderr, "Wrong password from client '%s'. Dropping...\n", priv->client_callsign);
+			proxy_log(ph, LOG_LEVEL_WARN, "Wrong password from client '%s'. Dropping...\n", priv->client_callsign);
 
 			ret = send_system(ph, SYSTEM_MSG_BAD_PASSWORD);
 
@@ -482,8 +510,7 @@ int process_new_client(struct proxy_handle *ph)
 	ret = conn_listen(&priv->conn_udp1, 5198);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Failed to open UDP data port (5198). Dropping...\n");
-		fprintf(stderr, "Error (%d) %s\n", -ret, strerror(-ret));
+		proxy_log(ph, LOG_LEVEL_ERROR, "Failed to open UDP data port (5198). Dropping...\n");
 
 		proxy_drop(ph);
 
@@ -493,7 +520,7 @@ int process_new_client(struct proxy_handle *ph)
 	ret = thread_start(&priv->conn_udp1_forwarder);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Failed to start UDP data forwarder. Dropping...\n");
+		proxy_log(ph, LOG_LEVEL_ERROR, "Failed to start UDP data forwarder. Dropping...\n");
 
 		proxy_drop(ph);
 
@@ -503,7 +530,7 @@ int process_new_client(struct proxy_handle *ph)
 	ret = conn_listen(&priv->conn_udp2, 5199);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Failed to open UDP control port (5199). Dropping...\n");
+		proxy_log(ph, LOG_LEVEL_ERROR, "Failed to open UDP control port (5199). Dropping...\n");
 
 		proxy_drop(ph);
 
@@ -513,14 +540,14 @@ int process_new_client(struct proxy_handle *ph)
 	ret = thread_start(&priv->conn_udp2_forwarder);
 	if (ret < 0)
 	{
-		fprintf(stderr, "Failed to start UDP control forwarder. Dropping...\n");
+		proxy_log(ph, LOG_LEVEL_ERROR, "Failed to start UDP control forwarder. Dropping...\n");
 
 		proxy_drop(ph);
 
 		return 0;
 	}
 
-	printf("Connected to client '%s'.\n", priv->client_callsign);
+	proxy_log(ph, LOG_LEVEL_INFO, "Connected to client '%s'.\n", priv->client_callsign);
 
 	ph->status = PROXY_STATUS_IN_USE;
 
@@ -542,7 +569,7 @@ int process_msg(struct proxy_handle *ph, struct proxy_msg *msg)
 	case PROXY_MSG_TYPE_UDP_CONTROL:
 		return process_udp_control_msg(ph, msg);
 	default:
-		fprintf(stderr, "Got a bad type '%02x'\n", msg->type);
+		proxy_log(ph, LOG_LEVEL_WARN, "Invalid data received from client (beginning with %02x)\n", msg->type);
 		proxy_handle_client_error(ph, -EINVAL);
 
 		return 0;
@@ -554,7 +581,7 @@ int process_tcp_open_msg(struct proxy_handle *ph, struct proxy_msg *msg)
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 	int ret;
 
-	//printf("> TCP_OPEN\n");
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Processing TCP_OPEN message\n");
 
 	// Attempt to connect
 	ret = conn_connect(&priv->conn_tcp, msg->address, 5200);
@@ -585,7 +612,7 @@ int process_tcp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg)
 	int tcp_ret = 0;
 	int ret;
 
-	//printf("> TCP_DATA     %d\n", msg->size);
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Processing TCP_DATA message (%d bytes)\n", msg->size);
 
 	while (msg_size > 0)
 	{
@@ -625,7 +652,7 @@ int process_tcp_close_msg(struct proxy_handle *ph, struct proxy_msg *msg)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 
-	//printf("> TCP_CLOSE\n");
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Processing TCP_CLOSE message\n");
 
 	conn_close(&priv->conn_tcp);
 
@@ -639,7 +666,7 @@ int process_udp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg)
 	uint32_t addr = msg->address;
 	int ret;
 
-	//printf("> UDP_DATA     %d\n", msg->size);
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Processing UDP_DATA message (%d bytes)\n", msg->size);
 
 	while (msg_size > 0)
 	{
@@ -660,7 +687,7 @@ int process_udp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg)
 		ret = conn_send_to(&priv->conn_udp1, priv->conn_client_buff, ret, addr, 5198);
 		if (ret < 0)
 		{
-			fprintf(stderr, "WARNING: Failed to send UDP_DATA packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
+			proxy_log(ph, LOG_LEVEL_WARN, "Failed to send UDP_DATA packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
 			// Drop?
 		}
 	}
@@ -675,7 +702,7 @@ int process_udp_control_msg(struct proxy_handle *ph, struct proxy_msg *msg)
 	uint32_t addr = msg->address;
 	int ret;
 
-	//printf("> UDP_CONTROL  %d\n", msg->size);
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Processing UDP_CONTROL message (%d bytes)\n", msg->size);
 
 	while (msg_size > 0)
 	{
@@ -696,7 +723,7 @@ int process_udp_control_msg(struct proxy_handle *ph, struct proxy_msg *msg)
 		ret = conn_send_to(&priv->conn_udp2, priv->conn_client_buff, ret, addr, 5199);
 		if (ret < 0)
 		{
-			fprintf(stderr, "WARNING: Failed to send UDP_CONTROL packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
+			proxy_log(ph, LOG_LEVEL_WARN, "Failed to send UDP_CONTROL packet of size %zu: %d (%s)\n", curr_msg_size, -ret, strerror(-ret));
 			// Drop?
 		}
 	}
@@ -716,11 +743,11 @@ void proxy_handle_client_error(struct proxy_handle *ph, int ret)
 	case -EPIPE:
 		if (ph->status > PROXY_STATUS_AVAILABLE)
 		{
-			printf("Disconnected client '%s'.\n", priv->client_callsign);
+			proxy_log(ph, LOG_LEVEL_INFO, "Disconnected client '%s'.\n", priv->client_callsign);
 		}
 		break;
 	default:
-		fprintf(stderr, "Error %d: %s\nCommunications error with client '%s' . Dropping...\n", -ret, strerror(-ret), priv->client_callsign);
+		proxy_log(ph, LOG_LEVEL_WARN, "Error %d: %s\nCommunications error with client '%s' . Dropping...\n", -ret, strerror(-ret), priv->client_callsign);
 		break;
 	}
 
@@ -738,7 +765,7 @@ int send_system(struct proxy_handle *ph, enum SYSTEM_MSG msg)
 	message->size = 1;
 	message->data[0] = msg;
 
-	//printf("< SYSTEM\n");
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Sending SYSTEM message (%d)\n", msg);
 
 	mutex_lock(&priv->conn_client_mutex);
 
@@ -759,7 +786,7 @@ int send_tcp_close(struct proxy_handle *ph)
 	message.type = PROXY_MSG_TYPE_TCP_CLOSE;
 	message.size = 0;
 
-	//printf("< TCP_CLOSE\n");
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Sending TCP_CLOSE message\n");
 
 	mutex_lock(&priv->conn_client_mutex);
 
@@ -781,7 +808,7 @@ int send_tcp_status(struct proxy_handle *ph, uint32_t status)
 	message->size = 4;
 	memcpy(message->data, &status, 4);
 
-	//printf("< TCP_STATUS   %u\n", status);
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Sending TCP_STATUS message (%d)\n", status);
 
 	mutex_lock(&priv->conn_client_mutex);
 
@@ -851,7 +878,7 @@ void * tcp_forwarder(void *ctx)
 		{
 			msg->size = ret;
 
-			//printf("< TCP_DATA     %d\n", msg->size);
+			proxy_log(fc->ph, LOG_LEVEL_DEBUG, "Sending TCP_DATA message (%d bytes)\n", msg->size);
 
 			mutex_lock(&priv->conn_client_mutex);
 
@@ -906,14 +933,7 @@ void * udp_forwarder(void *ctx)
 		{
 			msg->size = ret;
 
-			/*if (fc->type == PROXY_MSG_TYPE_UDP_DATA)
-			{
-				printf("< UDP_DATA     %d\n", msg->size);
-			}
-			else
-			{
-				printf("< UDP_CONTROL  %d\n", msg->size);
-			}*/
+			proxy_log(fc->ph, LOG_LEVEL_DEBUG, "Sending UDP_%s message (%d bytes)\n", fc->type == PROXY_MSG_TYPE_UDP_DATA ? "DATA" : "CONTROL", msg->size);
 
 			mutex_lock(&priv->conn_client_mutex);
 
@@ -950,8 +970,7 @@ void * udp_forwarder(void *ctx)
 	case -EPIPE:
 		break;
 	default:
-		fprintf(stderr, "UDP communication error. Disconnecting...\n");
-		fprintf(stderr, "Error %d: %s\n", -ret, strerror(-ret));
+		proxy_log(fc->ph, LOG_LEVEL_WARN, "UDP communication error. Disconnecting...\n");
 		proxy_drop(fc->ph);
 		break;
 	}

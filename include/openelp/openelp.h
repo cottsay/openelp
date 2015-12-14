@@ -178,6 +178,15 @@ enum PROXY_STATUS
 	PROXY_STATUS_SHUTDOWN,
 };
 
+enum LOG_LEVEL
+{
+	LOG_LEVEL_FATAL = 0,
+	LOG_LEVEL_ERROR,
+	LOG_LEVEL_WARN,
+	LOG_LEVEL_INFO,
+	LOG_LEVEL_DEBUG,
+};
+
 #ifdef _WIN32
 #  pragma pack(push,1)
 #endif
@@ -219,6 +228,7 @@ void proxy_drop(struct proxy_handle *ph);
 int proxy_process(struct proxy_handle *ph);
 void proxy_handle_client_error(struct proxy_handle *ph, int ret);
 void proxy_shutdown(struct proxy_handle *ph);
+void proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...);
 
 /*
  * Message Processing

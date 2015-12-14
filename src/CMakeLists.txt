@@ -16,6 +16,7 @@ add_library(openelp
   ${OPENELP_SOURCE_DIR}/conf.c
   ${OPENELP_SOURCE_DIR}/conn.c
   ${OPENELP_SOURCE_DIR}/digest.c
+  ${OPENELP_SOURCE_DIR}/log.c
   ${OPENELP_SOURCE_DIR}/md5.c
   ${OPENELP_SOURCE_DIR}/proxy.c
   ${OPENELP_SOURCE_DIR}/rand.c
