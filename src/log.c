@@ -168,7 +168,7 @@ void log_printf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, ...
 {
 	va_list args;
 
-	if (lvl > log->level)
+	if ((unsigned)lvl > log->level)
 	{
 		return;
 	}
@@ -256,7 +256,7 @@ void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va
 {
 	struct log_priv *priv = (struct log_priv *)log->priv;
 
-	if (lvl > log->level)
+	if ((unsigned)lvl > log->level)
 	{
 		return;
 	}
@@ -279,12 +279,12 @@ void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va
 	case LOG_MEDIUM_FILE:
 		{
 			time_t epoch;
-			struct tm cal_time;
+			struct tm *cal_time;
 			char tstamp[16];
 
 			time(&epoch);
-			localtime_r(&epoch, &cal_time);
-			strftime(tstamp, 16, "%b %d %H:%M:%S", &cal_time);
+			cal_time = localtime(&epoch);
+			strftime(tstamp, 16, "%b %d %H:%M:%S", cal_time);
 			fprintf(priv->medium_file.fp, "%s : ", tstamp);
 
 			vfprintf(priv->medium_file.fp, fmt, args);

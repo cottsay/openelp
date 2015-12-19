@@ -258,7 +258,12 @@ int conn_listen_wait(struct proxy_conn *pc)
 
 	if (priv->conn_fd == INVALID_SOCKET)
 	{
+#ifdef _WIN32
+		int ret = SOCK_ERRNO;
+		return ret == -WSAEINTR ? -EINTR : ret;
+#else
 		return SOCK_ERRNO;
+#endif
 	}
 
 	mutex_lock(&priv->mutex);
@@ -403,6 +408,10 @@ int conn_recv_any(struct proxy_conn *pc, uint8_t *buff, size_t buff_len, uint32_
 		if (ret == -WSAECONNRESET)
 		{
 			ret = -ECONNRESET;
+		}
+		else if (ret == -WSAEINTR)
+		{
+			ret = -EINTR;
 		}
 #endif
 	}
@@ -616,6 +625,11 @@ void conn_shutdown(struct proxy_conn *pc)
 	if (priv->sock_fd != INVALID_SOCKET)
 	{
 		shutdown(priv->sock_fd, SHUT_RDWR);
+#ifdef _WIN32
+		// Hack to cancel an in-progress accept
+		closesocket(priv->sock_fd);
+		priv->sock_fd = INVALID_SOCKET;
+#endif
 	}
 
 	mutex_unlock_shared(&priv->mutex);

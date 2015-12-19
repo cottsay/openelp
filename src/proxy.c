@@ -356,9 +356,13 @@ void proxy_shutdown(struct proxy_handle *ph)
 	{
 		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 
-		conn_shutdown(&priv->conn_client);
+		proxy_log(ph, LOG_LEVEL_DEBUG, "Shutting down client connection...\n");
 
 		ph->status = PROXY_STATUS_SHUTDOWN;
+
+		conn_shutdown(&priv->conn_client);
+
+		proxy_log(ph, LOG_LEVEL_DEBUG, "Client connection has been shut down.\n");
 	}
 }
 
@@ -367,7 +371,7 @@ void proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 	va_list args;
 
-	if (priv == NULL || lvl > priv->log.level)
+	if (priv == NULL || (unsigned)lvl > priv->log.level)
 	{
 		return;
 	}
@@ -430,7 +434,12 @@ int proxy_process(struct proxy_handle *ph)
 		ret = conn_recv(&priv->conn_client, priv->conn_client_buff, sizeof(struct proxy_msg));
 		if (ret < 0)
 		{
+#ifdef _WIN32
+			// Hack for not knowing if we shutdown the connection or the client did
+			if (ret != -EINTR && (ret != -EPIPE || ph->status != PROXY_STATUS_SHUTDOWN))
+#else
 			if (ret != -EINTR)
+#endif
 			{
 				proxy_handle_client_error(ph, ret);
 			}
@@ -929,6 +938,8 @@ void * tcp_forwarder(void *ctx)
 
 				conn_close(fc->conn);
 
+				proxy_log(fc->ph, LOG_LEVEL_DEBUG, "TCP thread is returning due to a client connection error\n");
+
 				return NULL;
 			}
 		}
@@ -945,8 +956,11 @@ void * tcp_forwarder(void *ctx)
 	if (ret < 0)
 	{
 		// This is an error with this connection
-		proxy_handle_client_error(fc->ph, ret);
+		proxy_log(fc->ph, LOG_LEVEL_WARN, "TCP communication error (%d). Disconnecting...\n", -ret);
+		conn_shutdown(&priv->conn_client);
 	}
+
+	proxy_log(fc->ph, LOG_LEVEL_DEBUG, "TCP thread is returning cleanly\n");
 
 	return NULL;
 }
@@ -984,6 +998,8 @@ void * udp_forwarder(void *ctx)
 
 				conn_close(fc->conn);
 
+				proxy_log(fc->ph, LOG_LEVEL_DEBUG, "UDP thread is returning due to a client connection error\n");
+
 				return NULL;
 			}
 		}
@@ -1002,14 +1018,17 @@ void * udp_forwarder(void *ctx)
 	switch (ret)
 	{
 	case -ECONNRESET:
+	case -EINTR:
 	case -ENOTCONN:
 	case -EPIPE:
 		break;
 	default:
-		proxy_log(fc->ph, LOG_LEVEL_WARN, "UDP communication error. Disconnecting...\n");
-		proxy_drop(fc->ph);
+		proxy_log(fc->ph, LOG_LEVEL_WARN, "UDP communication error (%d). Disconnecting...\n", -ret);
+		conn_shutdown(&priv->conn_client);
 		break;
 	}
+
+	proxy_log(fc->ph, LOG_LEVEL_DEBUG, "UDP thread is returning cleanly\n");
 
 	return NULL;
 }

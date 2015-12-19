@@ -42,6 +42,62 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int conf_readline(char **lineptr, size_t *n, FILE *stream)
+{
+	size_t so_far = 0;
+	char temp;
+	char *temp_ptr;
+
+	if (*lineptr == NULL)
+	{
+		*lineptr = malloc(128);
+		if (*lineptr == NULL)
+		{
+			return -ENOMEM;
+		}
+
+		*n = 128;
+	}
+	else if (*n == 0)
+	{
+		temp_ptr = realloc(*lineptr, 128);
+		if (temp_ptr == NULL)
+		{
+			return -ENOMEM;
+		}
+
+		*lineptr = temp_ptr;
+		*n = 128;
+	}
+
+	while ((temp = fgetc(stream)) != EOF)
+	{
+		// Need more space?
+		if (so_far + 1 >= *n)
+		{
+			temp_ptr = realloc(*lineptr, *n + 128);
+			if (temp_ptr == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			*lineptr = temp_ptr;
+			*n += 128;
+		}
+
+		(*lineptr)[so_far++] = temp;
+
+		if (temp == '\n')
+		{
+			break;
+		}
+	}
+
+	(*lineptr)[so_far] = '\0';
+
+	return so_far;
+}
+
 int conf_init(struct proxy_conf *conf)
 {
 	conf->password = NULL;
@@ -67,7 +123,7 @@ int conf_parse_line(const char *line, struct proxy_conf *conf)
 	size_t val_len = 0;
 
 	// Find the beginning of the key
-	for (; *key == ' ' && *key == '\t'; key++);
+	for (; *key == ' ' || *key == '\t' || *key == '\n' || *key == '\r'; key++);
 
 	// If the line is a comment or empty, ignore it
 	if (*key == '#' || *key == '\0' || *key == '=')
@@ -155,7 +211,7 @@ int conf_parse_stream(FILE *stream, struct proxy_conf *conf)
 	size_t line_len = 0;
 	int ret = 0;
 
-	while (getline(&line, &line_len, stream) > 0)
+	while (conf_readline(&line, &line_len, stream) > 0)
 	{
 		ret = conf_parse_line(line, conf);
 

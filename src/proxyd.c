@@ -40,6 +40,8 @@
 #ifndef _WIN32
 #  include <signal.h>
 #  include <sys/stat.h>
+#else
+#  include <Windows.h>
 #endif
 
 #include <errno.h>
@@ -58,6 +60,7 @@ const char default_config_path[] = "ELProxy.conf";
 struct proxy_opts
 {
 	const char *config_path;
+	uint8_t debug;
 	uint8_t foreground;
 	const char *log_path;
 	uint8_t syslog;
@@ -78,6 +81,20 @@ void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 
 	proxy_shutdown(&ph);
 }
+#else
+BOOL WINAPI graceful_shutdown(DWORD dwCtrlType)
+{
+	if (dwCtrlType == CTRL_C_EVENT)
+	{
+		proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
+
+		proxy_shutdown(&ph);
+
+		return TRUE;
+	}
+
+	return FALSE;
+}
 #endif
 
 /*
@@ -87,8 +104,9 @@ void print_usage(void)
 {
 #ifndef _WIN32
 	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
-		"Usage: openelpd [-F] [-L <log path>] [-S] [--help] [<config path>]\n\n"
+		"Usage: openelpd [-d] [-F] [-L <log path>] [-S] [--help] [<config path>]\n\n"
 		"Arguments:\n"
+		"    -d            Enable debugging output\n"
 		"    -F            Stay in foreground (don't daemonize)\n"
 		"    -L <log path> Log output the given log file\n"
 		"    -S            Use syslog for logging\n"
@@ -96,8 +114,9 @@ void print_usage(void)
 		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
 #else
 	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
-		"Usage: openelpd [-L <log path>] [--help] [<config path>]\n"
+		"Usage: openelpd [-d] [-L <log path>] [--help] [<config path>]\n"
 		"Arguments:\n"
+		"    -d            Enable debugging output\n"
 		"    -L <log path> Log output the given log file\n"
 		"    <config path> Path to the proxy configuration. Defaults to ELProxy.conf\n",
 		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
@@ -130,6 +149,9 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 				{
 					switch (argv[i][j])
 					{
+					case 'd':
+						opts->debug = 1;
+						break;
 #ifndef _WIN32
 					case 'F':
 						opts->foreground = 1;
@@ -223,6 +245,11 @@ int main(int argc, const char *argv[])
 
 	sigaction(SIGINT, &sigact, NULL);
 	sigaction(SIGTERM, &sigact, NULL);
+#else
+	if (!SetConsoleCtrlHandler(graceful_shutdown, TRUE))
+	{
+		fprintf(stderr, "Failed to set SIGINT handler (%d)\n", GetLastError());
+	}
 #endif
 
 	// Initialize proxy
@@ -232,6 +259,9 @@ int main(int argc, const char *argv[])
 		fprintf(stderr, "Failed to initialize proxy (%d): %s\n", -ret, strerror(-ret));
 		exit(ret);
 	}
+
+	// Set the logging level
+	proxy_log_level(&ph, opts.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
 
 	// Load the config
 	ret = proxy_load_conf(&ph, opts.config_path);
@@ -339,6 +369,7 @@ int main(int argc, const char *argv[])
 	// Main dispatch loop
 	while (ph.status > PROXY_STATUS_DOWN)
 	{
+		proxy_log(&ph, LOG_LEVEL_DEBUG, "Starting a processing run...\n");
 		ret = proxy_process(&ph);
 		if (ret < 0)
 		{
