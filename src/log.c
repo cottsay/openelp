@@ -36,6 +36,7 @@
  */
 
 #include "log.h"
+#include "log_syslog.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -49,6 +50,15 @@ struct log_priv
 	{
 		FILE *fp;
 	} medium_file;
+};
+
+static const int SYSLOG_LEVEL[] =
+{
+	LOG_CRIT,
+	LOG_ERR,
+	LOG_WARNING,
+	LOG_INFO,
+	LOG_DEBUG,
 };
 
 void log_close(struct log_handle *log)
@@ -68,6 +78,7 @@ void log_close(struct log_handle *log)
 
 		break;
 	case LOG_MEDIUM_SYSLOG:
+		closelog();
 		break;
 	}
 }
@@ -146,7 +157,7 @@ int log_open(struct log_handle *log, const char *target)
 		}
 		break;
 	case LOG_MEDIUM_SYSLOG:
-		ret = -ENOTSUP;
+		openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 		break;
 	}
 
@@ -176,18 +187,19 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 	switch (medium)
 	{
 	case LOG_MEDIUM_STDOUT:
+		log->medium = LOG_MEDIUM_STDOUT;
 		switch (log->medium)
 		{
-		case LOG_MEDIUM_STDOUT:
-			return 0; // noop
 		case LOG_MEDIUM_FILE:
 			fclose(priv->medium_file.fp);
 			priv->medium_file.fp = NULL;
 			break;
+		case LOG_MEDIUM_SYSLOG:
+			closelog();
+			break;
 		default:
 			break;
 		}
-		log->medium = LOG_MEDIUM_STDOUT;
 		break;
 	case LOG_MEDIUM_FILE:
 		{
@@ -207,6 +219,11 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 						fclose(old_fp);
 					}
 					break;
+				case LOG_MEDIUM_SYSLOG:
+					priv->medium_file.fp = fp;
+					log->medium = LOG_MEDIUM_FILE;
+					closelog();
+					break;
 				default:
 					priv->medium_file.fp = fp;
 					log->medium = LOG_MEDIUM_FILE;
@@ -216,7 +233,19 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 		}
 		break;
 	case LOG_MEDIUM_SYSLOG:
-		ret = -ENOTSUP;
+		switch (log->medium)
+		{
+		case LOG_MEDIUM_FILE:
+			openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
+			log->medium = LOG_MEDIUM_SYSLOG;
+			fclose(priv->medium_file.fp);
+			priv->medium_file.fp = NULL;
+			break;
+		default:
+			openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
+			log->medium = LOG_MEDIUM_SYSLOG;
+			break;
+		}
 		break;
 	}
 
@@ -263,6 +292,7 @@ void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va
 		}
 		break;
 	case LOG_MEDIUM_SYSLOG:
+		vsyslog(SYSLOG_LEVEL[lvl], fmt, args);
 		break;
 	}
 }

@@ -57,9 +57,10 @@ const char default_config_path[] = "ELProxy.conf";
  */
 struct proxy_opts
 {
-	uint8_t foreground;
 	const char *config_path;
+	uint8_t foreground;
 	const char *log_path;
+	uint8_t syslog;
 };
 
 /*
@@ -85,9 +86,21 @@ void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 void print_usage(void)
 {
 #ifndef _WIN32
-	printf("Usage: openelinkproxyd [-F] [-L <log path>] [--help] [<config path>]\n");
+	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
+		"Usage: openelpd [-F] [-L <log path>] [-S] [--help] [<config path>]\n\n"
+		"Arguments:\n"
+		"    -F            Stay in foreground (don't daemonize)\n"
+		"    -L <log path> Log output the given log file\n"
+		"    -S            Use syslog for logging\n"
+		"    <config path> Path to the proxy configuration. Defaults to ELProxy.conf\n",
+		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
 #else
-	printf("Usage: openelinkproxyd [-L <log path>] [--help] [<config path>]\n");
+	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
+		"Usage: openelpd [-L <log path>] [--help] [<config path>]\n"
+		"Arguments:\n"
+		"    -L <log path> Log output the given log file\n"
+		"    <config path> Path to the proxy configuration. Defaults to ELProxy.conf\n",
+		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
 #endif
 }
 
@@ -123,7 +136,12 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 						break;
 #endif
 					case 'L':
-						if (arg_len > 2)
+						if (opts->syslog)
+						{
+							fprintf(stderr, "ERROR: Cannot use both syslog and a log file\n");
+							exit(-EINVAL);
+						}
+						else if (arg_len > 2)
 						{
 							opts->log_path = &argv[i][j + 1];
 							j = arg_len;
@@ -138,6 +156,16 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 							fprintf(stderr, "ERROR: Invalid log file path\n");
 							exit(-EINVAL);
 						}
+
+						break;
+					case 'S':
+						if (opts->log_path)
+						{
+							fprintf(stderr, "ERROR: Cannot use both syslog and a log file\n");
+							exit(-EINVAL);
+						}
+
+						opts->syslog = 1;
 						break;
 					default:
 						fprintf(stderr, "ERROR: Invalid flag '%c'\n", argv[i][j]);
@@ -250,6 +278,14 @@ int main(int argc, const char *argv[])
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to open log file (%d): %s\n", -ret, strerror(-ret));
 			}
 		}
+		else if (opts.syslog)
+		{
+                        ret = proxy_log_select_medium(&ph, LOG_MEDIUM_SYSLOG, opts.log_path);
+			if (ret != 0)
+			{
+				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to activate syslog (%d): %s\n", -ret, strerror(-ret));
+			}
+		}
 
 		umask(0);
 
@@ -288,6 +324,14 @@ int main(int argc, const char *argv[])
 			if (ret != 0)
 			{
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to open log file (%d): %s\n", -ret, strerror(-ret));
+			}
+		}
+		else if (opts.syslog)
+		{
+                        ret = proxy_log_select_medium(&ph, LOG_MEDIUM_SYSLOG, opts.log_path);
+			if (ret != 0)
+			{
+				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to activate syslog (%d): %s\n", -ret, strerror(-ret));
 			}
 		}
 	}
