@@ -100,6 +100,13 @@ int proxy_load_conf(struct proxy_handle *ph, const char *path)
 	return conf_parse_file(path, &ph->conf);
 }
 
+void proxy_ident(struct proxy_handle *ph)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+
+	log_ident(&priv->log);
+}
+
 int proxy_init(struct proxy_handle *ph)
 {
 	int ret = 0;
@@ -285,7 +292,13 @@ int proxy_open(struct proxy_handle *ph)
 		return -EBUSY;
 	}
 
-	// TODO: Specifiable port
+	// This will open to stdout
+	ret = log_open(&priv->log, NULL);
+	if (ret < 0)
+	{
+		return ret;
+	}
+
 	ret = conn_listen(&priv->conn_client, ph->conf.port);
 	if (ret < 0)
 	{
@@ -313,6 +326,8 @@ void proxy_close(struct proxy_handle *ph)
 		thread_join(&priv->conn_udp1_forwarder);
 
 		ph->status = PROXY_STATUS_DOWN;
+
+		log_close(&priv->log);
 	}
 }
 
@@ -360,6 +375,27 @@ void proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...
 	va_start(args, fmt);
 	log_vprintf(&priv->log, lvl, fmt, args);
 	va_end(args);
+}
+
+void proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL lvl)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+
+	priv->log.level = lvl;
+}
+
+int proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM medium, const char *target)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	int ret;
+
+	ret = log_select_medium(&priv->log, medium, target);
+	if (ret == 0)
+	{
+		log_ident(&priv->log);
+	}
+
+	return ret;
 }
 
 int proxy_process(struct proxy_handle *ph)

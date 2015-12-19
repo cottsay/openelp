@@ -187,6 +187,13 @@ enum LOG_LEVEL
 	LOG_LEVEL_DEBUG,
 };
 
+enum LOG_MEDIUM
+{
+	LOG_MEDIUM_STDOUT = 0,
+	LOG_MEDIUM_FILE,
+	LOG_MEDIUM_SYSLOG,
+};
+
 #ifdef _WIN32
 #  pragma pack(push,1)
 #endif
@@ -220,6 +227,7 @@ struct proxy_handle
  * Resource Management
  */
 int proxy_load_conf(struct proxy_handle *ph, const char *path);
+void proxy_ident(struct proxy_handle *ph);
 int proxy_init(struct proxy_handle *ph);
 void proxy_free(struct proxy_handle *ph);
 int proxy_open(struct proxy_handle *ph);
@@ -229,6 +237,8 @@ int proxy_process(struct proxy_handle *ph);
 void proxy_handle_client_error(struct proxy_handle *ph, int ret);
 void proxy_shutdown(struct proxy_handle *ph);
 void proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...);
+void proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL lvl);
+int proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM medium, const char *target);
 
 /*
  * Message Processing

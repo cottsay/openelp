@@ -38,34 +38,119 @@
 #include "log.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 struct log_priv
 {
+	struct log_priv_medium_file
+	{
+		FILE *fp;
+	} medium_file;
 };
+
+void log_close(struct log_handle *log)
+{
+	struct log_priv *priv = (struct log_priv *)log->priv;
+
+	switch (log->medium)
+	{
+	case LOG_MEDIUM_STDOUT:
+		break;
+	case LOG_MEDIUM_FILE:
+		if (priv->medium_file.fp != NULL)
+		{
+			fclose(priv->medium_file.fp);
+			priv->medium_file.fp = NULL;
+		}
+
+		break;
+	case LOG_MEDIUM_SYSLOG:
+		break;
+	}
+}
+
+void log_free(struct log_handle *log)
+{
+	log_close(log);
+
+	if (log->priv != NULL)
+	{
+		free(log->priv);
+		log->priv = NULL;
+	}
+}
+
+void log_ident(struct log_handle *log)
+{
+	log_printf(log, LOG_LEVEL_INFO, "OpenELP %d.%d.%d\n", OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
+}
 
 int log_init(struct log_handle *log)
 {
+	struct log_priv *priv;
+
 	log->priv = malloc(sizeof(struct log_priv));
 	if (log->priv == NULL)
 	{
 		return -ENOMEM;
 	}
 
+	priv = (struct log_priv *)log->priv;
+
 	log->medium = LOG_MEDIUM_STDOUT;
 	log->level = LOG_LEVEL_INFO;
+
+	priv->medium_file.fp = NULL;
 
 	return 0;
 }
 
-void log_free(struct log_handle *log)
+const char * log_medium_to_str(enum LOG_MEDIUM medium)
 {
-	if (log->priv != NULL)
+	switch (medium)
 	{
-		free(log->priv);
-		log->priv = NULL;
+	case LOG_MEDIUM_STDOUT:
+		return "Console";
+	case LOG_MEDIUM_FILE:
+		return "Log File";
+	case LOG_MEDIUM_SYSLOG:
+		return "Syslog";
+	default:
+		return "Unknown Medium";
 	}
+}
+
+int log_open(struct log_handle *log, const char *target)
+{
+	struct log_priv *priv = (struct log_priv *)log->priv;
+	int ret = 0;
+
+	switch (log->medium)
+	{
+	case LOG_MEDIUM_STDOUT:
+		break;
+	case LOG_MEDIUM_FILE:
+		{
+			FILE *fp = fopen(target, "a");
+			if (fp == NULL)
+			{
+				ret = -errno;
+			}
+			else
+			{
+				priv->medium_file.fp = fp;
+			}
+		}
+		break;
+	case LOG_MEDIUM_SYSLOG:
+		ret = -ENOTSUP;
+		break;
+	}
+
+	return ret;
 }
 
 void log_printf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, ...)
@@ -82,9 +167,66 @@ void log_printf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, ...
 	va_end(args);
 }
 
+int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, const char *target)
+{
+	struct log_priv *priv = (struct log_priv *)log->priv;
+	int ret = 0;
+
+	// Open the new medium
+	switch (medium)
+	{
+	case LOG_MEDIUM_STDOUT:
+		switch (log->medium)
+		{
+		case LOG_MEDIUM_STDOUT:
+			return 0; // noop
+		case LOG_MEDIUM_FILE:
+			fclose(priv->medium_file.fp);
+			priv->medium_file.fp = NULL;
+			break;
+		default:
+			break;
+		}
+		log->medium = LOG_MEDIUM_STDOUT;
+		break;
+	case LOG_MEDIUM_FILE:
+		{
+			FILE *fp = fopen(target, "a");
+			if (fp == NULL)
+			{
+				ret = -errno;
+			}
+			else
+			{
+				switch (log->medium)
+				{
+				case LOG_MEDIUM_FILE:
+					{
+						FILE *old_fp = priv->medium_file.fp;
+						priv->medium_file.fp = fp;
+						fclose(old_fp);
+					}
+					break;
+				default:
+					priv->medium_file.fp = fp;
+					log->medium = LOG_MEDIUM_FILE;
+					break;
+				}
+			}
+		}
+		break;
+	case LOG_MEDIUM_SYSLOG:
+		ret = -ENOTSUP;
+		break;
+	}
+
+	return ret;
+}
 
 void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va_list args)
 {
+	struct log_priv *priv = (struct log_priv *)log->priv;
+
 	if (lvl > log->level)
 	{
 		return;
@@ -96,14 +238,29 @@ void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va
 		if (lvl >= LOG_LEVEL_ERROR)
 		{
 			vfprintf(stderr, fmt, args);
+			fflush(stderr);
 		}
 		else
 		{
 			vprintf(fmt, args);
+			fflush(stdout);
 		}
 
 		break;
 	case LOG_MEDIUM_FILE:
+		{
+			time_t epoch;
+			struct tm cal_time;
+			char tstamp[16];
+
+			time(&epoch);
+			localtime_r(&epoch, &cal_time);
+			strftime(tstamp, 16, "%b %d %H:%M:%S", &cal_time);
+			fprintf(priv->medium_file.fp, "%s : ", tstamp);
+
+			vfprintf(priv->medium_file.fp, fmt, args);
+			fflush(priv->medium_file.fp);
+		}
 		break;
 	case LOG_MEDIUM_SYSLOG:
 		break;

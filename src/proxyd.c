@@ -59,6 +59,7 @@ struct proxy_opts
 {
 	uint8_t foreground;
 	const char *config_path;
+	const char *log_path;
 };
 
 /*
@@ -84,9 +85,9 @@ void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 void print_usage(void)
 {
 #ifndef _WIN32
-	printf("Usage: openelinkproxyd [-F] [--help] [<config path>]\n");
+	printf("Usage: openelinkproxyd [-F] [-L <log path>] [--help] [<config path>]\n");
 #else
-	printf("Usage: openelinkproxyd [--help] [<config path>]\n");
+	printf("Usage: openelinkproxyd [-L <log path>] [--help] [<config path>]\n");
 #endif
 }
 
@@ -121,6 +122,23 @@ void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 						opts->foreground = 1;
 						break;
 #endif
+					case 'L':
+						if (arg_len > 2)
+						{
+							opts->log_path = &argv[i][j + 1];
+							j = arg_len;
+						}
+						else if (i + 1 < argc)
+						{
+							i++;
+							opts->log_path = argv[i];
+						}
+						else
+						{
+							fprintf(stderr, "ERROR: Invalid log file path\n");
+							exit(-EINVAL);
+						}
+						break;
 					default:
 						fprintf(stderr, "ERROR: Invalid flag '%c'\n", argv[i][j]);
 						exit(-EINVAL);
@@ -224,6 +242,15 @@ int main(int argc, const char *argv[])
 			exit(0);
 		}
 
+		if (opts.log_path)
+                {
+                        ret = proxy_log_select_medium(&ph, LOG_MEDIUM_FILE, opts.log_path);
+			if (ret != 0)
+			{
+				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to open log file (%d): %s\n", -ret, strerror(-ret));
+			}
+		}
+
 		umask(0);
 
 		sid = setsid();
@@ -247,7 +274,23 @@ int main(int argc, const char *argv[])
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
 	}
+	else
 #endif
+	{
+		proxy_ident(&ph);
+
+		// Switch log, if necessary
+		if (opts.log_path)
+		{
+			proxy_log(&ph, LOG_LEVEL_INFO, "Switching log to file \"%s\"\n", opts.log_path);
+
+			ret = proxy_log_select_medium(&ph, LOG_MEDIUM_FILE, opts.log_path);
+			if (ret != 0)
+			{
+				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to open log file (%d): %s\n", -ret, strerror(-ret));
+			}
+		}
+	}
 
 	// Main dispatch loop
 	while (ph.status > PROXY_STATUS_DOWN)

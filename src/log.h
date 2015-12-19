@@ -43,13 +43,6 @@
 
 #include "openelp/openelp.h"
 
-enum LOG_MEDIUM
-{
-	LOG_MEDIUM_STDOUT = 0,
-	LOG_MEDIUM_FILE,
-	LOG_MEDIUM_SYSLOG,
-};
-
 struct log_handle
 {
 	void *priv;
@@ -57,9 +50,14 @@ struct log_handle
 	uint32_t level;
 };
 
-int log_init(struct log_handle *log);
+void log_close();
 void log_free(struct log_handle *log);
+void log_ident(struct log_handle *log);
+int log_init(struct log_handle *log);
+const char * log_medium_to_str(enum LOG_MEDIUM medium);
+int log_open(struct log_handle *log, const char *target);
 void log_printf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, ...);
+int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, const char *target);
 void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va_list args);
 
-#endif /* _conf_h */
+#endif /* _log_h */
