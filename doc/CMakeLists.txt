@@ -26,8 +26,14 @@ endif()
 # Install
 #
 
+install(FILES ELProxy.conf
+  DESTINATION "${SYSCONF_INSTALL_DIR}"
+  COMPONENT config
+  )
+
 if(UNIX)
   install(FILES openelpd.1
-    DESTINATION ${SHARE_INSTALL_PREFIX}/man/man1
+    DESTINATION "${MAN_INSTALL_DIR}/man1"
+    COMPONENT docs
     )
 endif()

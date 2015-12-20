@@ -14,15 +14,43 @@ if(NOT DEFINED OPENELP_USE_OPENSSL)
 endif()
 
 if(NOT DEFINED OPENELP_USE_SYSLOG)
-  if(UNIX)
-    set(OPENELP_USE_SYSLOG true)
-  else()
+  if(WIN32)
     set(OPENELP_USE_SYSLOG false)
+  else()
+    set(OPENELP_USE_SYSLOG true)
   endif()
 endif()
 
+#
+# Installation directories
+#
+
 if(NOT DEFINED SHARE_INSTALL_PREFIX)
-  set(SHARE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/share")
+  set(SHARE_INSTALL_PREFIX "share")
+endif()
+
+if(NOT DEFINED BIN_INSTALL_DIR)
+  set(BIN_INSTALL_DIR "bin")
+endif()
+
+if(NOT DEFINED INCLUDE_INSTALL_DIR)
+  set(INCLUDE_INSTALL_DIR "include")
+endif()
+
+if(NOT DEFINED LIB_INSTALL_DIR)
+  set(LIB_INSTALL_DIR "lib${LIB_SUFFIX}")
+endif()
+
+if(NOT DEFINED SYSCONF_INSTALL_DIR)
+  if(WIN32)
+    set(SYSCONF_INSTALL_DIR "./")
+  else()
+    set(SYSCONF_INSTALL_DIR "/etc")
+  endif()
+endif()
+
+if(NOT DEFINED MAN_INSTALL_DIR)
+  set(MAN_INSTALL_DIR "${SHARE_INSTALL_PREFIX}/man")
 endif()
 
 #
@@ -37,10 +65,12 @@ endif()
 # Variables
 #
 
-set(OPENELP_DOC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/doc")
-set(OPENELP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(OPENELP_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(OPENELP_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test")
+set(OPENELP_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(OPENELP_DOC_DIR "${OPENELP_DIR}/doc")
+set(OPENELP_INCLUDE_DIR "${OPENELP_DIR}/include")
+set(OPENELP_PACKAGE_DIR "${OPENELP_DIR}/package")
+set(OPENELP_SOURCE_DIR "${OPENELP_DIR}/src")
+set(OPENELP_TEST_DIR "${OPENELP_DIR}/test")
 
 set(OPENELP_MAJOR_VERSION 0)
 set(OPENELP_MINOR_VERSION 2)
@@ -69,10 +99,10 @@ if(OPENELP_USE_OPENSSL)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_OPENSSL=1")
 endif()
 
-if(UNIX)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+if(WIN32)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3 /D_CRT_SECURE_NO_WARNINGS")
 else()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3 /WX /D_CRT_SECURE_NO_WARNINGS")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 endif()
 
 #
@@ -99,5 +129,6 @@ endif()
 
 add_subdirectory(${OPENELP_DOC_DIR})
 add_subdirectory(${OPENELP_INCLUDE_DIR})
+add_subdirectory(${OPENELP_PACKAGE_DIR})
 add_subdirectory(${OPENELP_SOURCE_DIR})
 add_subdirectory(${OPENELP_TEST_DIR})

@@ -64,17 +64,18 @@
 #  define SHUT_RDWR SD_BOTH
 #  define SOCK_ERRNO -WSAGetLastError()
 #else
-#  define SOCKET_ERROR -1
+#  define closesocket(X) close(X)
 #  define INVALID_SOCKET -1
 #  define SOCK_ERRNO -errno
-#  define closesocket(X) close(X)
+#  define SOCKET_ERROR -1
+typedef int SOCKET;
 #endif
 
 struct conn_priv
 {
-	int sock_fd;
-	int conn_fd;
-	int fd;
+	SOCKET sock_fd;
+	SOCKET conn_fd;
+	SOCKET fd;
 	struct sockaddr_storage remote_addr;
 	socklen_t remote_addr_len;
 	struct mutex_handle mutex;

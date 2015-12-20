@@ -64,13 +64,30 @@ set_target_properties(openelp PROPERTIES
   VERSION ${OPENELP_VERSION}
   )
 
+if(WIN32)
+  set_target_properties(openelp PROPERTIES
+    COMPILE_FLAGS "/DOPENELP_API=__declspec(dllexport)"
+    )
+endif()
+
 #
 # Install
 #
 
-if(UNIX)
-  install(TARGETS openelp openelpd
-    LIBRARY DESTINATION lib${LIB_SUFFIX}
-    RUNTIME DESTINATION bin
+install(TARGETS openelp
+  LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
+  RUNTIME DESTINATION bin
+  COMPONENT libs
+  )
+
+if(WIN32)
+  install(TARGETS openelp
+    ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
+    COMPONENT devel
     )
 endif()
+
+install(TARGETS openelpd
+  RUNTIME DESTINATION "${BIN_INSTALL_DIR}"
+  COMPONENT app
+  )

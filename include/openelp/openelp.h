@@ -50,6 +50,14 @@
 #  include <unistd.h>
 #endif
 
+#ifdef _WIN32
+#  ifndef OPENELP_API
+#    define OPENELP_API __declspec(dllimport)
+#  endif
+#else
+#  define OPENELP_API
+#endif
+
 /*!
  * @brief Length in bytes of the expected password response from the client
  */
@@ -226,42 +234,42 @@ struct proxy_handle
 /*
  * Resource Management
  */
-int proxy_load_conf(struct proxy_handle *ph, const char *path);
-void proxy_ident(struct proxy_handle *ph);
-int proxy_init(struct proxy_handle *ph);
-void proxy_free(struct proxy_handle *ph);
-int proxy_open(struct proxy_handle *ph);
-void proxy_close(struct proxy_handle *ph);
-void proxy_drop(struct proxy_handle *ph);
-int proxy_process(struct proxy_handle *ph);
-void proxy_handle_client_error(struct proxy_handle *ph, int ret);
-void proxy_shutdown(struct proxy_handle *ph);
-void proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...);
-void proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL lvl);
-int proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM medium, const char *target);
+int OPENELP_API proxy_load_conf(struct proxy_handle *ph, const char *path);
+void OPENELP_API proxy_ident(struct proxy_handle *ph);
+int OPENELP_API proxy_init(struct proxy_handle *ph);
+void OPENELP_API proxy_free(struct proxy_handle *ph);
+int OPENELP_API proxy_open(struct proxy_handle *ph);
+void OPENELP_API proxy_close(struct proxy_handle *ph);
+void OPENELP_API proxy_drop(struct proxy_handle *ph);
+int OPENELP_API proxy_process(struct proxy_handle *ph);
+void OPENELP_API proxy_handle_client_error(struct proxy_handle *ph, int ret);
+void OPENELP_API proxy_shutdown(struct proxy_handle *ph);
+void OPENELP_API proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...);
+void OPENELP_API proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL lvl);
+int OPENELP_API proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM medium, const char *target);
 
 /*
  * Message Processing
  */
-int process_new_client(struct proxy_handle *ph);
-int process_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int process_tcp_open_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int process_tcp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int process_tcp_close_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int process_udp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int process_udp_control_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int OPENELP_API process_new_client(struct proxy_handle *ph);
+int OPENELP_API process_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int OPENELP_API process_tcp_open_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int OPENELP_API process_tcp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int OPENELP_API process_tcp_close_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int OPENELP_API process_udp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg);
+int OPENELP_API process_udp_control_msg(struct proxy_handle *ph, struct proxy_msg *msg);
 
 /*
  * Messages
  */
-int send_system(struct proxy_handle *ph, enum SYSTEM_MSG msg);
-int send_tcp_close(struct proxy_handle *ph);
-int send_tcp_status(struct proxy_handle *ph, uint32_t status);
+int OPENELP_API send_system(struct proxy_handle *ph, enum SYSTEM_MSG msg);
+int OPENELP_API send_tcp_close(struct proxy_handle *ph);
+int OPENELP_API send_tcp_status(struct proxy_handle *ph, uint32_t status);
 
 /*
  * Helpers
  */
-int get_nonce(uint32_t *nonce);
-int get_password_response(const uint32_t nonce, const char *password, uint8_t response[PROXY_PASS_RES_LEN]);
+int OPENELP_API get_nonce(uint32_t *nonce);
+int OPENELP_API get_password_response(const uint32_t nonce, const char *password, uint8_t response[PROXY_PASS_RES_LEN]);
 
 #endif /* _openelp_h */
