@@ -37,11 +37,12 @@
 
 #include "openelp/openelp.h"
 
-#ifndef _WIN32
+#ifdef _WIN32
+#  include <io.h>
+#  include <Windows.h>
+#else
 #  include <signal.h>
 #  include <sys/stat.h>
-#else
-#  include <Windows.h>
 #endif
 
 #include <errno.h>
@@ -49,10 +50,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#  define access(...) _access(__VA_ARGS__)
+#  define R_OK 0x4
+#endif
+
 /*
  * Constants
  */
-const char default_config_path[] = "ELProxy.conf";
+const char config_path_default[] = "ELProxy.conf";
+
+#ifdef OPENELP_CONFIG_HINT
+#  define OCH_STR1(x) #x
+#  define OCH_STR2(x) OCH_STR1(x)
+const char config_path_hint[] = OCH_STR2(OPENELP_CONFIG_HINT);
+#endif
 
 /*
  * Definitions
@@ -71,18 +83,11 @@ struct proxy_opts
  */
 struct proxy_handle ph;
 
-#ifndef _WIN32
 /*
  * Signal Handling
  */
-void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
-{
-	proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
-
-	proxy_shutdown(&ph);
-}
-#else
-BOOL WINAPI graceful_shutdown(DWORD dwCtrlType)
+#ifdef _WIN32
+static BOOL WINAPI graceful_shutdown(DWORD dwCtrlType)
 {
 	if (dwCtrlType == CTRL_C_EVENT)
 	{
@@ -95,12 +100,59 @@ BOOL WINAPI graceful_shutdown(DWORD dwCtrlType)
 
 	return FALSE;
 }
+#else
+static void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
+{
+	proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
+
+	proxy_shutdown(&ph);
+}
 #endif
 
 /*
  * Functions
  */
-void print_usage(void)
+#ifdef OPENELP_CONFIG_HINT
+static const char * proxy_config_hint()
+{
+	if (access(config_path_default, R_OK) != 0)
+	{
+#  ifdef _WIN32
+		// Check if path hint is relative
+		if (config_path_hint[0] != '\\' &&
+			config_path_hint[0] != '/' &&
+			config_path_hint[1] != ':' &&
+			config_path_hint[2] != ':')
+		{
+			static char exePath[MAX_PATH];
+			int exePathRet;
+
+			exePathRet = GetModuleFileName(NULL, exePath, MAX_PATH);
+			if (exePath > 0 && exePathRet + strlen(config_path_hint) + 1 < MAX_PATH)
+			{
+				for (; exePathRet > 0 && exePath[exePathRet - 1] != '\\'; exePathRet--);
+				strcpy(&exePath[exePathRet], config_path_hint);
+				return exePath;
+			}
+			else
+			{
+				return config_path_default;
+			}
+		}
+		else
+#  endif
+		{
+			return config_path_hint;
+		}
+	}
+	else
+	{
+		return config_path_default;
+	}
+}
+#endif
+
+static void print_usage(void)
 {
 #ifndef _WIN32
 	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
@@ -110,7 +162,7 @@ void print_usage(void)
 		"    -F            Stay in foreground (don't daemonize)\n"
 		"    -L <log path> Log output the given log file\n"
 		"    -S            Use syslog for logging\n"
-		"    <config path> Path to the proxy configuration. Defaults to ELProxy.conf\n",
+		"    <config path> Path to the proxy configuration to use.\n",
 		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
 #else
 	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
@@ -118,12 +170,12 @@ void print_usage(void)
 		"Arguments:\n"
 		"    -d            Enable debugging output\n"
 		"    -L <log path> Log output the given log file\n"
-		"    <config path> Path to the proxy configuration. Defaults to ELProxy.conf\n",
+		"    <config path> Path to the proxy configuration to use.\n",
 		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
 #endif
 }
 
-void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
+static void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
 {
 	int i;
 	size_t j;
@@ -235,7 +287,11 @@ int main(int argc, const char *argv[])
 	parse_args(argc, argv, &opts);
 	if (opts.config_path == NULL)
 	{
-		opts.config_path = default_config_path;
+#ifdef OPENELP_CONFIG_HINT
+		opts.config_path = proxy_config_hint();
+#else
+		opts.config_path = config_path_default;
+#endif
 	}
 
 #ifndef _WIN32

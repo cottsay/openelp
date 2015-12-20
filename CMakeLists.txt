@@ -2,26 +2,6 @@ project(openelp)
 cmake_minimum_required(VERSION 2.7)
 
 #
-# Configuration Variables
-#
-
-if(NOT DEFINED BUILD_SHARED_LIBS)
-  set(BUILD_SHARED_LIBS "on")
-endif()
-
-if(NOT DEFINED OPENELP_USE_OPENSSL)
-  set(OPENELP_USE_OPENSSL false)
-endif()
-
-if(NOT DEFINED OPENELP_USE_SYSLOG)
-  if(WIN32)
-    set(OPENELP_USE_SYSLOG false)
-  else()
-    set(OPENELP_USE_SYSLOG true)
-  endif()
-endif()
-
-#
 # Installation directories
 #
 
@@ -51,6 +31,34 @@ endif()
 
 if(NOT DEFINED MAN_INSTALL_DIR)
   set(MAN_INSTALL_DIR "${SHARE_INSTALL_PREFIX}/man")
+endif()
+
+#
+# Configuration Variables
+#
+
+if(NOT DEFINED BUILD_SHARED_LIBS)
+  set(BUILD_SHARED_LIBS "on")
+endif()
+
+if(NOT DEFINED OPENELP_USE_OPENSSL)
+  set(OPENELP_USE_OPENSSL false)
+endif()
+
+if(NOT DEFINED OPENELP_USE_SYSLOG)
+  if(WIN32)
+    set(OPENELP_USE_SYSLOG false)
+  else()
+    set(OPENELP_USE_SYSLOG true)
+  endif()
+endif()
+
+if(NOT DEFINED OPENELP_CONFIG_HINT)
+  if(WIN32)
+    set(OPENELP_CONFIG_HINT "..\\\\ELProxy.conf")
+  else()
+    set(OPENELP_CONFIG_HINT "/etc/ELProxy.conf")
+  endif()
 endif()
 
 #
@@ -90,6 +98,10 @@ set(CMAKE_C_FLAGS
   "${CMAKE_C_FLAGS} -DOPENELP_PATCH_VERSION=${OPENELP_PATCH_VERSION}")
 set(CMAKE_C_FLAGS
   "${CMAKE_C_FLAGS} -DOPENELP_VERSION=${OPENELP_VERSION}")
+
+if(OPENELP_CONFIG_HINT)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DOPENELP_CONFIG_HINT=\"${OPENELP_CONFIG_HINT}\"")
+endif()
 
 if(OPENELP_USE_SYSLOG)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_SYSLOG=1")

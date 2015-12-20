@@ -26,7 +26,7 @@ After initial startup is complete, switch the logging utility to output all info
 .BR \-S
 After initial startup is complete, switch the logging utility to output all information to syslog. This flag is incompatible with \fB\-L\fR. Default behaviour is not to use syslog, and route all information to STDOUT.
 .TP
-If unspecified, the proxy configuration file is expected to be named ELProxy.conf and in the working directory.
+If the configuration file path is not specified, \fBopenelpd\fR will first attempt to open the file named ELProxy.conf in the current working directory. On systems where a global configuration file path hint was specified at compile time, \fBopenelpd\fR will use that configuration path as a last resort.
 .SH BUGS
 Any bugs should be reported to the project repository at http://github.com/cottsay/openelp/issues
 .SH AUTHORS
