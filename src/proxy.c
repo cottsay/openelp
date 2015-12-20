@@ -4,9 +4,9 @@
  * @section LICENSE
  *
  * Copyright &copy; 2015, Scott K Logan
- * 
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -435,7 +435,7 @@ int proxy_process(struct proxy_handle *ph)
 		if (ret < 0)
 		{
 #ifdef _WIN32
-			// Hack for not knowing if we shutdown the connection or the client did
+			// TODO: WIN32 Hack for not knowing if we shutdown the connection or the client did
 			if (ret != -EINTR && (ret != -EPIPE || ph->status != PROXY_STATUS_SHUTDOWN))
 #else
 			if (ret != -EINTR)
@@ -1032,4 +1032,3 @@ void * udp_forwarder(void *ctx)
 
 	return NULL;
 }
-

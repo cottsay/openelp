@@ -4,9 +4,9 @@
  * @section LICENSE
  *
  * Copyright &copy; 2015, Scott K Logan
- * 
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -53,10 +53,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _WIN32
-#  include <unistd.h>
-#else
+#ifdef _WIN32
 #  include <io.h>
+#else
+#  include <unistd.h>
 #endif
 
 #ifdef _WIN32
@@ -626,7 +626,7 @@ void conn_shutdown(struct proxy_conn *pc)
 	{
 		shutdown(priv->sock_fd, SHUT_RDWR);
 #ifdef _WIN32
-		// Hack to cancel an in-progress accept
+		// TODO: WIN32 Hack to cancel an in-progress accept
 		closesocket(priv->sock_fd);
 		priv->sock_fd = INVALID_SOCKET;
 #endif
