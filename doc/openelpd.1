@@ -3,16 +3,28 @@
 openelpd \- an open source EchoLink proxy daemon
 .SH SYNOPSIS
 .B openelpd
+[\fB\-d\fR]
 [\fB\-F\fR]
+[\fB\-L\fR <log file>]
+[\fB\-S\fR]
 [configuration file]
 .SH DESCRIPTION
 \fBEchoLink\fR is a software system for connecting licensed radio amateurs to communicate over the internet using Voice over IP (VoIP). EchoLink clients require that UDP ports 5198 and 5199 be "forwarded" to the machine running the client. When this is not allowed or otherwise not possible, a proxy is used to listen for data on these ports and forward this data to a client over a TCP stream.
 .TP
-\fBOpenELP\fR, an Open Source EchoLink Proxy, is a performance-oriented proxy which can be used with EchoLink software. It uses a compatible protocol, and a compatible configuration file syntax with the Java EchoLink proxy available availbale from the EchoLink website.
+\fBOpenELP\fR, an Open Source EchoLink Proxy, is a performance-oriented proxy which can be used with EchoLink software. It uses a compatible protocol, and a compatible configuration file syntax with the Java EchoLink proxy available from the EchoLink website.
 .SH OPTIONS
 .TP
+.BR \-d
+Enable debugging output to the specified logging utility (by default, this is STDOUT/STDERR). Default behavior is to produce no debug output.
+.TP
 .BR \-F
-If specified, this parameter causes the main thread to run in the foreground, and not daemonize. Child threads are still created for each additional port, but the main thread does not return unless the proxy is shut down.
+If specified, this parameter causes the main thread to run in the foreground, and not daemonize. Child threads are still created for each additional port, but the main thread does not return unless the proxy is shut down. Default behavior is to daemonize.
+.TP
+.BR \-L
+After initial startup is complete, switch the logging utility to output all information to the given file. If the file does not exist, it will be created. If it does exist, new log data will be appended to it. This flag is incompatible with \fB\-S\fR. Default behavior is not to use a log file, and route all information to STDOUT.
+.TP
+.BR \-S
+After initial startup is complete, switch the logging utility to output all information to syslog. This flag is incompatible with \fB\-L\fR. Default behaviour is not to use syslog, and route all information to STDOUT.
 .TP
 If unspecified, the proxy configuration file is expected to be named ELProxy.conf and in the working directory.
 .SH BUGS
@@ -22,6 +34,6 @@ Any bugs should be reported to the project repository at http://github.com/cotts
 .TP
 See the Authors file included with this program for a full list of authors and contributors.
 .TP
-EchoLink(r) is a registered trademark of Synergenics, LLC
+EchoLink(r) is a registered trademark of Synergenics, LLC.
 .SH SEE ALSO
 \fBqtel\fR(1)
