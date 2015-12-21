@@ -9,6 +9,7 @@ if(UNIX)
     )
 elseif(WIN32)
   set(OPENELP_PLATFORM_FILES
+    ${OPENELP_SOURCE_DIR}/conn_wsa_errno.c
     ${OPENELP_SOURCE_DIR}/mutex_win.c
     ${OPENELP_SOURCE_DIR}/thread_win.c
     )

@@ -36,6 +36,9 @@
  */
 
 #include "conn.h"
+#ifdef _WIN32
+#  include "conn_wsa_errno.h"
+#endif
 #include "mutex.h"
 
 #ifdef _WIN32
@@ -52,7 +55,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #ifdef _WIN32
 #  include <io.h>
 #else
@@ -62,7 +64,7 @@
 #ifdef _WIN32
 #  define MSG_NOSIGNAL 0
 #  define SHUT_RDWR SD_BOTH
-#  define SOCK_ERRNO -WSAGetLastError()
+#  define SOCK_ERRNO -conn_wsa_errno()
 #else
 #  define closesocket(X) close(X)
 #  define INVALID_SOCKET -1
@@ -107,7 +109,6 @@ int conn_init(struct conn_handle *conn)
 	ret = WSAStartup(MAKEWORD(2,2),&priv->wsadat);
 	if (ret != 0)
 	{
-		// TODO: Decode why
 		ret = -ret;
 		goto conn_init_exit_pre;
 	}
@@ -257,12 +258,7 @@ int conn_listen_wait(struct conn_handle *conn)
 
 	if (priv->conn_fd == INVALID_SOCKET)
 	{
-#ifdef _WIN32
-		int ret = SOCK_ERRNO;
-		return ret == -WSAEINTR ? -EINTR : ret;
-#else
 		return SOCK_ERRNO;
-#endif
 	}
 
 	mutex_lock(&priv->mutex);
@@ -356,10 +352,9 @@ int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len)
 			ret = SOCK_ERRNO;
 
 #ifdef _WIN32
-			// TODO: WIN32 Hack
-			if (ret == -WSAECONNRESET)
+			if (ret == -WSAESHUTDOWN)
 			{
-				ret = -ECONNRESET;
+				ret = -EPIPE;
 			}
 #endif
 
@@ -403,14 +398,9 @@ int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint
 		ret = SOCK_ERRNO;
 
 #ifdef _WIN32
-		// TODO: WIN32 Hack
-		if (ret == -WSAECONNRESET)
+		if (ret == -WSAESHUTDOWN)
 		{
-			ret = -ECONNRESET;
-		}
-		else if (ret == -WSAEINTR)
-		{
-			ret = -EINTR;
+			ret = -EPIPE;
 		}
 #endif
 	}
@@ -455,10 +445,9 @@ int conn_send(struct conn_handle *conn, const uint8_t *buff, size_t buff_len)
 				ret = SOCK_ERRNO;
 
 #ifdef _WIN32
-				// TODO: WIN32 Hack
-				if (ret == -WSAECONNRESET)
+				if (ret == -WSAESHUTDOWN)
 				{
-					ret = -ECONNRESET;
+					ret = -EPIPE;
 				}
 #endif
 
@@ -517,13 +506,11 @@ int conn_send_to(struct conn_handle *conn, const uint8_t *buff, size_t buff_len,
 				ret = SOCK_ERRNO;
 
 #ifdef _WIN32
-				// TODO: WIN32 Hack
-				if (ret == -WSAECONNRESET)
+				if (ret == -WSAESHUTDOWN)
 				{
-					ret = -ECONNRESET;
+					ret = -EPIPE;
 				}
 #endif
-
 				goto conn_send_to_exit;
 			}
 
