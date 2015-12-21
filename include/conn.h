@@ -50,23 +50,23 @@ enum CONN_TYPE
 	CONN_TYPE_UDP,
 };
 
-struct proxy_conn
+struct conn_handle
 {
 	void *priv;
 	enum CONN_TYPE type;
 };
 
-int conn_init(struct proxy_conn *pc);
-void conn_free(struct proxy_conn *pc);
-int conn_listen(struct proxy_conn *pc, uint16_t port);
-int conn_listen_wait(struct proxy_conn *pc);
-int conn_connect(struct proxy_conn *pc, uint32_t addr, uint16_t port);
-int conn_recv(struct proxy_conn *pc, uint8_t *buff, size_t buff_len);
-int conn_recv_any(struct proxy_conn *pc, uint8_t *buff, size_t buff_len, uint32_t *addr);
-int conn_send(struct proxy_conn *pc, const uint8_t *buff, size_t buff_len);
-int conn_send_to(struct proxy_conn *pc, const uint8_t *buff, size_t buff_len, uint32_t addr, uint16_t port);
-void conn_drop(struct proxy_conn *pc);
-void conn_close(struct proxy_conn *pc);
-void conn_shutdown(struct proxy_conn *pc);
+int conn_init(struct conn_handle *conn);
+void conn_free(struct conn_handle *conn);
+int conn_listen(struct conn_handle *conn, uint16_t port);
+int conn_listen_wait(struct conn_handle *conn);
+int conn_connect(struct conn_handle *conn, uint32_t addr, uint16_t port);
+int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len);
+int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint32_t *addr);
+int conn_send(struct conn_handle *conn, const uint8_t *buff, size_t buff_len);
+int conn_send_to(struct conn_handle *conn, const uint8_t *buff, size_t buff_len, uint32_t addr, uint16_t port);
+void conn_drop(struct conn_handle *conn);
+void conn_close(struct conn_handle *conn);
+void conn_shutdown(struct conn_handle *conn);
 
 #endif /* _conn_h */

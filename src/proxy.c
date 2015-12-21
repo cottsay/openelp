@@ -62,7 +62,7 @@
 struct forwarder_context
 {
 	struct proxy_handle *ph;
-	struct proxy_conn *conn;
+	struct conn_handle *conn;
 	uint8_t type;
 };
 
@@ -70,12 +70,12 @@ struct proxy_priv
 {
 	struct log_handle log;
 
-	struct proxy_conn conn_client;
+	struct conn_handle conn_client;
 	uint8_t conn_client_buff[CONN_BUFF_LEN];
 	struct mutex_handle conn_client_mutex;
-	struct proxy_conn conn_udp1;
-	struct proxy_conn conn_udp2;
-	struct proxy_conn conn_tcp;
+	struct conn_handle conn_udp1;
+	struct conn_handle conn_udp2;
+	struct conn_handle conn_tcp;
 	struct forwarder_context conn_udp1_forwarder_ctx;
 	struct forwarder_context conn_udp2_forwarder_ctx;
 	struct forwarder_context conn_tcp_forwarder_ctx;

@@ -84,48 +84,44 @@ struct conn_priv
 #endif
 };
 
-int conn_init(struct proxy_conn *pc)
+int conn_init(struct conn_handle *conn)
 {
+	struct conn_priv *priv;
 	int ret;
 
-	if (pc != NULL)
+	if (conn->priv == NULL)
 	{
-		struct conn_priv *priv;
+		conn->priv = malloc(sizeof(struct conn_priv));
+	}
 
-		if (pc->priv == NULL)
-		{
-			pc->priv = malloc(sizeof(struct conn_priv));
-		}
+	if (conn->priv == NULL)
+	{
+		return -ENOMEM;
+	}
 
-		if (pc->priv == NULL)
-		{
-			return -ENOMEM;
-		}
+	memset(conn->priv, 0x0, sizeof(struct conn_priv));
 
-		memset(pc->priv, 0x0, sizeof(struct conn_priv));
-
-		priv = (struct conn_priv *)pc->priv;
+	priv = (struct conn_priv *)conn->priv;
 
 #ifdef _WIN32
-		ret = WSAStartup(MAKEWORD(2,2),&priv->wsadat);
-		if (ret != 0)
-		{
-			// TODO: Decode why
-			ret = -ret;
-			goto conn_init_exit_pre;
-		}
+	ret = WSAStartup(MAKEWORD(2,2),&priv->wsadat);
+	if (ret != 0)
+	{
+		// TODO: Decode why
+		ret = -ret;
+		goto conn_init_exit_pre;
+	}
 #endif
 
-		ret = mutex_init(&priv->mutex);
-		if (ret < 0)
-		{
-			goto conn_init_exit;
-		}
-
-		priv->sock_fd = INVALID_SOCKET;
-		priv->conn_fd = INVALID_SOCKET;
-		priv->fd = INVALID_SOCKET;
+	ret = mutex_init(&priv->mutex);
+	if (ret < 0)
+	{
+		goto conn_init_exit;
 	}
+
+	priv->sock_fd = INVALID_SOCKET;
+	priv->conn_fd = INVALID_SOCKET;
+	priv->fd = INVALID_SOCKET;
 
 	return 0;
 
@@ -134,19 +130,19 @@ conn_init_exit:
 	WSACleanup();
 conn_init_exit_pre:
 #endif
-	free (pc->priv);
-	pc->priv = NULL;
+	free (conn->priv);
+	conn->priv = NULL;
 
 	return ret;
 }
 
-void conn_free(struct proxy_conn *pc)
+void conn_free(struct conn_handle *conn)
 {
-	if (pc->priv != NULL)
+	if (conn->priv != NULL)
 	{
-		struct conn_priv *priv = (struct conn_priv *)pc->priv;
+		struct conn_priv *priv = (struct conn_priv *)conn->priv;
 
-		conn_close(pc);
+		conn_close(conn);
 
 #ifdef _WIN32
 		WSACleanup();
@@ -154,15 +150,17 @@ void conn_free(struct proxy_conn *pc)
 
 		mutex_free(&priv->mutex);
 
-		free(pc->priv);
+		free(conn->priv);
+
+		conn->priv = NULL;
 	}
 }
 
-int conn_listen(struct proxy_conn *pc, uint16_t port)
+int conn_listen(struct conn_handle *conn, uint16_t port)
 {
 	struct addrinfo hints;
 	struct addrinfo *res = NULL;
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	char port_str[6];
 	int ret;
 	const char yes = 1;
@@ -176,7 +174,7 @@ int conn_listen(struct proxy_conn *pc, uint16_t port)
 
 	memset(&hints, 0x0, sizeof(struct addrinfo));
 
-	switch(pc->type)
+	switch(conn->type)
 	{
 	case CONN_TYPE_TCP:
 		hints.ai_socktype = SOCK_STREAM;
@@ -222,7 +220,7 @@ int conn_listen(struct proxy_conn *pc, uint16_t port)
 		goto conn_listen_free;
 	}
 
-	if (pc->type == CONN_TYPE_TCP)
+	if (conn->type == CONN_TYPE_TCP)
 	{
 		ret = listen(priv->sock_fd, 1);
 		if (ret == SOCKET_ERROR)
@@ -245,9 +243,9 @@ conn_listen_free:
 	return ret;
 }
 
-int conn_listen_wait(struct proxy_conn *pc)
+int conn_listen_wait(struct conn_handle *conn)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 
 	priv->remote_addr_len = sizeof(struct sockaddr_storage);
 
@@ -276,13 +274,13 @@ int conn_listen_wait(struct proxy_conn *pc)
 	return 0;
 }
 
-int conn_connect(struct proxy_conn *pc, uint32_t addr, uint16_t port)
+int conn_connect(struct conn_handle *conn, uint32_t addr, uint16_t port)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	struct sockaddr_in saddr;
 	int ret;
 
-	if (pc->type != CONN_TYPE_TCP)
+	if (conn->type != CONN_TYPE_TCP)
 	{
 		return -EPROTOTYPE;
 	}
@@ -324,12 +322,12 @@ conn_connect_free:
 	return ret;
 }
 
-int conn_recv(struct proxy_conn *pc, uint8_t *buff, size_t buff_len)
+int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	int ret = 0;
 
-	if (pc->type != CONN_TYPE_TCP)
+	if (conn->type != CONN_TYPE_TCP)
 	{
 		return -EPROTOTYPE;
 	}
@@ -378,9 +376,9 @@ conn_recv_exit:
 	return ret;
 }
 
-int conn_recv_any(struct proxy_conn *pc, uint8_t *buff, size_t buff_len, uint32_t *addr)
+int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint32_t *addr)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	int ret;
 
 	priv->remote_addr_len = sizeof(struct sockaddr_storage);
@@ -428,12 +426,12 @@ conn_recv_any_exit:
 	return ret;
 }
 
-int conn_send(struct proxy_conn *pc, const uint8_t *buff, size_t buff_len)
+int conn_send(struct conn_handle *conn, const uint8_t *buff, size_t buff_len)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	int ret;
 
-	if (pc->type != CONN_TYPE_TCP)
+	if (conn->type != CONN_TYPE_TCP)
 	{
 		return -EPROTOTYPE;
 	}
@@ -483,13 +481,13 @@ conn_send_exit:
 	return ret;
 }
 
-int conn_send_to(struct proxy_conn *pc, const uint8_t *buff, size_t buff_len, uint32_t addr, uint16_t port)
+int conn_send_to(struct conn_handle *conn, const uint8_t *buff, size_t buff_len, uint32_t addr, uint16_t port)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	struct sockaddr_in saddr;
 	int ret;
 
-	if (pc->type != CONN_TYPE_UDP)
+	if (conn->type != CONN_TYPE_UDP)
 	{
 		return -EPROTOTYPE;
 	}
@@ -545,9 +543,9 @@ conn_send_to_exit:
 	return ret;
 }
 
-void conn_drop(struct proxy_conn *pc)
+void conn_drop(struct conn_handle *conn)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 
 	// First, shutdown any active connections
 	mutex_lock_shared(&priv->mutex);
@@ -583,12 +581,12 @@ void conn_drop(struct proxy_conn *pc)
 	mutex_unlock(&priv->mutex);
 }
 
-void conn_close(struct proxy_conn *pc)
+void conn_close(struct conn_handle *conn)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 
 	// First, shutdown any active connections
-	conn_shutdown(pc);
+	conn_shutdown(conn);
 
 	// Now that we know there will be no one blocking while
 	// holding the shared lock, we can get the exclusive lock
@@ -612,9 +610,9 @@ void conn_close(struct proxy_conn *pc)
 	mutex_unlock(&priv->mutex);
 }
 
-void conn_shutdown(struct proxy_conn *pc)
+void conn_shutdown(struct conn_handle *conn)
 {
-	struct conn_priv *priv = (struct conn_priv *)pc->priv;
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 
 	mutex_lock_shared(&priv->mutex);
 
