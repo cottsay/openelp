@@ -40,6 +40,10 @@ add_library(openelp
 
 add_executable(openelpd ${OPENELP_SOURCE_DIR}/proxyd.c)
 
+if(WIN32)
+  add_executable(openelp_service ${OPENELP_SOURCE_DIR}/service.c)
+endif()
+
 #
 # Libraries
 #
@@ -50,10 +54,14 @@ elseif(WIN32)
   target_link_libraries(openelp ws2_32)
 endif()
 
-target_link_libraries(openelpd openelp)
-
 if(OPENELP_USE_OPENSSL)
   target_link_libraries(openelp ${OPENSSL_LIBRARIES})
+endif()
+
+target_link_libraries(openelpd openelp)
+
+if(WIN32)
+  target_link_libraries(openelp_service openelp)
 endif()
 
 #
@@ -92,3 +100,10 @@ install(TARGETS openelpd
   RUNTIME DESTINATION "${BIN_INSTALL_DIR}"
   COMPONENT app
   )
+
+if(WIN32)
+  install(TARGETS openelp_service
+    RUNTIME DESTINATION "${BIN_INSTALL_DIR}"
+    COMPONENT service
+    )
+endif()
