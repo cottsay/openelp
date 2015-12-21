@@ -9,6 +9,7 @@ if(UNIX)
     )
 elseif(WIN32)
   set(OPENELP_PLATFORM_FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/eventlog/log_eventlog_messages.rc
     ${OPENELP_SOURCE_DIR}/conn_wsa_errno.c
     ${OPENELP_SOURCE_DIR}/mutex_win.c
     ${OPENELP_SOURCE_DIR}/thread_win.c
@@ -38,6 +39,23 @@ add_library(openelp
   ${OPENELP_PLATFORM_FILES}
   )
 
+if(WIN32)
+  add_custom_command(OUTPUT
+    "${CMAKE_CURRENT_BINARY_DIR}/eventlog/log_eventlog_messages.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/eventlog/log_eventlog_messages.rc"
+    COMMAND mc ARGS
+      -U "${OPENELP_SOURCE_DIR}/log_eventlog_messages.mc"
+      -r "${CMAKE_CURRENT_BINARY_DIR}/eventlog"
+      -h "${CMAKE_CURRENT_BINARY_DIR}/eventlog"
+    MAIN_DEPENDENCY "${OPENELP_SOURCE_DIR}/log_eventlog_messages.mc"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/eventlog"
+    )
+
+  target_include_directories(openelp
+    PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/eventlog"
+    )
+endif()
+
 add_executable(openelpd ${OPENELP_SOURCE_DIR}/proxyd.c)
 
 if(WIN32)
@@ -51,7 +69,7 @@ endif()
 if(UNIX)
   target_link_libraries(openelp pthread)
 elseif(WIN32)
-  target_link_libraries(openelp ws2_32)
+  target_link_libraries(openelp ws2_32 advapi32)
 endif()
 
 if(OPENELP_USE_OPENSSL)

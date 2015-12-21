@@ -36,20 +36,18 @@
  */
 
 #ifdef HAVE_SYSLOG
-#include <syslog.h>
+#  include <syslog.h>
 #elif !defined(_log_syslog_h)
-#define _log_syslog_h
-
-#define LOG_CONS 0
-#define LOG_NDELAY 0
-#define LOG_DAEMON 0
-#define LOG_CRIT 0
-#define LOG_ERR 0
-#define LOG_WARNING 0
-#define LOG_INFO 0
-#define LOG_DEBUG 0
-#define closelog()
-#define openlog(ident, option, facility)
-#define vsyslog(facility_priority, format, arglist)
-
+#  define _log_syslog_h
+#  define LOG_CONS 0
+#  define LOG_NDELAY 0
+#  define LOG_DAEMON 0
+#  define LOG_CRIT 0
+#  define LOG_ERR 0
+#  define LOG_WARNING 0
+#  define LOG_INFO 0
+#  define LOG_DEBUG 0
+#  define closelog()
+#  define openlog(ident, option, facility) return -ENOTSUP;
+#  define vsyslog(facility_priority, format, arglist)
 #endif /* _log_syslog_h */

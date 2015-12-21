@@ -73,6 +73,7 @@ struct proxy_opts
 {
 	const char *config_path;
 	uint8_t debug;
+	uint8_t eventlog;
 	uint8_t foreground;
 	const char *log_path;
 	uint8_t syslog;
@@ -169,6 +170,7 @@ static void print_usage(void)
 		"Usage: openelpd [-d] [-L <log path>] [--help] [<config path>]\n"
 		"Arguments:\n"
 		"    -d            Enable debugging output\n"
+		"    -E            Use Event Log for logging\n"
 		"    -L <log path> Log output the given log file\n"
 		"    <config path> Path to the proxy configuration to use.\n",
 		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
@@ -204,15 +206,24 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 					case 'd':
 						opts->debug = 1;
 						break;
-#ifndef _WIN32
+#ifdef _WIN32
+					case 'E':
+						if (opts->log_path || opts->syslog)
+						{
+							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
+							exit(-EINVAL);
+						}
+						opts->eventlog = 1;
+						break;
+#else
 					case 'F':
 						opts->foreground = 1;
 						break;
 #endif
 					case 'L':
-						if (opts->syslog)
+						if (opts->eventlog || opts->syslog)
 						{
-							fprintf(stderr, "ERROR: Cannot use both syslog and a log file\n");
+							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
 							exit(-EINVAL);
 						}
 						else if (arg_len > 2)
@@ -232,15 +243,17 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 						}
 
 						break;
+#ifndef _WIN32
 					case 'S':
-						if (opts->log_path)
+						if (opts->eventlog || opts->log_path)
 						{
-							fprintf(stderr, "ERROR: Cannot use both syslog and a log file\n");
+							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
 							exit(-EINVAL);
 						}
 
 						opts->syslog = 1;
 						break;
+#endif
 					default:
 						fprintf(stderr, "ERROR: Invalid flag '%c'\n", argv[i][j]);
 						exit(-EINVAL);
@@ -414,10 +427,22 @@ int main(int argc, const char *argv[])
 		}
 		else if (opts.syslog)
 		{
-                        ret = proxy_log_select_medium(&ph, LOG_MEDIUM_SYSLOG, opts.log_path);
+			proxy_log(&ph, LOG_LEVEL_INFO, "Switching log to syslog\n");
+
+            ret = proxy_log_select_medium(&ph, LOG_MEDIUM_SYSLOG, opts.log_path);
 			if (ret != 0)
 			{
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to activate syslog (%d): %s\n", -ret, strerror(-ret));
+			}
+		}
+		else if (opts.eventlog)
+		{
+			proxy_log(&ph, LOG_LEVEL_INFO, "Switching log to eventlog\n");
+
+			ret = proxy_log_select_medium(&ph, LOG_MEDIUM_EVENTLOG, opts.log_path);
+			if (ret != 0)
+			{
+				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to activate eventlog (%d): %s\n", -ret, strerror(-ret));
 			}
 		}
 	}

@@ -36,6 +36,7 @@
  */
 
 #include "log.h"
+#include "log_eventlog.h"
 #include "log_syslog.h"
 
 #include <errno.h>
@@ -46,10 +47,32 @@
 
 struct log_priv
 {
+	struct log_priv_medium_event_log
+	{
+		EVENTLOG_HANDLE handle;
+	} medium_event_log;
 	struct log_priv_medium_file
 	{
 		FILE *fp;
 	} medium_file;
+};
+
+static const int EVENTLOG_IDENT[] =
+{
+	LOG_IDENT_FATAL,
+	LOG_IDENT_ERROR,
+	LOG_IDENT_WARN,
+	LOG_IDENT_INFO,
+	LOG_IDENT_DEBUG,
+};
+
+static const int EVENTLOG_LEVEL[] =
+{
+	EVENTLOG_ERROR_TYPE,
+	EVENTLOG_ERROR_TYPE,
+	EVENTLOG_WARNING_TYPE,
+	EVENTLOG_INFORMATION_TYPE,
+	EVENTLOG_INFORMATION_TYPE,
 };
 
 static const int SYSLOG_LEVEL[] =
@@ -79,6 +102,15 @@ void log_close(struct log_handle *log)
 		break;
 	case LOG_MEDIUM_SYSLOG:
 		closelog();
+
+		break;
+	case LOG_MEDIUM_EVENTLOG:
+		if (priv->medium_event_log.handle != NULL)
+		{
+			DeregisterEventSource(priv->medium_event_log.handle);
+			priv->medium_event_log.handle = NULL;
+		}
+
 		break;
 	}
 }
@@ -114,6 +146,7 @@ int log_init(struct log_handle *log)
 	log->medium = LOG_MEDIUM_STDOUT;
 	log->level = LOG_LEVEL_INFO;
 
+	priv->medium_event_log.handle = NULL;
 	priv->medium_file.fp = NULL;
 
 	return 0;
@@ -129,6 +162,8 @@ const char * log_medium_to_str(enum LOG_MEDIUM medium)
 		return "Log File";
 	case LOG_MEDIUM_SYSLOG:
 		return "Syslog";
+	case LOG_MEDIUM_EVENTLOG:
+		return "Event Log";
 	default:
 		return "Unknown Medium";
 	}
@@ -155,9 +190,25 @@ int log_open(struct log_handle *log, const char *target)
 				priv->medium_file.fp = fp;
 			}
 		}
+
 		break;
 	case LOG_MEDIUM_SYSLOG:
 		openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
+
+		break;
+	case LOG_MEDIUM_EVENTLOG:
+		{
+			EVENTLOG_HANDLE h = RegisterEventSource(NULL, "OpenELP");
+			if (h == NULL)
+			{
+				ret = EVENTLOG_ERRNO;
+			}
+			else
+			{
+				priv->medium_event_log.handle = h;
+			}
+		}
+
 		break;
 	}
 
@@ -193,13 +244,16 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 		case LOG_MEDIUM_FILE:
 			fclose(priv->medium_file.fp);
 			priv->medium_file.fp = NULL;
+
 			break;
 		case LOG_MEDIUM_SYSLOG:
 			closelog();
+
 			break;
 		default:
 			break;
 		}
+
 		break;
 	case LOG_MEDIUM_FILE:
 		{
@@ -213,24 +267,43 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 				switch (log->medium)
 				{
 				case LOG_MEDIUM_FILE:
+					if (priv->medium_file.fp != NULL)
 					{
 						FILE *old_fp = priv->medium_file.fp;
 						priv->medium_file.fp = fp;
 						fclose(old_fp);
 					}
+					else
+					{
+						priv->medium_file.fp = fp;
+					}
+
 					break;
 				case LOG_MEDIUM_SYSLOG:
 					priv->medium_file.fp = fp;
 					log->medium = LOG_MEDIUM_FILE;
 					closelog();
+
+					break;
+				case LOG_MEDIUM_EVENTLOG:
+					priv->medium_file.fp = fp;
+					log->medium = LOG_MEDIUM_FILE;
+					if (priv->medium_event_log.handle != NULL)
+					{
+						DeregisterEventSource(priv->medium_event_log.handle);
+						priv->medium_event_log.handle = NULL;
+					}
+
 					break;
 				default:
 					priv->medium_file.fp = fp;
 					log->medium = LOG_MEDIUM_FILE;
+
 					break;
 				}
 			}
 		}
+
 		break;
 	case LOG_MEDIUM_SYSLOG:
 		switch (log->medium)
@@ -238,14 +311,84 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 		case LOG_MEDIUM_FILE:
 			openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 			log->medium = LOG_MEDIUM_SYSLOG;
-			fclose(priv->medium_file.fp);
-			priv->medium_file.fp = NULL;
+			if (priv->medium_file.fp != NULL)
+			{
+				fclose(priv->medium_file.fp);
+				priv->medium_file.fp = NULL;
+			}
+
+			break;
+		case LOG_MEDIUM_EVENTLOG:
+			openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
+			log->medium = LOG_MEDIUM_SYSLOG;
+			if (priv->medium_event_log.handle != NULL)
+			{
+				DeregisterEventSource(priv->medium_event_log.handle);
+				priv->medium_event_log.handle = NULL;
+			}
+
 			break;
 		default:
 			openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 			log->medium = LOG_MEDIUM_SYSLOG;
+
 			break;
 		}
+
+		break;
+	case LOG_MEDIUM_EVENTLOG:
+		switch (log->medium)
+		{
+			EVENTLOG_HANDLE h = NULL;
+		case LOG_MEDIUM_FILE:
+			h = RegisterEventSource(NULL, "OpenELP");
+			if (h == NULL)
+			{
+				ret = EVENTLOG_ERRNO;
+			}
+			else
+			{
+				priv->medium_event_log.handle = h;
+				log->medium = LOG_MEDIUM_EVENTLOG;
+				if (priv->medium_file.fp != NULL)
+				{
+					fclose(priv->medium_file.fp);
+					priv->medium_file.fp = NULL;
+				}
+			}
+
+			break;
+		case LOG_MEDIUM_SYSLOG:
+			h = RegisterEventSource(NULL, "OpenELP");
+			if (h == NULL)
+			{
+				ret = EVENTLOG_ERRNO;
+			}
+			else
+			{
+				priv->medium_event_log.handle = h;
+				log->medium = LOG_MEDIUM_EVENTLOG;
+				closelog();
+			}
+
+			break;
+		case LOG_MEDIUM_EVENTLOG:
+			break;
+		default:
+			h = RegisterEventSource(NULL, "OpenELP");
+			if (h == NULL)
+			{
+				ret = EVENTLOG_ERRNO;
+			}
+			else
+			{
+				priv->medium_event_log.handle = h;
+				log->medium = LOG_MEDIUM_EVENTLOG;
+			}
+
+			break;
+		}
+
 		break;
 	}
 
@@ -290,9 +433,34 @@ void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va
 			vfprintf(priv->medium_file.fp, fmt, args);
 			fflush(priv->medium_file.fp);
 		}
+
 		break;
 	case LOG_MEDIUM_SYSLOG:
 		vsyslog(SYSLOG_LEVEL[lvl], fmt, args);
+
+		break;
+	case LOG_MEDIUM_EVENTLOG:
+		{
+			char buff[256] = "";
+			const char *strings[2] =
+			{
+				buff,
+				NULL,
+			};
+
+			vsnprintf(buff, 256, fmt, args);
+
+			ReportEvent(
+				priv->medium_event_log.handle,
+				EVENTLOG_LEVEL[lvl],
+				0,
+				EVENTLOG_IDENT[lvl],
+				NULL,
+				1,
+				0,
+				strings,
+				NULL);
+		}
 		break;
 	}
 }
