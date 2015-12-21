@@ -53,14 +53,14 @@ struct thread_priv
 
 DWORD WINAPI thread_wrapper(LPVOID ctx)
 {
-	struct proxy_thread *pt = (struct proxy_thread *)ctx;
+	struct thread_handle *pt = (struct thread_handle *)ctx;
 
 	pt->func_ptr(pt);
 
 	return 0;
 }
 
-int thread_init(struct proxy_thread *pt)
+int thread_init(struct thread_handle *pt)
 {
 	struct thread_priv *priv;
 	int ret;
@@ -94,7 +94,7 @@ thread_init_exit:
 	return ret;
 }
 
-int thread_start(struct proxy_thread *pt)
+int thread_start(struct thread_handle *pt)
 {
 	struct thread_priv *priv = (struct thread_priv *)pt->priv;
 
@@ -107,7 +107,7 @@ int thread_start(struct proxy_thread *pt)
 	return priv->thread == NULL ? -ECHILD : 0;
 }
 
-int thread_join(struct proxy_thread *pt)
+int thread_join(struct thread_handle *pt)
 {
 	struct thread_priv *priv = (struct thread_priv *)pt->priv;
 
@@ -125,7 +125,7 @@ int thread_join(struct proxy_thread *pt)
 	return -ENOSYS;
 }
 
-void thread_free(struct proxy_thread *pt)
+void thread_free(struct thread_handle *pt)
 {
 	struct thread_priv *priv = (struct thread_priv *)pt->priv;
 

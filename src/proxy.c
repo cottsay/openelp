@@ -79,9 +79,9 @@ struct proxy_priv
 	struct forwarder_context conn_udp1_forwarder_ctx;
 	struct forwarder_context conn_udp2_forwarder_ctx;
 	struct forwarder_context conn_tcp_forwarder_ctx;
-	struct proxy_thread conn_udp1_forwarder;
-	struct proxy_thread conn_udp2_forwarder;
-	struct proxy_thread conn_tcp_forwarder;
+	struct thread_handle conn_udp1_forwarder;
+	struct thread_handle conn_udp2_forwarder;
+	struct thread_handle conn_tcp_forwarder;
 
 	char client_callsign[12];
 };
@@ -907,7 +907,7 @@ get_password_response_exit:
 
 void * tcp_forwarder(void *ctx)
 {
-	struct proxy_thread *pt = (struct proxy_thread *)ctx;
+	struct thread_handle *pt = (struct thread_handle *)ctx;
 	struct forwarder_context *fc = (struct forwarder_context *)pt->func_ctx;
 	struct proxy_priv *priv = (struct proxy_priv *)fc->ph->priv;
 	uint8_t buf[CONN_BUFF_LEN] = { 0x0 };
@@ -967,7 +967,7 @@ void * tcp_forwarder(void *ctx)
 
 void * udp_forwarder(void *ctx)
 {
-	struct proxy_thread *pt = (struct proxy_thread *)ctx;
+	struct thread_handle *pt = (struct thread_handle *)ctx;
 	struct forwarder_context *fc = (struct forwarder_context *)pt->func_ctx;
 	struct proxy_priv *priv = (struct proxy_priv *)fc->ph->priv;
 	uint8_t buf[CONN_BUFF_LEN] = { 0x0 };

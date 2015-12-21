@@ -50,7 +50,7 @@ struct thread_priv
 	struct mutex_handle mutex;
 };
 
-int thread_init(struct proxy_thread *pt)
+int thread_init(struct thread_handle *pt)
 {
 	struct thread_priv *priv;
 	int ret;
@@ -83,7 +83,7 @@ thread_init_exit:
 	return ret;
 }
 
-int thread_start(struct proxy_thread *pt)
+int thread_start(struct thread_handle *pt)
 {
 	struct thread_priv *priv = (struct thread_priv *)pt->priv;
 	int ret;
@@ -101,7 +101,7 @@ int thread_start(struct proxy_thread *pt)
 	return ret > 0 ? -ret : ret;
 }
 
-int thread_join(struct proxy_thread *pt)
+int thread_join(struct thread_handle *pt)
 {
 	struct thread_priv *priv = (struct thread_priv *)pt->priv;
 	int ret;
@@ -129,7 +129,7 @@ int thread_join(struct proxy_thread *pt)
 	return ret > 0 ? -ret : ret;
 }
 
-void thread_free(struct proxy_thread *pt)
+void thread_free(struct thread_handle *pt)
 {
 	struct thread_priv *priv = (struct thread_priv *)pt->priv;
 

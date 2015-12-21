@@ -42,16 +42,16 @@
 
 #include <stdint.h>
 
-struct proxy_thread
+struct thread_handle
 {
 	void *priv;
 	void * (*func_ptr)(void *);
 	void *func_ctx;
 };
 
-int thread_init(struct proxy_thread *pt);
-int thread_start(struct proxy_thread *pt);
-int thread_join(struct proxy_thread *pt);
-void thread_free(struct proxy_thread *pt);
+int thread_init(struct thread_handle *pt);
+int thread_start(struct thread_handle *pt);
+int thread_join(struct thread_handle *pt);
+void thread_free(struct thread_handle *pt);
 
 #endif /* _thread_h */
