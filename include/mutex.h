@@ -43,11 +43,22 @@ struct mutex_handle
 	void *priv;
 };
 
+struct condvar_handle
+{
+	void *priv;
+};
+
 int mutex_init(struct mutex_handle *mutex);
 int mutex_lock(struct mutex_handle *mutex);
 int mutex_lock_shared(struct mutex_handle *mutex);
 int mutex_unlock(struct mutex_handle *mutex);
 int mutex_unlock_shared(struct mutex_handle *mutex);
 void mutex_free(struct mutex_handle *mutex);
+
+int condvar_init(struct condvar_handle *condvar);
+int condvar_wait(struct condvar_handle *condvar, struct mutex_handle *mutex);
+int condvar_wake_one(struct condvar_handle *condvar);
+int condvar_wake_all(struct condvar_handle *condvar);
+void condvar_free(struct condvar_handle *condvar);
 
 #endif /* _mutex_h */

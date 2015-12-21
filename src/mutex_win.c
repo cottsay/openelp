@@ -49,6 +49,11 @@ struct mutex_priv
 	SRWLOCK lock;
 };
 
+struct condvar_priv
+{
+	CONDITION_VARIABLE cond;
+};
+
 int mutex_init(struct mutex_handle *mutex)
 {
 	struct mutex_priv *priv;
@@ -113,5 +118,71 @@ void mutex_free(struct mutex_handle *mutex)
 	if (mutex->priv != NULL)
 	{
 		free(mutex->priv);
+
+		mutex->priv = NULL;
+	}
+}
+
+int condvar_init(struct condvar_handle *condvar)
+{
+	struct condvar_priv *priv;
+
+	if (condvar->priv == NULL)
+	{
+		condvar->priv = malloc(sizeof(struct condvar_priv));
+	}
+
+	if (condvar->priv == NULL)
+	{
+		return -ENOMEM;
+	}
+
+	memset(condvar->priv, 0x0, sizeof(struct condvar_priv));
+
+	priv = (struct condvar_priv *)condvar->priv;
+
+	InitializeConditionVariable(&priv->cond);
+
+	return 0;
+}
+
+int condvar_wait(struct condvar_handle *condvar, struct mutex_handle *mutex)
+{
+	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+	struct mutex_priv *mpriv = (struct mutex_priv *)mutex->priv;
+
+	if (!SleepConditionVariableSRW(&priv->cond, &mpriv->lock, INFINITE, 0))
+	{
+		return GetLastError();
+	}
+
+	return 0;
+}
+
+int condvar_wake_one(struct condvar_handle *condvar)
+{
+	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+
+	WakeConditionVariable(&priv->cond);
+
+	return 0;
+}
+
+int condvar_wake_all(struct condvar_handle *condvar)
+{
+	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+
+	WakeAllConditionVariable(&priv->cond);
+
+	return 0;
+}
+
+void condvar_free(struct condvar_handle *condvar)
+{
+	if (condvar->priv != NULL)
+	{
+		free(condvar->priv);
+
+		condvar->priv = NULL;
 	}
 }

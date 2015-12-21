@@ -45,7 +45,14 @@
 
 struct mutex_priv
 {
-	pthread_rwlock_t lock;
+	pthread_cond_t cond;
+	pthread_mutex_t lock;
+	unsigned int readers;
+};
+
+struct condvar_priv
+{
+	pthread_cond_t cond;
 };
 
 int mutex_init(struct mutex_handle *mutex)
@@ -67,18 +74,26 @@ int mutex_init(struct mutex_handle *mutex)
 
 	priv = (struct mutex_priv *)mutex->priv;
 
-	ret = pthread_rwlock_init(&priv->lock, NULL);
+	ret = pthread_mutex_init(&priv->lock, NULL);
 	if (ret != 0)
 	{
-		if (ret > 0)
-		{
-			ret = -ret;
-		}
+		ret = -ret;
 
 		goto mutex_init_exit;
 	}
 
+	ret = pthread_cond_init(&priv->cond, NULL);
+	if (ret != 0)
+	{
+		ret = -ret;
+
+		goto mutex_init_exit_late;
+	}
+
 	return 0;
+
+mutex_init_exit_late:
+	pthread_mutex_destroy(&priv->lock);
 
 mutex_init_exit:
 	free(mutex->priv);
@@ -90,27 +105,82 @@ mutex_init_exit:
 int mutex_lock(struct mutex_handle *mutex)
 {
 	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
+	int ret;
 
-	return pthread_rwlock_wrlock(&priv->lock);
+	ret = pthread_mutex_lock(&priv->lock);
+	if (ret != 0)
+	{
+		return -ret;
+	}
+
+	while (priv->readers > 0)
+	{
+		ret = pthread_cond_wait(&priv->cond, &priv->lock);
+		if (ret != 0)
+		{
+			ret = -ret;
+			goto mutex_lock_exit;
+		}
+	}
+
+	return 0;
+
+mutex_lock_exit:
+	pthread_mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 int mutex_lock_shared(struct mutex_handle *mutex)
 {
 	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
+	int ret;
 
-	return pthread_rwlock_rdlock(&priv->lock);
+	ret = pthread_mutex_lock(&priv->lock);
+	if (ret != 0)
+	{
+		return -ret;
+	}
+
+	priv->readers++;
+
+	return -pthread_mutex_unlock(&priv->lock);
 }
 
 int mutex_unlock(struct mutex_handle *mutex)
 {
 	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
 
-	return pthread_rwlock_unlock(&priv->lock);
+	return pthread_mutex_unlock(&priv->lock);
 }
 
 int mutex_unlock_shared(struct mutex_handle *mutex)
 {
-	return mutex_unlock(mutex);
+	struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
+	int ret;
+
+	ret = pthread_mutex_lock(&priv->lock);
+	if (ret != 0)
+	{
+		return -ret;
+	}
+
+	if (--(priv->readers) <= 0)
+	{
+		ret = pthread_cond_broadcast(&priv->cond);
+		if (ret != 0)
+		{
+			ret = -ret;
+			goto mutex_unlock_shared_exit;
+		}
+	}
+
+	return -pthread_mutex_unlock(&priv->lock);
+
+mutex_unlock_shared_exit:
+	pthread_mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 void mutex_free(struct mutex_handle *mutex)
@@ -119,8 +189,81 @@ void mutex_free(struct mutex_handle *mutex)
 	{
 		struct mutex_priv *priv = (struct mutex_priv *)mutex->priv;
 
-		pthread_rwlock_destroy(&priv->lock);
+		pthread_mutex_destroy(&priv->lock);
+
+		pthread_cond_destroy(&priv->cond);
 
 		free(mutex->priv);
 	}
 }
+
+int condvar_init(struct condvar_handle *condvar)
+{
+	struct condvar_priv *priv;
+	int ret;
+
+	if (condvar->priv == NULL)
+	{
+		condvar->priv = malloc(sizeof(struct condvar_priv));
+	}
+
+	if (condvar->priv == NULL)
+	{
+		return -ENOMEM;
+	}
+
+	memset(condvar->priv, 0x0, sizeof(struct condvar_priv));
+
+	priv = (struct condvar_priv *)condvar->priv;
+
+	ret = pthread_cond_init(&priv->cond, NULL);
+	if (ret != 0)
+	{
+		ret = -ret;
+
+		goto condvar_init_exit;
+	}
+
+	return 0;
+
+condvar_init_exit:
+	free(condvar->priv);
+	condvar->priv = NULL;
+
+	return ret;
+}
+
+int condvar_wait(struct condvar_handle *condvar, struct mutex_handle *mutex)
+{
+	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+	struct mutex_priv *mpriv = (struct mutex_priv *)mutex->priv;
+
+	return -pthread_cond_wait(&priv->cond, &mpriv->lock);
+}
+
+int condvar_wake_one(struct condvar_handle *condvar)
+{
+	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+
+	return -pthread_cond_signal(&priv->cond);
+}
+
+int condvar_wake_all(struct condvar_handle *condvar)
+{
+	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+
+	return -pthread_cond_broadcast(&priv->cond);
+}
+
+void condvar_free(struct condvar_handle *condvar)
+{
+	if (condvar->priv != NULL)
+	{
+		struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+
+		pthread_cond_destroy(&priv->cond);
+
+		free(condvar->priv);
+	}
+}
+
