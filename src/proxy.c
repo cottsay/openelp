@@ -953,7 +953,7 @@ void * tcp_forwarder(void *ctx)
 	conn_close(fc->conn);
 
 	ret = send_tcp_close(fc->ph);
-	if (ret < 0)
+	if (ret < 0 && ret != -EPIPE)
 	{
 		// This is an error with this connection
 		proxy_log(fc->ph, LOG_LEVEL_WARN, "TCP communication error (%d). Disconnecting...\n", -ret);
