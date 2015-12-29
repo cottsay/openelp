@@ -82,7 +82,8 @@ struct proxy_opts
 /*
  * Global Variables
  */
-struct proxy_handle ph;
+static struct proxy_handle ph;
+static uint8_t sentinel = 0;
 
 /*
  * Signal Handling
@@ -93,6 +94,8 @@ static BOOL WINAPI graceful_shutdown(DWORD dwCtrlType)
 	if (dwCtrlType == CTRL_C_EVENT)
 	{
 		proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
+
+		sentinel = 1;
 
 		proxy_shutdown(&ph);
 
@@ -105,6 +108,8 @@ static BOOL WINAPI graceful_shutdown(DWORD dwCtrlType)
 static void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 {
 	proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
+
+	sentinel = 1;
 
 	proxy_shutdown(&ph);
 }
@@ -447,17 +452,28 @@ int main(int argc, const char *argv[])
 		}
 	}
 
+	proxy_log(&ph, LOG_LEVEL_INFO, "Ready.\n");
+
 	// Main dispatch loop
-	while (ph.status > PROXY_STATUS_DOWN)
+	while (ret == 0 && sentinel == 0)
 	{
 		proxy_log(&ph, LOG_LEVEL_DEBUG, "Starting a processing run...\n");
 		ret = proxy_process(&ph);
 		if (ret < 0)
 		{
-			proxy_log(&ph, LOG_LEVEL_FATAL, "Message processing failure (%d): %s\n", -ret, strerror(-ret));
-			break;
+			switch (ret)
+			{
+			case -EINTR:
+				ret = 0;
+				break;
+			default:
+				proxy_log(&ph, LOG_LEVEL_FATAL, "Message processing failure (%d): %s\n", -ret, strerror(-ret));
+				break;
+			}
 		}
 	}
+
+	proxy_log(&ph, LOG_LEVEL_INFO, "Shutting down...\n");
 
 proxyd_exit:
 	proxy_free(&ph);

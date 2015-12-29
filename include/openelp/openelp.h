@@ -44,6 +44,10 @@
 #ifndef _openelp_h
 #define _openelp_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 #ifndef _WIN32
@@ -63,129 +67,6 @@
  */
 #define PROXY_PASS_RES_LEN 16
 
-/*!
- * @brief Message types used in communication between the proxy and the client
- */
-enum PROXY_MSG_TYPE
-{
-	/*!
-	 * @brief The proxy should open a new TCP connection
-	 *
-	 * * Sent by: client
-	 * * Expected data: 0 bytes
-	 */
-	PROXY_MSG_TYPE_TCP_OPEN = 1,
-
-	/*!
-	 * @brief Data which has been sent or should be sent over the TCP connection
-	 *
-	 * The address field is ignored in this message
-	 *
-	 * * Sent by: client or proxy
-	 * * Expected data: 1 or more bytes
-	 */
-	PROXY_MSG_TYPE_TCP_DATA,
-
-	/*!
-	 * @brief The TCP has been, or should be closed
-	 *
-	 * The address fieled is ignored in this message
-	 *
-	 * When the client requests that the TCP connection be closed, the proxy
-	 * responds with another ::PROXY_MSG_TYPE_TCP_CLOSE message
-	 *
-	 * * Sent by: client or proxy
-	 * * Expected data: 0 bytes
-	 */
-	PROXY_MSG_TYPE_TCP_CLOSE,
-
-	/*!
-	 * @brief The status of the TCP connection
-	 *
-	 * The address field is ignored in this message
-	 *
-	 * The data included with this message should be zeroed when the TCP connection
-	 * was opened successfully, and non-zero otherwise
-	 *
-	 * * Sent by: proxy
-	 * * Expected data: 4 bytes
-	 */
-	PROXY_MSG_TYPE_TCP_STATUS,
-
-	/*!
-	 * @brief Data which has been or should be sent of the UDP Data connection
-	 *
-	 * * Sent by: client or proxy
-	 * * Expected data: 1 or more bytes
-	 */
-	PROXY_MSG_TYPE_UDP_DATA,
-
-	/*!
-	 * @brief Data which has been or should be sent of the UDP Control connection
-	 *
-	 * * Sent by: client or proxy
-	 * * Expected data: 1 or more bytes
-	 */
-	PROXY_MSG_TYPE_UDP_CONTROL,
-
-	/*!
-	 * @brief Proxy system information
-	 *
-	 * The contents of this message are a single ::SYSTEM_MSG
-	 *
-	 * * Sent by: proxy
-	 * * Expected data: 1 byte
-	 */
-	PROXY_MSG_TYPE_SYSTEM,
-};
-
-/*!
- * @brief System messages sent by the proxy to the client
- */
-enum SYSTEM_MSG
-{
-	/*!
-	 * @brief The client has supplied the proxy with an incorrect password
-	 */
-	SYSTEM_MSG_BAD_PASSWORD = 1,
-
-	/*!
-	 * @brief The client's callsign is not allowed to use the proxy
-	 */
-	SYSTEM_MSG_ACCESS_DENIED,
-};
-
-/*!
- * @brief OpenELP Status
- */
-enum PROXY_STATUS
-{
-	/*!
-	 * @brief The proxy is completely uninitialized
-	 */
-	PROXY_STATUS_NONE = 0,
-
-	/*!
-	 * @brief The proxy is initialized but is not currently listening a client
-	 */
-	PROXY_STATUS_DOWN,
-
-	/*!
-	 * @brief The proxy is listening for a client, and none are connected
-	 */
-	PROXY_STATUS_AVAILABLE,
-
-	/*!
-	 * @brief There is a single client connected to the proxy
-	 */
-	PROXY_STATUS_IN_USE,
-
-	/*!
-	 * @brief The proxy is in the process of shutting down
-	 */
-	PROXY_STATUS_SHUTDOWN,
-};
-
 enum LOG_LEVEL
 {
 	LOG_LEVEL_FATAL = 0,
@@ -203,22 +84,6 @@ enum LOG_MEDIUM
 	LOG_MEDIUM_EVENTLOG,
 };
 
-#ifdef _WIN32
-#  pragma pack(push,1)
-#endif
-struct proxy_msg
-{
-	uint8_t type;
-	uint32_t address;
-	uint32_t size;
-	uint8_t data[];
-#ifdef _WIN32
-};
-#  pragma pack(pop)
-#else
-} __attribute__((packed));
-#endif
-
 struct proxy_conf
 {
 	char *password;
@@ -227,7 +92,6 @@ struct proxy_conf
 
 struct proxy_handle
 {
-	uint8_t status;
 	struct proxy_conf conf;
 	void *priv;
 };
@@ -243,34 +107,19 @@ int OPENELP_API proxy_open(struct proxy_handle *ph);
 void OPENELP_API proxy_close(struct proxy_handle *ph);
 void OPENELP_API proxy_drop(struct proxy_handle *ph);
 int OPENELP_API proxy_process(struct proxy_handle *ph);
-void OPENELP_API proxy_handle_client_error(struct proxy_handle *ph, int ret);
 void OPENELP_API proxy_shutdown(struct proxy_handle *ph);
 void OPENELP_API proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...);
 void OPENELP_API proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL lvl);
 int OPENELP_API proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM medium, const char *target);
 
 /*
- * Message Processing
- */
-int OPENELP_API process_new_client(struct proxy_handle *ph);
-int OPENELP_API process_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int OPENELP_API process_tcp_open_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int OPENELP_API process_tcp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int OPENELP_API process_tcp_close_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int OPENELP_API process_udp_data_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-int OPENELP_API process_udp_control_msg(struct proxy_handle *ph, struct proxy_msg *msg);
-
-/*
- * Messages
- */
-int OPENELP_API send_system(struct proxy_handle *ph, enum SYSTEM_MSG msg);
-int OPENELP_API send_tcp_close(struct proxy_handle *ph);
-int OPENELP_API send_tcp_status(struct proxy_handle *ph, uint32_t status);
-
-/*
  * Helpers
  */
 int OPENELP_API get_nonce(uint32_t *nonce);
 int OPENELP_API get_password_response(const uint32_t nonce, const char *password, uint8_t response[PROXY_PASS_RES_LEN]);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _openelp_h */

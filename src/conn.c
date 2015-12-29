@@ -106,7 +106,7 @@ int conn_init(struct conn_handle *conn)
 	priv = (struct conn_priv *)conn->priv;
 
 #ifdef _WIN32
-	ret = WSAStartup(MAKEWORD(2,2),&priv->wsadat);
+	ret = WSAStartup(MAKEWORD(2, 2), &priv->wsadat);
 	if (ret != 0)
 	{
 		ret = -ret;
@@ -223,7 +223,7 @@ int conn_listen(struct conn_handle *conn, uint16_t port)
 
 	if (conn->type == CONN_TYPE_TCP)
 	{
-		ret = listen(priv->sock_fd, 1);
+		ret = listen(priv->sock_fd, 0);
 		if (ret == SOCKET_ERROR)
 		{
 			// TODO: Close priv->sock_fd
@@ -244,28 +244,29 @@ conn_listen_free:
 	return ret;
 }
 
-int conn_listen_wait(struct conn_handle *conn)
+int conn_accept(struct conn_handle *conn, struct conn_handle *accepted)
 {
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
+	struct conn_priv *apriv = (struct conn_priv *)accepted->priv;
 
-	priv->remote_addr_len = sizeof(struct sockaddr_storage);
+	apriv->remote_addr_len = sizeof(struct sockaddr_storage);
 
 	mutex_lock_shared(&priv->mutex);
 
-	priv->conn_fd = accept(priv->sock_fd, (struct sockaddr *)&priv->remote_addr, &priv->remote_addr_len);
+	apriv->conn_fd = accept(priv->sock_fd, (struct sockaddr *)&apriv->remote_addr, &apriv->remote_addr_len);
 
 	mutex_unlock_shared(&priv->mutex);
 
-	if (priv->conn_fd == INVALID_SOCKET)
+	if (apriv->conn_fd == INVALID_SOCKET)
 	{
 		return SOCK_ERRNO;
 	}
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&apriv->mutex);
 
-	priv->fd = priv->conn_fd;
+	apriv->fd = apriv->conn_fd;
 
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&apriv->mutex);
 
 	return 0;
 }

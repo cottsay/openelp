@@ -1,5 +1,5 @@
 /*!
- * @file conn.h
+ * @file proxy_conn.h
  *
  * @section LICENSE
  *
@@ -35,38 +35,23 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#ifndef _conn_h
-#define _conn_h
+#ifndef _proxy_conn_h
+#define _proxy_conn_h
 
-#include <stdint.h>
+#include "conn.h"
+#include "log.h"
 
-#ifndef _WIN32
-#  include <unistd.h>
-#endif
-
-enum CONN_TYPE
-{
-	CONN_TYPE_TCP,
-	CONN_TYPE_UDP,
-};
-
-struct conn_handle
+struct proxy_conn_handle
 {
 	void *priv;
-	enum CONN_TYPE type;
+	struct proxy_handle *ph;
 };
 
-int conn_init(struct conn_handle *conn);
-void conn_free(struct conn_handle *conn);
-int conn_listen(struct conn_handle *conn, uint16_t port);
-int conn_accept(struct conn_handle *conn, struct conn_handle *accepted);
-int conn_connect(struct conn_handle *conn, uint32_t addr, uint16_t port);
-int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len);
-int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint32_t *addr);
-int conn_send(struct conn_handle *conn, const uint8_t *buff, size_t buff_len);
-int conn_send_to(struct conn_handle *conn, const uint8_t *buff, size_t buff_len, uint32_t addr, uint16_t port);
-void conn_drop(struct conn_handle *conn);
-void conn_close(struct conn_handle *conn);
-void conn_shutdown(struct conn_handle *conn);
+int proxy_conn_accept(struct proxy_conn_handle *pc, struct conn_handle *listener);
+void proxy_conn_drop(struct proxy_conn_handle *pc);
+void proxy_conn_free(struct proxy_conn_handle *pc);
+int proxy_conn_init(struct proxy_conn_handle *pc);
+int proxy_conn_start(struct proxy_conn_handle *pc);
+int proxy_conn_stop(struct proxy_conn_handle *pc);
 
-#endif /* _conn_h */
+#endif /* _proxy_conn_h */
