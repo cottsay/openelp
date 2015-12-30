@@ -1,0 +1,38 @@
+cmake_minimum_required(VERSION 2.7)
+
+include(ExternalProject)
+
+set(PCRE_TARGET_VERSION "10.20")
+
+set(PCRE_CMAKE_ARGS
+  -DBUILD_SHARED_LIBS:BOOL=OFF
+  -DBUILD_STATIC_LIBS:BOOL=ON
+  -DPCRE2_BUILD_PCRE2_8:BOOL=OFF
+  -DPCRE2_BUILD_PCRE2_16:BOOL=OFF
+  -DPCRE2_BUILD_PCRE2_32:BOOL=ON
+  -DPCRE2_SUPPORT_JIT:BOOL=OFF
+  -DPCRE2_BUILD_PCRE2GREP:BOOL=OFF
+  -DPCRE2_BUILD_TESTS:BOOL=OFF
+  )
+
+ExternalProject_Add(pcre
+  SVN_REPOSITORY
+    "svn://vcs.exim.org/pcre2/code/tags/pcre2-${PCRE_TARGET_VERSION}"
+  CMAKE_ARGS ${PCRE_CMAKE_ARGS}
+  INSTALL_COMMAND ""
+  )
+
+ExternalProject_Get_Property(pcre
+  SOURCE_DIR
+  BINARY_DIR
+  )
+
+set(OPENELP_PCRE_LICENSE_PATH "${SOURCE_DIR}/LICENCE")
+
+set(PCRE_INCLUDE_DIRS "${BINARY_DIR}")
+set(PCRE_LIBRARY_DIRS "")
+if(WIN32)
+  set(PCRE_LIBRARIES "${BINARY_DIR}/$(Configuration)/pcre2-32*.lib")
+else()
+  set(PCRE_LIBRARIES "${BINARY_DIR}/libpcre2-32.a")
+endif()

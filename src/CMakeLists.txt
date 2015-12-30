@@ -42,8 +42,8 @@ add_library(openelp
 
 if(WIN32)
   add_custom_command(OUTPUT
-    "${CMAKE_CURRENT_BINARY_DIR}/eventlog/log_eventlog_messages.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/eventlog/log_eventlog_messages.rc"
+      "${CMAKE_CURRENT_BINARY_DIR}/eventlog/log_eventlog_messages.h"
+      "${CMAKE_CURRENT_BINARY_DIR}/eventlog/log_eventlog_messages.rc"
     COMMAND mc ARGS
       -U "${OPENELP_SOURCE_DIR}/log_eventlog_messages.mc"
       -r "${CMAKE_CURRENT_BINARY_DIR}/eventlog"
@@ -66,6 +66,8 @@ endif()
 #
 # Libraries
 #
+
+target_link_libraries(openelp ${PCRE_LIBRARIES})
 
 if(UNIX)
   target_link_libraries(openelp pthread)
@@ -96,6 +98,10 @@ if(WIN32)
   set_target_properties(openelp PROPERTIES
     COMPILE_FLAGS "/DOPENELP_API=__declspec(dllexport)"
     )
+endif()
+
+if(OPENELP_BUNDLE_PCRE)
+  add_dependencies(openelp pcre)
 endif()
 
 #
