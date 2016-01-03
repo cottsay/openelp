@@ -275,7 +275,13 @@ static int client_authorize(struct proxy_conn_handle *pc)
 		}
 	}
 
-	// TODO: Verify the callsign before accepting the connection
+	ret = proxy_authorize(pc->ph, priv->callsign);
+	if (ret != 1)
+	{
+		ret = send_system(pc, SYSTEM_MSG_ACCESS_DENIED);
+
+		return ret < 0 ? ret : -EACCES;
+	}
 
 	return 0;
 }

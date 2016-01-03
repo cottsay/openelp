@@ -36,6 +36,7 @@ add_library(openelp
   ${OPENELP_SOURCE_DIR}/proxy.c
   ${OPENELP_SOURCE_DIR}/proxy_conn.c
   ${OPENELP_SOURCE_DIR}/rand.c
+  ${OPENELP_SOURCE_DIR}/regex.c
   ${OPENELP_MD5_FILES}
   ${OPENELP_PLATFORM_FILES}
   )

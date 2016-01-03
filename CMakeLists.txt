@@ -71,7 +71,7 @@ if(OPENELP_BUNDLE_PCRE)
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/BundlePCRE.cmake")
 else()
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules(PCRE REQUIRED libpcre2-32)
+  pkg_check_modules(PCRE REQUIRED libpcre2-8)
 endif()
 
 if(OPENELP_USE_OPENSSL)
@@ -113,6 +113,8 @@ if(OPENELP_CONFIG_HINT)
     "${CMAKE_C_FLAGS} -DOPENELP_CONFIG_HINT=\"${OPENELP_CONFIG_HINT}\""
     )
 endif()
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPCRE2_CODE_UNIT_WIDTH=8")
 
 if(OPENELP_USE_SYSLOG)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_SYSLOG=1")

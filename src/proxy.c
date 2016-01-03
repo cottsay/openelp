@@ -43,6 +43,7 @@
 #include "log.h"
 #include "proxy_conn.h"
 #include "rand.h"
+#include "regex.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -59,11 +60,49 @@ struct proxy_priv
 	struct conn_handle conn_listen;
 	struct log_handle log;
 	int num_clients;
+	struct regex_handle *re_calls_allowed;
+	struct regex_handle *re_calls_denied;
 };
 
 /*
  * Functions
  */
+int proxy_authorize(struct proxy_handle *ph, const char *callsign)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	int ret;
+
+	if (priv->re_calls_denied != NULL)
+	{
+		ret = regex_is_match(priv->re_calls_denied, callsign);
+		if (ret != 0)
+		{
+			if (ret < 0)
+			{
+				proxy_log(ph, LOG_LEVEL_WARN, "Failed to match callsign '%s' against denial pattern (%d): %s\n", callsign, -ret, strerror(-ret));
+			}
+
+			return 0;
+		}
+	}
+
+	if (priv->re_calls_allowed != NULL)
+	{
+		ret = regex_is_match(priv->re_calls_allowed, callsign);
+		if (ret != 1)
+		{
+			if (ret < 0)
+			{
+				proxy_log(ph, LOG_LEVEL_WARN, "Failed to match callsign '%s' against allowing pattern (%d): %s\n", callsign, -ret, strerror(-ret));
+			}
+
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 int proxy_load_conf(struct proxy_handle *ph, const char *path)
 {
 	return conf_parse_file(path, &ph->conf);
@@ -126,7 +165,7 @@ int proxy_init(struct proxy_handle *ph)
 			goto proxy_init_exit;
 		}
 
-		priv->num_clients = 1;
+		priv->num_clients = 0;
 	}
 
 	return 0;
@@ -156,6 +195,18 @@ void proxy_free(struct proxy_handle *ph)
 		// Free logger
 		log_free(&priv->log);
 
+		if (priv->re_calls_allowed != NULL)
+		{
+			regex_free(priv->re_calls_allowed);
+			free(priv->re_calls_allowed);
+		}
+
+		if (priv->re_calls_denied != NULL)
+		{
+			regex_free(priv->re_calls_denied);
+			free(priv->re_calls_denied);
+		}
+
 		// Free RNG
 		rand_free();
 
@@ -170,6 +221,7 @@ int proxy_open(struct proxy_handle *ph)
 	int i;
 	int ret;
 
+	priv->num_clients = 1;
 	priv->clients = malloc(sizeof(struct proxy_conn_handle) * priv->num_clients);
 	if (priv->clients == NULL)
 	{
@@ -182,6 +234,76 @@ int proxy_open(struct proxy_handle *ph)
 	if (ret < 0)
 	{
 		goto proxy_open_exit;
+	}
+
+	if (ph->conf.calls_allowed != NULL)
+	{
+		if (priv->re_calls_allowed == NULL)
+		{
+			priv->re_calls_allowed = malloc(sizeof(struct regex_handle));
+			if (priv->re_calls_allowed == NULL)
+			{
+				ret = -ENOMEM;
+				goto proxy_open_exit;
+			}
+
+			memset(priv->re_calls_allowed, 0x0, sizeof(struct regex_handle));
+
+			ret = regex_init(priv->re_calls_allowed);
+			if (ret < 0)
+			{
+				proxy_log(ph, LOG_LEVEL_FATAL, "Failed to initialize allowed callsigns regex (%d): %s\n", -ret, strerror(-ret));
+				goto proxy_open_exit;
+			}
+		}
+
+		ret = regex_compile(priv->re_calls_allowed, ph->conf.calls_allowed);
+		if (ret < 0)
+		{
+			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to compile allowed callsigns regex (%d): %s\n", -ret, strerror(-ret));
+			goto proxy_open_exit;
+		}
+	}
+	else if (priv->re_calls_allowed != NULL)
+	{
+		regex_free(priv->re_calls_allowed);
+		free(priv->re_calls_allowed);
+		priv->re_calls_allowed = NULL;
+	}
+
+	if (ph->conf.calls_denied != NULL)
+	{
+		if (priv->re_calls_denied == NULL)
+		{
+			priv->re_calls_denied = malloc(sizeof(struct regex_handle));
+			if (priv->re_calls_denied == NULL)
+			{
+				ret = -ENOMEM;
+				goto proxy_open_exit;
+			}
+
+			memset(priv->re_calls_denied, 0x0, sizeof(struct regex_handle));
+
+			ret = regex_init(priv->re_calls_denied);
+			if (ret < 0)
+			{
+				proxy_log(ph, LOG_LEVEL_FATAL, "Failed to initialize denied callsigns regex (%d): %s\n", -ret, strerror(-ret));
+				goto proxy_open_exit;
+			}
+		}
+
+		ret = regex_compile(priv->re_calls_denied, ph->conf.calls_denied);
+		if (ret < 0)
+		{
+			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to compile denied callsigns regex (%d): %s\n", -ret, strerror(-ret));
+			goto proxy_open_exit;
+		}
+	}
+	else if (priv->re_calls_denied != NULL)
+	{
+		regex_free(priv->re_calls_denied);
+		free(priv->re_calls_denied);
+		priv->re_calls_denied = NULL;
 	}
 
 	for (i = 0; i < priv->num_clients; i++)
@@ -227,10 +349,19 @@ proxy_open_exit_late:
 	}
 
 proxy_open_exit:
+	if (priv->re_calls_allowed != NULL)
+	{
+		regex_free(priv->re_calls_allowed);
+		free(priv->re_calls_allowed);
+		priv->re_calls_allowed = NULL;
+	}
+
 	log_close(&priv->log);
 
 	free(priv->clients);
 	priv->clients = NULL;
+
+	priv->num_clients = 0;
 
 	return ret;
 }

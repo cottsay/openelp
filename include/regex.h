@@ -1,5 +1,5 @@
 /*!
- * @file proxy_conn.h
+ * @file regex.h
  *
  * @section LICENSE
  *
@@ -35,22 +35,17 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#ifndef _proxy_conn_h
-#define _proxy_conn_h
+#ifndef _regex_h
+#define _regex_h
 
-#include "conn.h"
-
-struct proxy_conn_handle
+struct regex_handle
 {
 	void *priv;
-	struct proxy_handle *ph;
 };
 
-int proxy_conn_accept(struct proxy_conn_handle *pc, struct conn_handle *listener);
-void proxy_conn_drop(struct proxy_conn_handle *pc);
-void proxy_conn_free(struct proxy_conn_handle *pc);
-int proxy_conn_init(struct proxy_conn_handle *pc);
-int proxy_conn_start(struct proxy_conn_handle *pc);
-int proxy_conn_stop(struct proxy_conn_handle *pc);
+int regex_compile(struct regex_handle *re, const char *pattern);
+void regex_free(struct regex_handle *re);
+int regex_init(struct regex_handle *re);
+int regex_is_match(struct regex_handle *re, const char *subject);
 
-#endif /* _proxy_conn_h */
+#endif /* _regex_h */

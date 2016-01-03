@@ -108,6 +108,18 @@ int conf_init(struct proxy_conf *conf)
 
 void conf_free(struct proxy_conf *conf)
 {
+	if (conf->calls_allowed != NULL)
+	{
+		free(conf->calls_allowed);
+		conf->calls_allowed = NULL;
+	}
+
+	if (conf->calls_denied != NULL)
+	{
+		free(conf->calls_denied);
+		conf->calls_denied = NULL;
+	}
+
 	if (conf->password != NULL)
 	{
 		free(conf->password);
@@ -173,6 +185,7 @@ int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val
 				return -EINVAL;
 			}
 		}
+		break;
 	case 8:
 		if (strncmp(key, "Password", key_len) == 0)
 		{
@@ -200,6 +213,55 @@ int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val
 				return -EINVAL;
 			}
 		}
+		break;
+	case 15:
+		if (strncmp(key, "CallsignsDenied", key_len) == 0)
+		{
+			if (conf->calls_denied != NULL)
+			{
+				free(conf->calls_denied);
+			}
+
+			if (val_len == 0)
+			{
+				conf->calls_denied = NULL;
+				break;
+			}
+
+			conf->calls_denied = malloc(val_len + 1);
+			if (conf->calls_denied == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memcpy(conf->calls_denied, val, val_len);
+			conf->calls_denied[val_len] = '\0';
+		}
+		break;
+	case 16:
+		if (strncmp(key, "CallsignsAllowed", key_len) == 0)
+		{
+			if (conf->calls_allowed != NULL)
+			{
+				free(conf->calls_allowed);
+			}
+
+			if (val_len == 0)
+			{
+				conf->calls_allowed = NULL;
+				break;
+			}
+
+			conf->calls_allowed = malloc(val_len + 1);
+			if (conf->calls_allowed == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memcpy(conf->calls_allowed, val, val_len);
+			conf->calls_allowed[val_len] = '\0';
+		}
+		break;
 	}
 
 	return 0;

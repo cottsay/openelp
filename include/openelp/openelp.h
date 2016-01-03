@@ -86,6 +86,8 @@ enum LOG_MEDIUM
 
 struct proxy_conf
 {
+	char *calls_allowed;
+	char *calls_denied;
 	char *password;
 	uint16_t port;
 };
@@ -99,18 +101,19 @@ struct proxy_handle
 /*
  * Resource Management
  */
-int OPENELP_API proxy_load_conf(struct proxy_handle *ph, const char *path);
-void OPENELP_API proxy_ident(struct proxy_handle *ph);
-int OPENELP_API proxy_init(struct proxy_handle *ph);
-void OPENELP_API proxy_free(struct proxy_handle *ph);
-int OPENELP_API proxy_open(struct proxy_handle *ph);
+int OPENELP_API proxy_authorize(struct proxy_handle *ph, const char *callsign);
 void OPENELP_API proxy_close(struct proxy_handle *ph);
 void OPENELP_API proxy_drop(struct proxy_handle *ph);
-int OPENELP_API proxy_process(struct proxy_handle *ph);
-void OPENELP_API proxy_shutdown(struct proxy_handle *ph);
+void OPENELP_API proxy_free(struct proxy_handle *ph);
+void OPENELP_API proxy_ident(struct proxy_handle *ph);
+int OPENELP_API proxy_init(struct proxy_handle *ph);
+int OPENELP_API proxy_load_conf(struct proxy_handle *ph, const char *path);
 void OPENELP_API proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...);
 void OPENELP_API proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL lvl);
 int OPENELP_API proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM medium, const char *target);
+int OPENELP_API proxy_open(struct proxy_handle *ph);
+int OPENELP_API proxy_process(struct proxy_handle *ph);
+void OPENELP_API proxy_shutdown(struct proxy_handle *ph);
 
 /*
  * Helpers
