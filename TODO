@@ -1,15 +1,9 @@
 Features:
-* Configuration file
-* Logging/Debugging Subsystem
 * WIN32 service
 * Systemd unit
-* Windows Installer
 * Public proxy registration
-
-Basic Settings:
-* Port
-* Password
-* Callsign Allow/Deny
+* Specific address binding
+* Simultaneous connection support
 
 Additional Settings:
 * TCP Retry Count

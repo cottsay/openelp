@@ -3,7 +3,7 @@
  *
  * @section LICENSE
  *
- * Copyright &copy; 2015, Scott K Logan
+ * Copyright &copy; 2016, Scott K Logan
  *
  * All rights reserved.
  *
@@ -35,8 +35,8 @@
  * @author Scott K Logan <logans@cottsay.net>
  */
 
-#include "thread.h"
 #include "mutex.h"
+#include "thread.h"
 
 #include <windows.h>
 

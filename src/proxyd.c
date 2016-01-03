@@ -3,7 +3,7 @@
  *
  * @section LICENSE
  *
- * Copyright &copy; 2015, Scott K Logan
+ * Copyright &copy; 2016, Scott K Logan
  *
  * All rights reserved.
  *
@@ -39,7 +39,7 @@
 
 #ifdef _WIN32
 #  include <io.h>
-#  include <Windows.h>
+#  include <windows.h>
 #else
 #  include <signal.h>
 #  include <sys/stat.h>

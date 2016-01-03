@@ -3,7 +3,7 @@
  *
  * @section LICENSE
  *
- * Copyright &copy; 2015, Scott K Logan
+ * Copyright &copy; 2016, Scott K Logan
  *
  * All rights reserved.
  *
@@ -49,4 +49,4 @@
 void digest_get(const uint8_t *data, const size_t len, uint8_t result[DIGEST_LEN]);
 int digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1]);
 
-#endif /* _md5_h */
+#endif /* _digest_h */

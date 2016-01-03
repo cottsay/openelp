@@ -3,7 +3,7 @@
 *
 * @section LICENSE
 *
-* Copyright &copy; 2015, Scott K Logan
+* Copyright &copy; 2016, Scott K Logan
 *
 * All rights reserved.
 *

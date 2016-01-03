@@ -3,7 +3,7 @@
  *
  * @section LICENSE
  *
- * Copyright &copy; 2015, Scott K Logan
+ * Copyright &copy; 2016, Scott K Logan
  *
  * All rights reserved.
  *
@@ -37,8 +37,8 @@
 
 #include "conn_wsa_errno.h"
 
-#include <winsock2.h>
 #include <errno.h>
+#include <winsock2.h>
 
 static int wsa_errno[68] =
 {

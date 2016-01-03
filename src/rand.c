@@ -3,7 +3,7 @@
  *
  * @section LICENSE
  *
- * Copyright &copy; 2015, Scott K Logan
+ * Copyright &copy; 2016, Scott K Logan
  *
  * All rights reserved.
  *
@@ -37,8 +37,8 @@
 
 #include "rand.h"
 
-#include <time.h>
 #include <stdlib.h>
+#include <time.h>
 
 int rand_init(void)
 {
