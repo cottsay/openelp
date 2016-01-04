@@ -38,9 +38,9 @@
 #ifndef _log_eventlog_h
 #define _log_eventlog_h
 
-#ifdef _WIN32
-#  include <Windows.h>
-#  include <WinBase.h>
+#ifdef HAVE_EVENTLOG
+#  include <windows.h>
+#  include <winbase.h>
 #  include "log_eventlog_messages.h"
 #  define EVENTLOG_ERRNO GetLastError()
 typedef HANDLE EVENTLOG_HANDLE;

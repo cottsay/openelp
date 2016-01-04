@@ -160,26 +160,21 @@ static const char * proxy_config_hint()
 
 static void print_usage(void)
 {
-#ifndef _WIN32
 	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
-		"Usage: openelpd [-d] [-F] [-L <log path>] [-S] [--help] [<config path>]\n\n"
-		"Arguments:\n"
-		"    -d            Enable debugging output\n"
-		"    -F            Stay in foreground (don't daemonize)\n"
-		"    -L <log path> Log output the given log file\n"
-		"    -S            Use syslog for logging\n"
-		"    <config path> Path to the proxy configuration to use.\n",
-		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
-#else
-	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
-		"Usage: openelpd [-d] [-L <log path>] [--help] [<config path>]\n"
-		"Arguments:\n"
-		"    -d            Enable debugging output\n"
-		"    -E            Use Event Log for logging\n"
-		"    -L <log path> Log output the given log file\n"
-		"    <config path> Path to the proxy configuration to use.\n",
-		OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
+		"Usage: openelpd [OPTION...] [CONFIG FILE]\n\n"
+		"  -d            Enable debugging output\n\n"
+#ifdef HAVE_EVENTLOG
+		"  -E            Use Event Log for logging\n\n"
 #endif
+#ifndef _WIN32
+		"  -F            Stay in foreground (don't daemonize)\n\n"
+#endif
+		"  -h,--help     Display this help\n\n"
+		"  -L <log path> Log output the given log file\n\n"
+#ifdef HAVE_SYSLOG
+		"  -S            Use syslog for logging\n\n"
+#endif
+		, OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
 }
 
 static void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
@@ -211,7 +206,7 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 					case 'd':
 						opts->debug = 1;
 						break;
-#ifdef _WIN32
+#ifdef HAVE_EVENTLOG
 					case 'E':
 						if (opts->log_path || opts->syslog)
 						{
@@ -220,11 +215,16 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 						}
 						opts->eventlog = 1;
 						break;
-#else
+#endif
+#ifndef _WIN32
 					case 'F':
 						opts->foreground = 1;
 						break;
 #endif
+					case 'h':
+						print_usage();
+						exit(0);
+						break;
 					case 'L':
 						if (opts->eventlog || opts->syslog)
 						{
@@ -248,7 +248,7 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 						}
 
 						break;
-#ifndef _WIN32
+#ifdef HAVE_SYSLOG
 					case 'S':
 						if (opts->eventlog || opts->log_path)
 						{

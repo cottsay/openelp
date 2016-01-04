@@ -51,6 +51,9 @@ set(OPENELP_USE_OPENSSL FALSE CACHE BOOL
   "Use OpenSSL for MD5 computation instead of bundled md5.c"
   )
 if(WIN32)
+  set(OPENELP_USE_EVENTLOG TRUE CACHE BOOL
+    "Enable support for logging to the Windows Event Log"
+    )
   set(OPENELP_USE_SYSLOG FALSE CACHE BOOL
     "Enable support for logging to SYSLOG"
     )
@@ -58,6 +61,9 @@ if(WIN32)
     "Hint path when searching for the proxy configuration file at runtime"
     )
 else()
+  set(OPENELP_USE_EVENTLOG FALSE CACHE BOOL
+    "Enable support for logging to the Windows Event Log"
+    )
   set(OPENELP_USE_SYSLOG TRUE CACHE BOOL
     "Enable support for logging to SYSLOG"
     )
@@ -118,6 +124,10 @@ if(OPENELP_CONFIG_HINT)
 endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPCRE2_CODE_UNIT_WIDTH=8")
+
+if(OPENELP_USE_EVENTLOG)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_EVENTLOG=1")
+endif()
 
 if(OPENELP_USE_SYSLOG)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_SYSLOG=1")

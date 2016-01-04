@@ -318,6 +318,8 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 			}
 
 			break;
+		case LOG_MEDIUM_SYSLOG:
+			break;
 		case LOG_MEDIUM_EVENTLOG:
 			openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 			log->medium = LOG_MEDIUM_SYSLOG;
