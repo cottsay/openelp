@@ -33,6 +33,9 @@ endif()
 set(MAN_INSTALL_DIR "${SHARE_INSTALL_PREFIX}/man" CACHE PATH
   "Installation directory for all manuals"
   )
+set(SYSTEMD_SERVICES_INSTALL_DIR "lib/systemd/system" CACHE PATH
+  "Installation directory for systemd services"
+  )
 
 #
 # Configuration Variables

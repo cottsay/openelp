@@ -36,4 +36,9 @@ if(UNIX)
     DESTINATION "${MAN_INSTALL_DIR}/man1"
     COMPONENT docs
     )
+
+  install(FILES openelp.service
+    DESTINATION "${SYSTEMD_SERVICES_INSTALL_DIR}"
+    COMPONENT systemd
+    )
 endif()

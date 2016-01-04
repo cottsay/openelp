@@ -1,0 +1,10 @@
+[Unit]
+Description=Open Source EchoLink Proxy
+After=network.target nss-lookup.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/openelpd -S /etc/ELProxy.conf
+
+[Install]
+WantedBy=multi-user.target
