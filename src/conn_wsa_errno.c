@@ -37,8 +37,9 @@
 
 #include "conn_wsa_errno.h"
 
-#include <errno.h>
 #include <winsock2.h>
+
+#include <errno.h>
 
 static int wsa_errno[68] =
 {

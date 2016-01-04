@@ -67,7 +67,7 @@ struct proxy_priv
 /*
  * Functions
  */
-int proxy_authorize(struct proxy_handle *ph, const char *callsign)
+int proxy_authorize_callsign(struct proxy_handle *ph, const char *callsign)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 	int ret;
@@ -323,16 +323,6 @@ int proxy_open(struct proxy_handle *ph)
 		}
 	}
 
-	for (i = 0; i < priv->num_clients; i++)
-	{
-		ret = proxy_conn_start(&priv->clients[i]);
-		if (ret < 0)
-		{
-			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to start proxy connection #%d (%d): %s\n", i, -ret, strerror(-ret));
-			goto proxy_open_exit_late;
-		}
-	}
-
 	ret = conn_listen(&priv->conn_listen, ph->conf.port);
 	if (ret < 0)
 	{
@@ -374,14 +364,23 @@ void proxy_close(struct proxy_handle *ph)
 	proxy_shutdown(ph);
 	proxy_drop(ph);
 
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Closing client connections...\n");
+
 	for (i = 0; i < priv->num_clients; i++)
 	{
 		proxy_conn_free(&priv->clients[i]);
 	}
+
 	free(priv->clients);
 	priv->clients = NULL;
+	priv->num_clients = 0;
+
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Closing listening connection...\n");
 
 	conn_close(&priv->conn_listen);
+
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Proxy is down - closing log.\n");
+
 	log_close(&priv->log);
 }
 
@@ -389,6 +388,8 @@ void proxy_drop(struct proxy_handle *ph)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 	int i;
+
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Dropping all clients...\n");
 
 	for (i = 0; i < priv->num_clients; i++)
 	{
@@ -543,3 +544,26 @@ get_password_response_exit:
 	return ret;
 }
 
+int proxy_start(struct proxy_handle *ph)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	int ret;
+	int i;
+
+	for (i = 0; i < priv->num_clients; i++)
+	{
+		ret = proxy_conn_start(&priv->clients[i]);
+		if (ret < 0)
+		{
+			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to start proxy connection #%d (%d): %s\n", i, -ret, strerror(-ret));
+			for (i--; i >= 0; i--)
+			{
+				proxy_conn_stop(&priv->clients[i]);
+			}
+
+			return ret;
+		}
+	}
+
+	return 0;
+}

@@ -47,8 +47,8 @@
 struct thread_priv
 {
 	uint8_t dirty;
-	pthread_t thread;
 	struct mutex_handle mutex;
+	pthread_t thread;
 };
 
 int thread_init(struct thread_handle *pt)

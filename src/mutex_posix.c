@@ -194,6 +194,7 @@ void mutex_free(struct mutex_handle *mutex)
 		pthread_cond_destroy(&priv->cond);
 
 		free(mutex->priv);
+		mutex->priv = NULL;
 	}
 }
 
@@ -264,6 +265,7 @@ void condvar_free(struct condvar_handle *condvar)
 		pthread_cond_destroy(&priv->cond);
 
 		free(condvar->priv);
+		condvar->priv = NULL;
 	}
 }
 

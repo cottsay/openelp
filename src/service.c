@@ -36,6 +36,7 @@
 */
 
 #include <windows.h>
+
 #include <stdio.h>
 
 static void ServiceMain(int argc, char *argv[])

@@ -275,9 +275,11 @@ static int client_authorize(struct proxy_conn_handle *pc)
 		}
 	}
 
-	ret = proxy_authorize(pc->ph, priv->callsign);
+	ret = proxy_authorize_callsign(pc->ph, priv->callsign);
 	if (ret != 1)
 	{
+		proxy_log(pc->ph, LOG_LEVEL_INFO, "Client '%s' is not authorized to use this proxy. Dropping...\n", priv->callsign);
+
 		ret = send_system(pc, SYSTEM_MSG_ACCESS_DENIED);
 
 		return ret < 0 ? ret : -EACCES;
@@ -308,6 +310,8 @@ static void * client_manager(void *ctx)
 
 		if (priv->sentinel != 0)
 		{
+			mutex_unlock(&priv->mutex_sentinel);
+
 			break;
 		}
 
@@ -315,11 +319,16 @@ static void * client_manager(void *ctx)
 
 		if (priv->sentinel != 0)
 		{
+			mutex_unlock(&priv->mutex_sentinel);
+
 			break;
 		}
 		else if (priv->conn_client == NULL)
 		{
 			proxy_log(pc->ph, LOG_LEVEL_ERROR, "New connection was signaled, but no connection was given\n");
+
+			mutex_unlock(&priv->mutex_sentinel);
+
 			continue;
 		}
 
@@ -441,7 +450,19 @@ static void * client_manager(void *ctx)
 		conn_drop(priv->conn_client);
 	}
 
+	mutex_lock(&priv->mutex_sentinel);
+
+	if (priv->conn_client != NULL)
+	{
+		conn_close(priv->conn_client);
+		conn_free(priv->conn_client);
+		free(priv->conn_client);
+		priv->conn_client = NULL;
+	}
+
 	mutex_unlock(&priv->mutex_sentinel);
+
+	proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Client manager thread is returning cleanly.\n");
 
 	return NULL;
 }
@@ -1126,6 +1147,8 @@ int proxy_conn_stop(struct proxy_conn_handle *pc)
 
 	ret = thread_join(&priv->thread_client);
 
+	mutex_lock(&priv->mutex_sentinel);
+
 	if (priv->conn_client != NULL)
 	{
 		proxy_log(pc->ph, LOG_LEVEL_ERROR, "Proxy connection client thread didn't clean up the conn_client!\n");
@@ -1134,6 +1157,8 @@ int proxy_conn_stop(struct proxy_conn_handle *pc)
 		free(priv->conn_client);
 		priv->conn_client = NULL;
 	}
+
+	mutex_unlock(&priv->mutex_sentinel);
 
 	return ret;
 }

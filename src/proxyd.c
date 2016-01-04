@@ -136,8 +136,20 @@ static const char * proxy_config_hint()
 			exePathRet = GetModuleFileName(NULL, exePath, MAX_PATH);
 			if (exePath > 0 && exePathRet + strlen(config_path_hint) + 1 < MAX_PATH)
 			{
+				char *tmp;
+
 				for (; exePathRet > 0 && exePath[exePathRet - 1] != '\\'; exePathRet--);
-				strcpy(&exePath[exePathRet], config_path_hint);
+				tmp = &exePath[exePathRet];
+				strcpy(tmp, config_path_hint);
+
+				for (; *tmp != '\0'; tmp++)
+				{
+					if (*tmp == '/')
+					{
+						*tmp = '\\';
+					}
+				}
+
 				return exePath;
 			}
 			else
@@ -231,7 +243,7 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
 							exit(-EINVAL);
 						}
-						else if (arg_len > 2)
+						else if (arg_len > j + 1)
 						{
 							opts->log_path = &argv[i][j + 1];
 							j = arg_len;
@@ -375,8 +387,8 @@ int main(int argc, const char *argv[])
 		}
 
 		if (opts.log_path)
-                {
-                        ret = proxy_log_select_medium(&ph, LOG_MEDIUM_FILE, opts.log_path);
+		{
+			ret = proxy_log_select_medium(&ph, LOG_MEDIUM_FILE, opts.log_path);
 			if (ret != 0)
 			{
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to open log file (%d): %s\n", -ret, strerror(-ret));
@@ -384,7 +396,7 @@ int main(int argc, const char *argv[])
 		}
 		else if (opts.syslog)
 		{
-                        ret = proxy_log_select_medium(&ph, LOG_MEDIUM_SYSLOG, opts.log_path);
+			ret = proxy_log_select_medium(&ph, LOG_MEDIUM_SYSLOG, opts.log_path);
 			if (ret != 0)
 			{
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to activate syslog (%d): %s\n", -ret, strerror(-ret));
@@ -434,7 +446,7 @@ int main(int argc, const char *argv[])
 		{
 			proxy_log(&ph, LOG_LEVEL_INFO, "Switching log to syslog\n");
 
-            ret = proxy_log_select_medium(&ph, LOG_MEDIUM_SYSLOG, opts.log_path);
+			ret = proxy_log_select_medium(&ph, LOG_MEDIUM_SYSLOG, opts.log_path);
 			if (ret != 0)
 			{
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to activate syslog (%d): %s\n", -ret, strerror(-ret));
@@ -450,6 +462,13 @@ int main(int argc, const char *argv[])
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to activate eventlog (%d): %s\n", -ret, strerror(-ret));
 			}
 		}
+	}
+
+	ret = proxy_start(&ph);
+	if (ret < 0)
+	{
+		proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to start proxy (%d): %s\n", -ret, strerror(-ret));
+		goto proxyd_exit;
 	}
 
 	proxy_log(&ph, LOG_LEVEL_INFO, "Ready.\n");

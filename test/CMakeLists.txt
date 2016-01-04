@@ -49,6 +49,14 @@ target_link_libraries(test_regex
   )
 
 #
+# Properties
+#
+
+if(OPENELP_BUNDLE_PCRE)
+  add_dependencies(test_regex pcre)
+endif()
+
+#
 # Tests
 #
 

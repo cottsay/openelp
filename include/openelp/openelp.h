@@ -102,7 +102,7 @@ struct proxy_handle
 /*
  * Resource Management
  */
-int OPENELP_API proxy_authorize(struct proxy_handle *ph, const char *callsign);
+int OPENELP_API proxy_authorize_callsign(struct proxy_handle *ph, const char *callsign);
 void OPENELP_API proxy_close(struct proxy_handle *ph);
 void OPENELP_API proxy_drop(struct proxy_handle *ph);
 void OPENELP_API proxy_free(struct proxy_handle *ph);
@@ -115,6 +115,7 @@ int OPENELP_API proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_
 int OPENELP_API proxy_open(struct proxy_handle *ph);
 int OPENELP_API proxy_process(struct proxy_handle *ph);
 void OPENELP_API proxy_shutdown(struct proxy_handle *ph);
+int OPENELP_API proxy_start(struct proxy_handle *ph);
 
 /*
  * Helpers

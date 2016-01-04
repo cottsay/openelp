@@ -171,16 +171,16 @@ int conf_parse_line(const char *line, struct proxy_conf *conf)
 
 int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf)
 {
-	char dummy;
+	char dummy[2];
 
 	switch (key_len)
 	{
 	case 4:
 		if (strncmp(key, "Port", key_len) == 0)
 		{
-			if (sscanf(val, "%hu%1s", &conf->port, &dummy) != 1)
+			if (sscanf(val, "%hu%1s", &conf->port, dummy) != 1)
 			{
-				fprintf(stderr, "Invalid configuration value for 'Port': '%*s'\n", (int)val_len, val);
+				fprintf(stderr, "Invalid configuration value for 'Port': '%.*s'\n", (int)val_len, val);
 
 				return -EINVAL;
 			}
