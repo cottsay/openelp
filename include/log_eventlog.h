@@ -42,7 +42,7 @@
 #  include <windows.h>
 #  include <winbase.h>
 #  include "log_eventlog_messages.h"
-#  define EVENTLOG_ERRNO GetLastError()
+#  define EVENTLOG_ERRNO -(long)GetLastError()
 typedef HANDLE EVENTLOG_HANDLE;
 #else
 #  define DeregisterEventSource(...)

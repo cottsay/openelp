@@ -434,7 +434,7 @@ int proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM mediu
 	int ret;
 
 	ret = log_select_medium(&priv->log, medium, target);
-	if (ret == 0)
+	if (medium != LOG_MEDIUM_NONE && ret == 0)
 	{
 		log_ident(&priv->log);
 	}

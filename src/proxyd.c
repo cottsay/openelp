@@ -130,16 +130,16 @@ static const char * proxy_config_hint()
 			config_path_hint[1] != ':' &&
 			config_path_hint[2] != ':')
 		{
-			static char exePath[MAX_PATH];
-			int exePathRet;
+			static char exe_path[MAX_PATH];
+			int exe_path_ret;
 
-			exePathRet = GetModuleFileName(NULL, exePath, MAX_PATH);
-			if (exePath > 0 && exePathRet + strlen(config_path_hint) + 1 < MAX_PATH)
+			exe_path_ret = GetModuleFileName(NULL, exe_path, MAX_PATH);
+			if (exe_path > 0 && exe_path_ret + strlen(config_path_hint) + 1 < MAX_PATH)
 			{
 				char *tmp;
 
-				for (; exePathRet > 0 && exePath[exePathRet - 1] != '\\'; exePathRet--);
-				tmp = &exePath[exePathRet];
+				for (; exe_path_ret > 0 && exe_path[exe_path_ret - 1] != '\\'; exe_path_ret--);
+				tmp = &exe_path[exe_path_ret];
 				strcpy(tmp, config_path_hint);
 
 				for (; *tmp != '\0'; tmp++)
@@ -150,7 +150,7 @@ static const char * proxy_config_hint()
 					}
 				}
 
-				return exePath;
+				return exe_path;
 			}
 			else
 			{
