@@ -36,11 +36,20 @@
  */
 
 #include "conf.h"
+#include "log.h"
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/*
+ * Static Functions
+ */
+static int conf_parse_line(const char *line, struct proxy_conf *conf, struct log_handle *log);
+static int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf, struct log_handle *log);
+static int conf_parse_stream(FILE *stream, struct proxy_conf *conf, struct log_handle *log);
+static int conf_readline(char **lineptr, size_t *n, FILE *stream);
 
 static int conf_readline(char **lineptr, size_t *n, FILE *stream)
 {
@@ -98,36 +107,7 @@ static int conf_readline(char **lineptr, size_t *n, FILE *stream)
 	return so_far;
 }
 
-int conf_init(struct proxy_conf *conf)
-{
-	conf->password = NULL;
-	conf->port = 8100;
-
-	return 0;
-}
-
-void conf_free(struct proxy_conf *conf)
-{
-	if (conf->calls_allowed != NULL)
-	{
-		free(conf->calls_allowed);
-		conf->calls_allowed = NULL;
-	}
-
-	if (conf->calls_denied != NULL)
-	{
-		free(conf->calls_denied);
-		conf->calls_denied = NULL;
-	}
-
-	if (conf->password != NULL)
-	{
-		free(conf->password);
-		conf->password = NULL;
-	}
-}
-
-int conf_parse_line(const char *line, struct proxy_conf *conf)
+static int conf_parse_line(const char *line, struct proxy_conf *conf, struct log_handle *log)
 {
 	const char *key = line;
 	size_t key_len = 0;
@@ -144,7 +124,7 @@ int conf_parse_line(const char *line, struct proxy_conf *conf)
 	}
 
 	// Find the '='
-	for(; key[key_len] != '='; key_len++)
+	for (; key[key_len] != '='; key_len++)
 	{
 		// If the line doesn't have '=', ignore it
 		if (key[key_len] == '\0')
@@ -156,20 +136,20 @@ int conf_parse_line(const char *line, struct proxy_conf *conf)
 	val = &key[key_len + 1];
 
 	// Backtrack if there is a space
-	for(; key_len > 0 && (key[key_len - 1] == ' ' || key[key_len - 1] == '\t'); key_len--);
+	for (; key_len > 0 && (key[key_len - 1] == ' ' || key[key_len - 1] == '\t'); key_len--);
 
 	// Find the beginning of the key
 	for (; *val == ' ' && *val == '\t'; val++);
 
-	for(; val[val_len] != '\0'; val_len++);
+	for (; val[val_len] != '\0'; val_len++);
 
 	// Backtrack if there is a space
-	for(; val_len > 0 && (val[val_len - 1] == ' ' || val[val_len - 1] == '\t' || val[val_len - 1] == '\n' || val[val_len - 1] == '\r'); val_len--);
+	for (; val_len > 0 && (val[val_len - 1] == ' ' || val[val_len - 1] == '\t' || val[val_len - 1] == '\n' || val[val_len - 1] == '\r'); val_len--);
 
-	return conf_parse_pair(key, key_len, val, val_len, conf);
+	return conf_parse_pair(key, key_len, val, val_len, conf, log);
 }
 
-int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf)
+static int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf, struct log_handle *log)
 {
 	char dummy[2];
 
@@ -180,7 +160,7 @@ int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val
 		{
 			if (sscanf(val, "%hu%1s", &conf->port, dummy) != 1)
 			{
-				fprintf(stderr, "Invalid configuration value for 'Port': '%.*s'\n", (int)val_len, val);
+				log_printf(log, LOG_LEVEL_ERROR, "Invalid configuration value for 'Port': '%.*s'\n", (int)val_len, val);
 
 				return -EINVAL;
 			}
@@ -208,7 +188,7 @@ int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val
 				free(conf->password);
 				conf->password = NULL;
 
-				fprintf(stderr, "Error: Missing password\n");
+				log_printf(log, LOG_LEVEL_ERROR, "Error: Missing password\n");
 
 				return -EINVAL;
 			}
@@ -267,7 +247,7 @@ int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val
 	return 0;
 }
 
-int conf_parse_stream(FILE *stream, struct proxy_conf *conf)
+static int conf_parse_stream(FILE *stream, struct proxy_conf *conf, struct log_handle *log)
 {
 	char *line = NULL;
 	size_t line_len = 0;
@@ -275,7 +255,7 @@ int conf_parse_stream(FILE *stream, struct proxy_conf *conf)
 
 	while (conf_readline(&line, &line_len, stream) > 0)
 	{
-		ret = conf_parse_line(line, conf);
+		ret = conf_parse_line(line, conf, log);
 
 		free(line);
 		line = NULL;
@@ -291,7 +271,36 @@ int conf_parse_stream(FILE *stream, struct proxy_conf *conf)
 	return 0;
 }
 
-int conf_parse_file(const char *file, struct proxy_conf *conf)
+int conf_init(struct proxy_conf *conf)
+{
+	conf->password = NULL;
+	conf->port = 8100;
+
+	return 0;
+}
+
+void conf_free(struct proxy_conf *conf)
+{
+	if (conf->calls_allowed != NULL)
+	{
+		free(conf->calls_allowed);
+		conf->calls_allowed = NULL;
+	}
+
+	if (conf->calls_denied != NULL)
+	{
+		free(conf->calls_denied);
+		conf->calls_denied = NULL;
+	}
+
+	if (conf->password != NULL)
+	{
+		free(conf->password);
+		conf->password = NULL;
+	}
+}
+
+int conf_parse_file(const char *file, struct proxy_conf *conf, struct log_handle *log)
 {
 	FILE *stream = fopen(file, "r");
 	int ret;
@@ -301,7 +310,7 @@ int conf_parse_file(const char *file, struct proxy_conf *conf)
 		return -errno;
 	}
 
-	ret = conf_parse_stream(stream, conf);
+	ret = conf_parse_stream(stream, conf, log);
 
 	fclose(stream);
 

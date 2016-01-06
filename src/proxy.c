@@ -105,7 +105,9 @@ int proxy_authorize_callsign(struct proxy_handle *ph, const char *callsign)
 
 int proxy_load_conf(struct proxy_handle *ph, const char *path)
 {
-	return conf_parse_file(path, &ph->conf);
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+
+	return conf_parse_file(path, &ph->conf, &priv->log);
 }
 
 void proxy_ident(struct proxy_handle *ph)

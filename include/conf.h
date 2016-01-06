@@ -51,9 +51,6 @@
 
 int conf_init(struct proxy_conf *conf);
 void conf_free(struct proxy_conf *conf);
-int conf_parse_line(const char *line, struct proxy_conf *conf);
-int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf);
-int conf_parse_stream(FILE *stream, struct proxy_conf *conf);
-int conf_parse_file(const char *file, struct proxy_conf *conf);
+int conf_parse_file(const char *file, struct proxy_conf *conf, struct log_handle *log);
 
 #endif /* _conf_h */
