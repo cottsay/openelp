@@ -343,11 +343,19 @@ int main(int argc, const char *argv[])
 	if (ret < 0)
 	{
 		fprintf(stderr, "Failed to initialize proxy (%d): %s\n", -ret, strerror(-ret));
-		exit(ret);
+		goto proxyd_exit;
 	}
 
 	// Set the logging level
 	proxy_log_level(&ph, opts.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
+
+	// Open the log
+	ret = proxy_log_select_medium(&ph, LOG_MEDIUM_STDOUT, NULL);
+	if (ret < 0)
+	{
+		fprintf(stderr, "Failed to switch log to STDOUT (%d): %s\n", -ret, strerror(-ret));
+		goto proxyd_exit;
+	}
 
 	// Load the config
 	ret = proxy_load_conf(&ph, opts.config_path);
@@ -429,8 +437,6 @@ int main(int argc, const char *argv[])
 	else
 #endif
 	{
-		proxy_ident(&ph);
-
 		// Switch log, if necessary
 		if (opts.log_path)
 		{

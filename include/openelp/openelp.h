@@ -88,6 +88,8 @@ enum LOG_MEDIUM
 
 struct proxy_conf
 {
+	char *bind_addr;
+	char *bind_addr_ext;
 	char *calls_allowed;
 	char *calls_denied;
 	char *password;

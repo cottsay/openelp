@@ -157,21 +157,13 @@ void conn_free(struct conn_handle *conn)
 	}
 }
 
-int conn_listen(struct conn_handle *conn, uint16_t port)
+int conn_listen(struct conn_handle *conn)
 {
 	struct addrinfo hints;
 	struct addrinfo *res = NULL;
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
-	char port_str[6];
 	int ret;
 	const char yes = 1;
-
-	// TODO: Optimize
-	ret = snprintf(port_str, 6, "%hu", port);
-	if (ret > 5 || ret < 1)
-	{
-		return -EINVAL;
-	}
 
 	memset(&hints, 0x0, sizeof(struct addrinfo));
 
@@ -192,7 +184,7 @@ int conn_listen(struct conn_handle *conn, uint16_t port)
 	// TODO: Address targeting
 	hints.ai_flags = AI_PASSIVE;
 
-	ret = getaddrinfo(NULL, port_str, &hints, &res);
+	ret = getaddrinfo(conn->source_addr, conn->source_port, &hints, &res);
 	if (ret != 0)
 	{
 		return -EADDRNOTAVAIL;
@@ -271,10 +263,11 @@ int conn_accept(struct conn_handle *conn, struct conn_handle *accepted)
 	return 0;
 }
 
-int conn_connect(struct conn_handle *conn, uint32_t addr, uint16_t port)
+int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 {
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
-	struct sockaddr_in saddr;
+	struct addrinfo hints;
+	struct addrinfo *res = NULL;
 	int ret;
 
 	if (conn->type != CONN_TYPE_TCP)
@@ -282,24 +275,33 @@ int conn_connect(struct conn_handle *conn, uint32_t addr, uint16_t port)
 		return -EPROTOTYPE;
 	}
 
-	memset(&saddr, 0x0, sizeof(struct sockaddr_in));
+	memset(&hints, 0x0, sizeof(struct addrinfo));
 
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(port);
-	saddr.sin_addr.s_addr = addr;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_family = AF_UNSPEC;
 
-	priv->sock_fd = socket(saddr.sin_family, SOCK_STREAM, IPPROTO_TCP);
-	if (priv->sock_fd == INVALID_SOCKET)
+	ret = getaddrinfo(addr, port, &hints, &res);
+	if (ret != 0)
 	{
-		return SOCK_ERRNO;
+		ret = -EADDRNOTAVAIL;
+		goto conn_connect_free_early;
 	}
 
-	ret = connect(priv->sock_fd, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
+	priv->sock_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (priv->sock_fd == INVALID_SOCKET)
+	{
+		ret = SOCK_ERRNO;
+		goto conn_connect_free_early;
+	}
+
+	ret = connect(priv->sock_fd, res->ai_addr, res->ai_addrlen);
 	if (ret == SOCKET_ERROR)
 	{
 		ret = SOCK_ERRNO;
 		goto conn_connect_free;
 	}
+
+	freeaddrinfo(res);
 
 	mutex_lock(&priv->mutex);
 
@@ -315,6 +317,9 @@ conn_connect_free:
 	closesocket(priv->sock_fd);
 
 	priv->sock_fd = INVALID_SOCKET;
+
+conn_connect_free_early:
+	freeaddrinfo(res);
 
 	return ret;
 }
@@ -372,7 +377,7 @@ conn_recv_exit:
 	return ret;
 }
 
-int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint32_t *addr)
+int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint32_t *addr, uint16_t *port)
 {
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	int ret;
@@ -412,6 +417,11 @@ conn_recv_any_exit:
 	if (addr != NULL && ret > 0)
 	{
 		*addr = ((struct sockaddr_in *)&priv->remote_addr)->sin_addr.s_addr;
+	}
+
+	if (port != NULL && ret > 0)
+	{
+		*port = ((struct sockaddr_in *)&priv->remote_addr)->sin_port;
 	}
 
 	return ret;

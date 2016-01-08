@@ -53,16 +53,18 @@ enum CONN_TYPE
 struct conn_handle
 {
 	void *priv;
+	const char *source_port;
+	const char *source_addr;
 	enum CONN_TYPE type;
 };
 
 int conn_init(struct conn_handle *conn);
 void conn_free(struct conn_handle *conn);
-int conn_listen(struct conn_handle *conn, uint16_t port);
+int conn_listen(struct conn_handle *conn);
 int conn_accept(struct conn_handle *conn, struct conn_handle *accepted);
-int conn_connect(struct conn_handle *conn, uint32_t addr, uint16_t port);
+int conn_connect(struct conn_handle *conn, const char *addr, const char *port);
 int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len);
-int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint32_t *addr);
+int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint32_t *addr, uint16_t *port);
 int conn_send(struct conn_handle *conn, const uint8_t *buff, size_t buff_len);
 int conn_send_to(struct conn_handle *conn, const uint8_t *buff, size_t buff_len, uint32_t addr, uint16_t port);
 void conn_drop(struct conn_handle *conn);

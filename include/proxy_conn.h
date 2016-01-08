@@ -44,6 +44,7 @@ struct proxy_conn_handle
 {
 	void *priv;
 	struct proxy_handle *ph;
+	const char *source_addr;
 };
 
 int proxy_conn_accept(struct proxy_conn_handle *pc, struct conn_handle *listener);

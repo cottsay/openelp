@@ -62,6 +62,7 @@ struct proxy_priv
 	int num_clients;
 	struct regex_handle *re_calls_allowed;
 	struct regex_handle *re_calls_denied;
+	char port_str[6];
 };
 
 /*
@@ -106,8 +107,22 @@ int proxy_authorize_callsign(struct proxy_handle *ph, const char *callsign)
 int proxy_load_conf(struct proxy_handle *ph, const char *path)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	int ret;
 
-	return conf_parse_file(path, &ph->conf, &priv->log);
+	ret = conf_parse_file(path, &ph->conf, &priv->log);
+	if (ret < 0)
+	{
+		return ret;
+	}
+
+	ret = snprintf(priv->port_str, 6, "%hu", ph->conf.port);
+	if (ret < 1 || ret > 5)
+	{
+		proxy_log(ph, LOG_LEVEL_ERROR, "Port conversion failed (%d)", ret);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 void proxy_ident(struct proxy_handle *ph)
@@ -223,7 +238,9 @@ int proxy_open(struct proxy_handle *ph)
 	int i;
 	int ret;
 
+	// TODO: Multi-client
 	priv->num_clients = 1;
+
 	priv->clients = malloc(sizeof(struct proxy_conn_handle) * priv->num_clients);
 	if (priv->clients == NULL)
 	{
@@ -325,11 +342,26 @@ int proxy_open(struct proxy_handle *ph)
 		}
 	}
 
-	ret = conn_listen(&priv->conn_listen, ph->conf.port);
+	// TODO: Multi-client
+	priv->clients[0].source_addr = ph->conf.bind_addr_ext;
+
+	priv->conn_listen.source_addr = (const char *)ph->conf.bind_addr;
+	priv->conn_listen.source_port = (const char *)priv->port_str;
+
+	ret = conn_listen(&priv->conn_listen);
 	if (ret < 0)
 	{
 		proxy_log(ph, LOG_LEVEL_FATAL, "Failed to open listening port (%d): %s\n", -ret, strerror(-ret));
 		goto proxy_open_exit_late;
+	}
+
+	if (ph->conf.bind_addr == NULL)
+	{
+		proxy_log(ph, LOG_LEVEL_INFO, "Listening for connections on port %s\n", priv->port_str);
+	}
+	else
+	{
+		proxy_log(ph, LOG_LEVEL_INFO, "Listening for connections at %s:%s\n", ph->conf.bind_addr, priv->port_str);
 	}
 
 	return 0;

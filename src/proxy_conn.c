@@ -357,7 +357,7 @@ static void * client_manager(void *ctx)
 			continue;
 		}
 
-		ret = conn_listen(&priv->conn_control, 5199);
+		ret = conn_listen(&priv->conn_control);
 		if (ret < 0)
 		{
 			proxy_log(pc->ph, LOG_LEVEL_ERROR, "Failed to open UDP control port (5199). Dropping...\n");
@@ -367,7 +367,7 @@ static void * client_manager(void *ctx)
 			continue;
 		}
 
-		ret = conn_listen(&priv->conn_data, 5198);
+		ret = conn_listen(&priv->conn_data);
 		if (ret < 0)
 		{
 			proxy_log(pc->ph, LOG_LEVEL_ERROR, "Failed to open UDP data port (5198). Dropping...\n");
@@ -483,7 +483,7 @@ static void * forwarder_control(void *ctx)
 
 	do
 	{
-		ret = conn_recv_any(&priv->conn_control, msg->data, CONN_BUFF_LEN_HEADERLESS, &msg->address);
+		ret = conn_recv_any(&priv->conn_control, msg->data, CONN_BUFF_LEN_HEADERLESS, &msg->address, NULL);
 		if (ret > 0)
 		{
 			msg->size = ret;
@@ -563,7 +563,7 @@ static void * forwarder_data(void *ctx)
 
 	do
 	{
-		ret = conn_recv_any(&priv->conn_data, msg->data, CONN_BUFF_LEN_HEADERLESS, &msg->address);
+		ret = conn_recv_any(&priv->conn_data, msg->data, CONN_BUFF_LEN_HEADERLESS, &msg->address, NULL);
 		if (ret > 0)
 		{
 			msg->size = ret;
@@ -643,7 +643,7 @@ static void * forwarder_tcp(void *ctx)
 
 	do
 	{
-		ret = conn_recv_any(&priv->conn_tcp, msg->data, CONN_BUFF_LEN_HEADERLESS, NULL);
+		ret = conn_recv_any(&priv->conn_tcp, msg->data, CONN_BUFF_LEN_HEADERLESS, NULL, NULL);
 		if (ret > 0)
 		{
 			msg->size = ret;
@@ -853,15 +853,24 @@ static int process_tcp_open_message(struct proxy_conn_handle *pc, struct proxy_m
 	struct proxy_conn_priv *priv = (struct proxy_conn_priv *)pc->priv;
 	uint8_t status_buf[sizeof(struct proxy_msg) + 4] = { 0x0 };
 	struct proxy_msg *status_msg = (struct proxy_msg *)status_buf;
+	uint8_t *addr_sep = (uint8_t *)&msg->address;
+	char addr[16] = "";
 	int ret;
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Processing TCP_OPEN message from client '%s'\n", priv->callsign);
 
+	ret = snprintf(addr, 16, "%hhu.%hhu.%hhu.%hhu", addr_sep[0], addr_sep[1], addr_sep[2], addr_sep[3]);
+	if (ret < 7 || ret > 15)
+	{
+		proxy_log(pc->ph, LOG_LEVEL_ERROR, "Address conversion failed (%d)\n", ret);
+		return -EINVAL;
+	}
+
 	// Attempt to connect
-	ret = conn_connect(&priv->conn_tcp, msg->address, 5200);
+	ret = conn_connect(&priv->conn_tcp, (const char *)addr, "5200");
 	if (ret < 0)
 	{
-		proxy_log(pc->ph, LOG_LEVEL_WARN, "Failed to open TCP connection for client '%s'\n", priv->callsign);
+		proxy_log(pc->ph, LOG_LEVEL_WARN, "Failed to open TCP connection for client '%s' (%d): %s\n", priv->callsign, -ret, strerror(-ret));
 	}
 	else
 	{
@@ -1044,8 +1053,14 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 		goto proxy_conn_init_exit;
 	}
 
+	priv->conn_control.source_addr = pc->source_addr;
+	priv->conn_control.source_port = "5199";
 	priv->conn_control.type = CONN_TYPE_UDP;
+	priv->conn_data.source_addr = pc->source_addr;
+	priv->conn_data.source_port = "5198";
 	priv->conn_data.type = CONN_TYPE_UDP;
+	priv->conn_tcp.source_addr = pc->source_addr;
+	priv->conn_tcp.source_port = "5200";
 	priv->conn_tcp.type = CONN_TYPE_TCP;
 
 	ret = condvar_init(&priv->condvar_client);

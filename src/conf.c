@@ -165,6 +165,7 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 				return -EINVAL;
 			}
 		}
+
 		break;
 	case 8:
 		if (strncmp(key, "Password", key_len) == 0)
@@ -193,6 +194,32 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 				return -EINVAL;
 			}
 		}
+
+		break;
+	case 11:
+		if (strncmp(key, "BindAddress", key_len) == 0)
+		{
+			if (conf->bind_addr != NULL)
+			{
+				free(conf->bind_addr);
+			}
+
+			if (val_len == 0)
+			{
+				conf->bind_addr = NULL;
+				break;
+			}
+
+			conf->bind_addr = malloc(val_len + 1);
+			if (conf->bind_addr == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memcpy(conf->bind_addr, val, val_len);
+			conf->bind_addr[val_len] = '\0';
+		}
+
 		break;
 	case 15:
 		if (strncmp(key, "CallsignsDenied", key_len) == 0)
@@ -217,6 +244,7 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 			memcpy(conf->calls_denied, val, val_len);
 			conf->calls_denied[val_len] = '\0';
 		}
+
 		break;
 	case 16:
 		if (strncmp(key, "CallsignsAllowed", key_len) == 0)
@@ -241,6 +269,32 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 			memcpy(conf->calls_allowed, val, val_len);
 			conf->calls_allowed[val_len] = '\0';
 		}
+
+		break;
+	case 19:
+		if (strncmp(key, "ExternalBindAddress", key_len) == 0)
+		{
+			if (conf->bind_addr_ext != NULL)
+			{
+				free(conf->bind_addr_ext);
+			}
+
+			if (val_len == 0)
+			{
+				conf->bind_addr_ext = NULL;
+				break;
+			}
+
+			conf->bind_addr_ext = malloc(val_len + 1);
+			if (conf->bind_addr_ext == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memcpy(conf->bind_addr_ext, val, val_len);
+			conf->bind_addr_ext[val_len] = '\0';
+		}
+
 		break;
 	}
 
@@ -281,6 +335,18 @@ int conf_init(struct proxy_conf *conf)
 
 void conf_free(struct proxy_conf *conf)
 {
+	if (conf->bind_addr != NULL)
+	{
+		free(conf->bind_addr);
+		conf->bind_addr = NULL;
+	}
+
+	if (conf->bind_addr_ext != NULL)
+	{
+		free(conf->bind_addr_ext);
+		conf->bind_addr_ext = NULL;
+	}
+
 	if (conf->calls_allowed != NULL)
 	{
 		free(conf->calls_allowed);
