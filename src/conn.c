@@ -180,11 +180,9 @@ int conn_listen(struct conn_handle *conn)
 	}
 
 	hints.ai_family = AF_INET;
-
-	// TODO: Address targeting
 	hints.ai_flags = AI_PASSIVE;
 
-	ret = getaddrinfo(conn->source_addr, conn->source_port, &hints, &res);
+	ret = getaddrinfo(conn->source_addr, conn->source_port == NULL ? "0" : conn->source_port, &hints, &res);
 	if (ret != 0)
 	{
 		return -EADDRNOTAVAIL;
@@ -268,6 +266,8 @@ int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	struct addrinfo hints;
 	struct addrinfo *res = NULL;
+	struct addrinfo *res_remote = NULL;
+	const char yes = 1;
 	int ret;
 
 	if (conn->type != CONN_TYPE_TCP)
@@ -277,30 +277,58 @@ int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 
 	memset(&hints, 0x0, sizeof(struct addrinfo));
 
+	hints.ai_family = AF_INET;
+	hints.ai_flags = AI_PASSIVE;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_family = AF_UNSPEC;
 
-	ret = getaddrinfo(addr, port, &hints, &res);
+	ret = getaddrinfo(conn->source_addr, conn->source_port == NULL ? "0" : conn->source_port, &hints, &res);
 	if (ret != 0)
 	{
 		ret = -EADDRNOTAVAIL;
 		goto conn_connect_free_early;
 	}
 
-	priv->sock_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	memset(&hints, 0x0, sizeof(struct addrinfo));
+
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	ret = getaddrinfo(addr, port, &hints, &res_remote);
+	if (ret != 0)
+	{
+		ret = -EADDRNOTAVAIL;
+		goto conn_connect_free_early;
+	}
+
+	priv->sock_fd = socket(AF_INET, res->ai_socktype, res->ai_protocol);
 	if (priv->sock_fd == INVALID_SOCKET)
 	{
 		ret = SOCK_ERRNO;
 		goto conn_connect_free_early;
 	}
 
-	ret = connect(priv->sock_fd, res->ai_addr, res->ai_addrlen);
+	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+	if (ret == SOCKET_ERROR)
+	{
+		ret = SOCK_ERRNO;
+		goto conn_connect_free_early;
+	}
+
+	ret = bind(priv->sock_fd, res->ai_addr, res->ai_addrlen);
 	if (ret == SOCKET_ERROR)
 	{
 		ret = SOCK_ERRNO;
 		goto conn_connect_free;
 	}
 
+	ret = connect(priv->sock_fd, res_remote->ai_addr, res_remote->ai_addrlen);
+	if (ret == SOCKET_ERROR)
+	{
+		ret = SOCK_ERRNO;
+		goto conn_connect_free;
+	}
+
+	freeaddrinfo(res_remote);
 	freeaddrinfo(res);
 
 	mutex_lock(&priv->mutex);
@@ -319,7 +347,15 @@ conn_connect_free:
 	priv->sock_fd = INVALID_SOCKET;
 
 conn_connect_free_early:
-	freeaddrinfo(res);
+	if (res_remote != NULL)
+	{
+		freeaddrinfo(res_remote);
+	}
+
+	if (res != NULL)
+	{
+		freeaddrinfo(res);
+	}
 
 	return ret;
 }

@@ -50,7 +50,7 @@ int main(void)
 	char md5_result_str[33] = "";
 	int ret = 0;
 
-	digest_get((uint8_t *)md5_challenge, strlen(md5_challenge), md5_result);
+	digest_get((uint8_t *)md5_challenge, (unsigned int)strlen(md5_challenge), md5_result);
 
 	ret = digest_to_str(md5_control, md5_result_str);
 	if (ret != 0)

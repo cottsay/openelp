@@ -118,8 +118,17 @@ int proxy_load_conf(struct proxy_handle *ph, const char *path)
 	ret = snprintf(priv->port_str, 6, "%hu", ph->conf.port);
 	if (ret < 1 || ret > 5)
 	{
-		proxy_log(ph, LOG_LEVEL_ERROR, "Port conversion failed (%d)", ret);
+		proxy_log(ph, LOG_LEVEL_ERROR, "Port conversion failed (%d)\n", ret);
 		return -EINVAL;
+	}
+
+	if (ph->conf.bind_addr_ext_add != NULL)
+	{
+		if (ph->conf.bind_addr_ext == NULL || strcmp(ph->conf.bind_addr_ext, "0.0.0.0") == 0)
+		{
+			proxy_log(ph, LOG_LEVEL_ERROR, "ExternalBindAddresses must be specified if AdditionalExternalBindAddresses is used\n");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -238,8 +247,7 @@ int proxy_open(struct proxy_handle *ph)
 	int i;
 	int ret;
 
-	// TODO: Multi-client
-	priv->num_clients = 1;
+	priv->num_clients = 1 + ph->conf.bind_addr_ext_add_len;
 
 	priv->clients = malloc(sizeof(struct proxy_conn_handle) * priv->num_clients);
 	if (priv->clients == NULL)
@@ -325,6 +333,13 @@ int proxy_open(struct proxy_handle *ph)
 		priv->re_calls_denied = NULL;
 	}
 
+	priv->clients[0].source_addr = ph->conf.bind_addr_ext;
+
+	for (i = 1; i < priv->num_clients; i++)
+	{
+		priv->clients[i].source_addr = ph->conf.bind_addr_ext_add[i - 1];
+	}
+
 	for (i = 0; i < priv->num_clients; i++)
 	{
 		priv->clients[i].ph = ph;
@@ -341,9 +356,6 @@ int proxy_open(struct proxy_handle *ph)
 			goto proxy_open_exit;
 		}
 	}
-
-	// TODO: Multi-client
-	priv->clients[0].source_addr = ph->conf.bind_addr_ext;
 
 	priv->conn_listen.source_addr = (const char *)ph->conf.bind_addr;
 	priv->conn_listen.source_port = (const char *)priv->port_str;
@@ -544,7 +556,7 @@ int get_nonce(uint32_t *nonce)
 
 int get_password_response(const uint32_t nonce, const char *password, uint8_t response[PROXY_PASS_RES_LEN])
 {
-	size_t pass_with_nonce_len = strlen(password) + 8;
+	unsigned int pass_with_nonce_len = (unsigned int)strlen(password) + 8;
 	char *pass_with_nonce = malloc(pass_with_nonce_len + 1);
 	int ret = 0;
 	char *iter = pass_with_nonce;

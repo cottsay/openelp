@@ -46,7 +46,7 @@
 
 #define DIGEST_LEN 16
 
-void digest_get(const uint8_t *data, const size_t len, uint8_t result[DIGEST_LEN]);
+void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGEST_LEN]);
 int digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1]);
 
 #endif /* _digest_h */

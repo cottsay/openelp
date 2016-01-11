@@ -296,6 +296,76 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 		}
 
 		break;
+	case 31:
+		if (strncmp(key, "AdditionalExternalBindAddresses", key_len) == 0)
+		{
+			int i, j;
+
+			if (conf->bind_addr_ext_add != NULL)
+			{
+				free(conf->bind_addr_ext_add);
+			}
+
+			if (val_len == 0)
+			{
+				conf->bind_addr_ext_add = NULL;
+				conf->bind_addr_ext_add_len = 0;
+				break;
+			}
+
+			for (i = 1; i < val_len; i++)
+			{
+				if (val[i] == ',')
+				{
+					conf->bind_addr_ext_add_len++;
+				}
+			}
+
+			conf->bind_addr_ext_add_len++;
+
+			conf->bind_addr_ext_add = malloc(conf->bind_addr_ext_add_len * sizeof(char *));
+			if (conf->bind_addr_ext_add == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memset(conf->bind_addr_ext_add, 0x0, conf->bind_addr_ext_add_len * sizeof(char *));
+
+			for (i = 0, j = 0; i < conf->bind_addr_ext_add_len; i++)
+			{
+				int k = j;
+
+				for (; j < val_len && val[j] != ','; j++);
+
+				conf->bind_addr_ext_add[i] = malloc(j - k + 1);
+				if (conf->bind_addr_ext_add[i] == NULL)
+				{
+					goto bind_addr_ext_add_exit;
+				}
+
+				memcpy(conf->bind_addr_ext_add[i], &val[k], j - k);
+				conf->bind_addr_ext_add[i][j - k] = '\0';
+
+				j++;
+			}
+
+			break;
+
+		bind_addr_ext_add_exit:
+			for (i = 0; i < conf->bind_addr_ext_add_len; i++)
+			{
+				if (conf->bind_addr_ext_add[i] != NULL)
+				{
+					free(conf->bind_addr_ext_add[i]);
+				}
+			}
+
+			free(conf->bind_addr_ext_add);
+			conf->bind_addr_ext_add = NULL;
+			conf->bind_addr_ext_add_len = 0;
+
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -335,6 +405,21 @@ int conf_init(struct proxy_conf *conf)
 
 void conf_free(struct proxy_conf *conf)
 {
+	int i;
+
+	if (conf->bind_addr_ext_add != NULL)
+	{
+		for (i = 0; i < conf->bind_addr_ext_add_len; i++)
+		{
+			free(conf->bind_addr_ext_add[i]);
+		}
+
+		conf->bind_addr_ext_add_len = 0;
+
+		free(conf->bind_addr_ext_add);
+		conf->bind_addr_ext_add = NULL;
+	}
+
 	if (conf->bind_addr != NULL)
 	{
 		free(conf->bind_addr);

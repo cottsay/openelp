@@ -90,6 +90,8 @@ struct proxy_conf
 {
 	char *bind_addr;
 	char *bind_addr_ext;
+	char **bind_addr_ext_add;
+	uint16_t bind_addr_ext_add_len;
 	char *calls_allowed;
 	char *calls_denied;
 	char *password;

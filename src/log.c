@@ -153,8 +153,6 @@ const char * log_medium_to_str(enum LOG_MEDIUM medium)
 
 int log_open(struct log_handle *log, const char *target)
 {
-	struct log_priv *priv = (struct log_priv *)log->priv;
-
 	if (log->medium != LOG_MEDIUM_NONE)
 	{
 		return 0;

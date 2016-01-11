@@ -1,4 +1,4 @@
-project(openelp)
+project(openelp C)
 
 cmake_minimum_required(VERSION 2.7)
 
@@ -57,7 +57,7 @@ if(WIN32)
   set(OPENELP_USE_SYSLOG FALSE CACHE BOOL
     "Enable support for logging to SYSLOG"
     )
-  set(OPENELP_CONFIG_HINT "..\\\\ELProxy.conf" CACHE PATH
+  set(OPENELP_CONFIG_HINT "../ELProxy.conf" CACHE PATH
     "Hint path when searching for the proxy configuration file at runtime"
     )
 else()

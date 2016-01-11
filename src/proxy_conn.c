@@ -296,6 +296,8 @@ static void * client_manager(void *ctx)
 	int ret;
 	uint8_t buff[CONN_BUFF_LEN];
 
+	proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Proxy connection is ready on interface '%s'\n", pc->source_addr == NULL ? "0.0.0.0" : pc->source_addr);
+
 	while (1)
 	{
 		mutex_lock(&priv->mutex_sentinel);
@@ -407,7 +409,7 @@ static void * client_manager(void *ctx)
 			continue;
 		}
 
-		proxy_log(pc->ph, LOG_LEVEL_INFO, "Connected to client '%s'.\n", priv->callsign);
+		proxy_log(pc->ph, LOG_LEVEL_INFO, "Connected to client '%s', using external interface '%s'.\n", priv->callsign, pc->source_addr == NULL ? "0.0.0.0" : pc->source_addr);
 
 		// DO STUFF
 		while (1)
@@ -725,6 +727,10 @@ static int process_control_data_message(struct proxy_conn_handle *pc, struct pro
 		{
 			return ret;
 		}
+		else if (ret == 0)
+		{
+			return -EPIPE;
+		}
 
 		msg_size -= ret;
 
@@ -758,6 +764,10 @@ static int process_data_message(struct proxy_conn_handle *pc, struct proxy_msg *
 		if (ret < 0)
 		{
 			return ret;
+		}
+		else if (ret == 0)
+		{
+			return -EPIPE;
 		}
 
 		msg_size -= ret;
@@ -826,15 +836,23 @@ static int process_tcp_data_message(struct proxy_conn_handle *pc, struct proxy_m
 		{
 			return ret;
 		}
+		else if (ret == 0)
+		{
+			return -EPIPE;
+		}
 
 		msg_size -= ret;
 
 		// Send the data
 		if (tcp_ret == 0)
 		{
+			proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Sending TCP_DATA message (%d bytes) from client '%s' to remote host\n", ret, priv->callsign);
+
 			tcp_ret = conn_send(&priv->conn_tcp, (void *)msg, ret);
 			if (tcp_ret < 0)
 			{
+				proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Error sending data to remote host (%d): %s\n", -tcp_ret, strerror(-tcp_ret));
+
 				conn_close(&priv->conn_tcp);
 			}
 		}
@@ -1060,7 +1078,7 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 	priv->conn_data.source_port = "5198";
 	priv->conn_data.type = CONN_TYPE_UDP;
 	priv->conn_tcp.source_addr = pc->source_addr;
-	priv->conn_tcp.source_port = "5200";
+	priv->conn_tcp.source_port = NULL;
 	priv->conn_tcp.type = CONN_TYPE_TCP;
 
 	ret = condvar_init(&priv->condvar_client);

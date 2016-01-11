@@ -38,14 +38,16 @@
 #ifndef _conf_h
 #define _conf_h
 
+#include "openelp/openelp.h"
+
+#include "log.h"
+
 #include <stdint.h>
 #include <stdio.h>
 
 #ifndef _WIN32
 #  include <unistd.h>
 #endif
-
-#include "openelp/openelp.h"
 
 #define CONF_LINE_SIZE 512
 

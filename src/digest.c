@@ -41,7 +41,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-void digest_get(const uint8_t *data, const size_t len, uint8_t result[DIGEST_LEN])
+void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGEST_LEN])
 {
 	MD5_CTX ctx;
 
