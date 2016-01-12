@@ -1,15 +1,17 @@
 /*!
  * @file proxy.c
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Implementation of OpenELP
  */
 
 #include "openelp/openelp.h"
@@ -54,14 +60,30 @@
 #error Password Response Length Mismatch
 #endif
 
+/*!
+ * @brief Private data for an instance of an EchoLink proxy
+ */
 struct proxy_priv
 {
+	/// Array which holds all of the proxy client connection handles
 	struct proxy_conn_handle *clients;
+
+	/// Network connection which listens for connections from clients
 	struct conn_handle conn_listen;
+
+	/// Logging infrastructure handle
 	struct log_handle log;
+
+	/// Number of clients in proxy_priv::clients
 	int num_clients;
+
+	/// Regular expression for matching allowed callsigns
 	struct regex_handle *re_calls_allowed;
+
+	/// Regular expression for matching denied callsigns
 	struct regex_handle *re_calls_denied;
+
+	/// Null-terminated string which holds the listening port identifier
 	char port_str[6];
 };
 
@@ -143,56 +165,52 @@ void proxy_ident(struct proxy_handle *ph)
 
 int proxy_init(struct proxy_handle *ph)
 {
+	struct proxy_priv *priv;
 	int ret;
 
-	if (ph != NULL)
+	if (ph->priv == NULL)
 	{
-		struct proxy_priv *priv;
-
-		if (ph->priv == NULL)
-		{
-			ph->priv = malloc(sizeof(struct proxy_priv));
-		}
-
-		if (ph->priv == NULL)
-		{
-			return -ENOMEM;
-		}
-
-		memset(ph->priv, 0x0, sizeof(struct proxy_priv));
-		priv = (struct proxy_priv *)ph->priv;
-
-		// Initialize RNG
-		ret = rand_init();
-		if (ret < 0)
-		{
-			goto proxy_init_exit;
-		}
-
-		// Initialize log
-		ret = log_init(&priv->log);
-		if (ret < 0)
-		{
-			goto proxy_init_exit;
-		}
-
-		// Initialize config
-		ret = conf_init(&ph->conf);
-		if (ret < 0)
-		{
-			goto proxy_init_exit;
-		}
-
-		// Initialize communications
-		priv->conn_listen.type = CONN_TYPE_TCP;
-		ret = conn_init(&priv->conn_listen);
-		if (ret < 0)
-		{
-			goto proxy_init_exit;
-		}
-
-		priv->num_clients = 0;
+		ph->priv = malloc(sizeof(struct proxy_priv));
 	}
+
+	if (ph->priv == NULL)
+	{
+		return -ENOMEM;
+	}
+
+	memset(ph->priv, 0x0, sizeof(struct proxy_priv));
+	priv = (struct proxy_priv *)ph->priv;
+
+	// Initialize RNG
+	ret = rand_init();
+	if (ret < 0)
+	{
+		goto proxy_init_exit;
+	}
+
+	// Initialize log
+	ret = log_init(&priv->log);
+	if (ret < 0)
+	{
+		goto proxy_init_exit;
+	}
+
+	// Initialize config
+	ret = conf_init(&ph->conf);
+	if (ret < 0)
+	{
+		goto proxy_init_exit;
+	}
+
+	// Initialize communications
+	priv->conn_listen.type = CONN_TYPE_TCP;
+	ret = conn_init(&priv->conn_listen);
+	if (ret < 0)
+	{
+		goto proxy_init_exit;
+	}
+
+	priv->num_clients = 0;
 
 	return 0;
 
@@ -257,7 +275,7 @@ int proxy_open(struct proxy_handle *ph)
 
 	memset(priv->clients, 0x0, sizeof(struct proxy_conn_handle) * priv->num_clients);
 
-	ret = log_open(&priv->log, NULL);
+	ret = log_open(&priv->log);
 	if (ret < 0)
 	{
 		goto proxy_open_exit;
@@ -518,6 +536,7 @@ int proxy_process(struct proxy_handle *ph)
 		goto conn_process_exit;
 	}
 
+	/// @TODO Fill in the "from" address
 	proxy_log(ph, LOG_LEVEL_INFO, "Incoming connection from TODO.\n");
 
 	for (i = 0; i < priv->num_clients; i++)

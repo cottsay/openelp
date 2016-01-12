@@ -47,6 +47,9 @@ set(BUILD_SHARED_LIBS ON CACHE BOOL
 set(OPENELP_BUNDLE_PCRE FALSE CACHE BOOL
   "Download and compile PCRE2 instead of using the system's libpcre2-32"
   )
+set(OPENELP_DOC_INTERNAL FALSE CACHE BOOL
+  "Include internal code when documenting API"
+  )
 set(OPENELP_USE_OPENSSL FALSE CACHE BOOL
   "Use OpenSSL for MD5 computation instead of bundled md5.c"
   )
@@ -60,6 +63,9 @@ if(WIN32)
   set(OPENELP_CONFIG_HINT "../ELProxy.conf" CACHE PATH
     "Hint path when searching for the proxy configuration file at runtime"
     )
+  set(OPENELP_DOC_HTMLHELP TRUE CACHE BOOL
+    "Enable generation of Windows CHM help"
+    )
 else()
   set(OPENELP_USE_EVENTLOG FALSE CACHE BOOL
     "Enable support for logging to the Windows Event Log"
@@ -69,6 +75,9 @@ else()
     )
   set(OPENELP_CONFIG_HINT "/etc/ELProxy.conf" CACHE PATH
     "Hint path when searching for the proxy configuration file at runtime"
+    )
+  set(OPENELP_DOC_HTMLHELP FALSE CACHE BOOL
+    "Enable generation of Windows CHM help"
     )
 endif()
 

@@ -1,15 +1,17 @@
 /*!
  * @file digest.h
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Internal API for digest generation
  */
 
 #ifndef _digest_h
@@ -44,9 +50,26 @@
 #  include <unistd.h>
 #endif
 
+/// Length in bytes of all digests
 #define DIGEST_LEN 16
 
+/*!
+ * @brief Calculates the digest of the given data
+ *
+ * @param[in] data Data whose digest is calculated
+ * @param[in] len Number of bytes at the location indicated by data
+ * @param[out] result Resulting digest value
+ */
 void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGEST_LEN]);
+
+/*!
+ * @brief Converts the given digest to a null terminated string
+ *
+ * @param[in] md5 Input digest value
+ * @param[out] result Resulting string representation of the given digest
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 int digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1]);
 
 #endif /* _digest_h */

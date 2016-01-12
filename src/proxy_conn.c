@@ -1,15 +1,17 @@
 /*!
  * @file proxy_conn.c
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Implementation of proxy client connection
  */
 
 #include "openelp/openelp.h"
@@ -48,9 +54,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-// It seems that the official client can't handle messages from proxies which
-// are larger than 4096 or so
+/*!
+ * @brief Maximum amount of data to process in one message
+ *
+ * @note It seems that the official client can't handle messages from proxies which
+ * are larger than 4096 or so
+ */
 #define CONN_BUFF_LEN 4096
+
+/// Maximum amount of data to process not including the message header
 #define CONN_BUFF_LEN_HEADERLESS CONN_BUFF_LEN - sizeof(struct proxy_msg)
 
 /*!
@@ -79,7 +91,7 @@ enum PROXY_MSG_TYPE
 	/*!
 	 * @brief The TCP has been, or should be closed
 	 *
-	 * The address fieled is ignored in this message
+	 * The address field is ignored in this message
 	 *
 	 * When the client requests that the TCP connection be closed, the proxy
 	 * responds with another ::PROXY_MSG_TYPE_TCP_CLOSE message
@@ -134,25 +146,31 @@ enum PROXY_MSG_TYPE
  */
 enum SYSTEM_MSG
 {
-	/*!
-	 * @brief The client has supplied the proxy with an incorrect password
-	 */
+	/// The client has supplied the proxy with an incorrect password
 	SYSTEM_MSG_BAD_PASSWORD = 1,
 
-	/*!
-	 * @brief The client's callsign is not allowed to use the proxy
-	 */
+	/// The client's callsign is not allowed to use the proxy
 	SYSTEM_MSG_ACCESS_DENIED,
 };
 
 #ifdef _WIN32
 #  pragma pack(push,1)
 #endif
+/*!
+ * @brief Proxy message header
+ */
 struct proxy_msg
 {
+	/// Type of proxy message, should be one of ::PROXY_MSG_TYPE
 	uint8_t type;
+
+	/// 32-bit IPv4 address, if applicable
 	uint32_t address;
+
+	/// Number of bytes in proxy_msg::data
 	uint32_t size;
+
+	/// Data included with the message, if any
 	uint8_t data[];
 #ifdef _WIN32
 };
@@ -161,44 +179,174 @@ struct proxy_msg
 } __attribute__((packed));
 #endif
 
+/*!
+ * @brief Private data for an instance of a proxy client connection
+ */
 struct proxy_conn_priv
 {
+	/// Last callsign that this proxy connection was connected to
 	char callsign[12];
 
+	/// Condition variable for waking proxy_conn_priv::thread_client
 	struct condvar_handle condvar_client;
 
+	/// TCP connection to the client
 	struct conn_handle *conn_client;
+
+	/// UDP connection for control information
 	struct conn_handle conn_control;
+
+	/// UDP connection for data
 	struct conn_handle conn_data;
+
+	/// TCP connection for directory information
 	struct conn_handle conn_tcp;
 
+	/// Mutex for protecting transmissions on proxy_conn_priv::conn_client
 	struct mutex_handle mutex_client_send;
+
+	/// Mutex for protecting the proxy_conn_priv::sentinel
 	struct mutex_handle mutex_sentinel;
 
+	/// Termination indicator for proxy_conn_priv::thread_client
 	uint8_t sentinel;
 
+	/// Thread for handling data sent from the client
 	struct thread_handle thread_client;
+
+	/// Thread for handling data sent to proxy_conn_priv::conn_control
 	struct thread_handle thread_control;
+
+	/// Thread for handling data sent to proxy_conn_priv::conn_data
 	struct thread_handle thread_data;
+
+	/// Thread for handling data sent to proxy_conn_priv::conn_tcp
 	struct thread_handle thread_tcp;
 };
 
-/*
- * Static Functions
+/*!
+ * @brief Authorize an incoming client for use of this proxy
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ *
+ * @returns 0 on success, negative ERRNO value on failure
  */
-
 static int client_authorize(struct proxy_conn_handle *pc);
+
+/*!
+ * @brief Worker thread for managing the connection to the client
+ *
+ * @param[in,out] ctx Worker thread context
+ *
+ * @returns Always NULL
+ */
 static void * client_manager(void *ctx);
+
+/*!
+ * @brief Worker thread for forwarding control information
+ *
+ * @param[in,out] ctx Worker thread context
+ *
+ * @returns Always NULL
+ */
 static void * forwarder_control(void *ctx);
+
+/*!
+ * @brief Worker thread for forwarding UDP data
+ *
+ * @param[in,out] ctx Worker thread context
+ *
+ * @returns Always NULL
+ */
 static void * forwarder_data(void *ctx);
+
+/*!
+ * @brief Worker thread for forwarding TCP data
+ *
+ * @param[in,out] ctx Worker thread context
+ *
+ * @returns Always NULL
+ */
 static void * forwarder_tcp(void *ctx);
+
+/*!
+ * @brief Process an incoming ::PROXY_MSG_TYPE_UDP_CONTROL message from the
+ *        client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] msg Incoming message
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int process_control_data_message(struct proxy_conn_handle *pc, struct proxy_msg *msg);
+
+/*!
+ * @brief Process an incoming ::PROXY_MSG_TYPE_UDP_DATA message from the client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] msg Incoming message
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int process_data_message(struct proxy_conn_handle *pc, struct proxy_msg *msg);
+
+/*!
+ * @brief Process an incoming message from the client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] msg Incoming message
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int process_message(struct proxy_conn_handle *pc, struct proxy_msg *msg);
+
+/*!
+ * @brief Process an incoming ::PROXY_MSG_TYPE_TCP_CLOSE message from the client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] msg Incoming message
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int process_tcp_close_message(struct proxy_conn_handle *pc, struct proxy_msg *msg);
+
+/*!
+ * @brief Process an incoming ::PROXY_MSG_TYPE_TCP_DATA message from the client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] msg Incoming message
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int process_tcp_data_message(struct proxy_conn_handle *pc, struct proxy_msg *msg);
+
+/*!
+ * @brief Process an incoming ::PROXY_MSG_TYPE_TCP_OPEN message from the client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] msg Incoming message
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int process_tcp_open_message(struct proxy_conn_handle *pc, struct proxy_msg *msg);
+
+/*!
+ * @brief Send a ::PROXY_MSG_TYPE_SYSTEM message to the client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] msg ::SYSTEM_MSG value
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int send_system(struct proxy_conn_handle *pc, enum SYSTEM_MSG msg);
+
+/*!
+ * @brief Send a ::PROXY_MSG_TYPE_TCP_CLOSE message to the client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int send_tcp_close(struct proxy_conn_handle *pc);
 
 static int client_authorize(struct proxy_conn_handle *pc)

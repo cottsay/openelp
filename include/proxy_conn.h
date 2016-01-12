@@ -1,15 +1,17 @@
 /*!
  * @file proxy_conn.h
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Internal API for proxy client connections
  */
 
 #ifndef _proxy_conn_h
@@ -40,18 +46,74 @@
 
 #include "conn.h"
 
+/*!
+ * @brief Represents an instance of a proxy client connection
+ *
+ * This struct should be initialized to zero before bing used. The private data
+ * should be initialized using the ::proxy_conn_init function, and subsequently
+ * freed by ::proxy_conn_free when the regular expression is no longer needed.
+ */
 struct proxy_conn_handle
 {
-	void *priv;
+	/// Reference to the parent proxy instance handle
 	struct proxy_handle *ph;
+
+	/// Private data - used internally by proxy_conn functions
+	void *priv;
+
+	/// Null-terminated string containing the source address for client data
 	const char *source_addr;
 };
 
-int proxy_conn_accept(struct proxy_conn_handle *pc, struct conn_handle *listener);
+/*!
+ * @brief Transfer ownership of the given connection to the proxy_conn
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] conn_client Connection to a client
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+int proxy_conn_accept(struct proxy_conn_handle *pc, struct conn_handle *conn_client);
+
+/*!
+ * @brief Disconnects the connecte client and returns the connection to idle
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ */
 void proxy_conn_drop(struct proxy_conn_handle *pc);
+
+/*!
+ * @brief Frees data allocated by ::proxy_conn_init
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ */
 void proxy_conn_free(struct proxy_conn_handle *pc);
+
+/*!
+ * @brief Initializes the private data in a ::proxy_conn_handle
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 int proxy_conn_init(struct proxy_conn_handle *pc);
+
+/*!
+ * @brief Starts the client thread and prepares to accept connections
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 int proxy_conn_start(struct proxy_conn_handle *pc);
+
+/*!
+ * @brief Disconnects the connected client and stops the client thread
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 int proxy_conn_stop(struct proxy_conn_handle *pc);
 
 #endif /* _proxy_conn_h */

@@ -1,15 +1,17 @@
 /*!
  * @file conf.c
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Proxy configuration implementation
  */
 
 #include "conf.h"
@@ -43,12 +49,54 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * Static Functions
+/// Maximum size for a single line in a configuration file
+#define CONF_LINE_SIZE 512
+
+/*!
+ * @brief Parse a single null- or newline-terminated line into the configuration
+ *
+ * @param[in] line null- or newline-terminated line to parse
+ * @param[in,out] conf Target configuration instance
+ * @param[in,out] log Log handle for reporting logging events
+ *
+ * @returns 0 on success, negative ERRNO value on failure
  */
 static int conf_parse_line(const char *line, struct proxy_conf *conf, struct log_handle *log);
+
+/*!
+ * @brief Parse a key/value pair into the configuration
+ *
+ * @param[in] key Configuration key
+ * @param[in] key_len Length of key in characters
+ * @param[in] val Configuration value
+ * @param[in] val_len Length of val in characters
+ * @param[in,out] conf Target configuration instance
+ * @param[in,out] log Log handle for reporting logging events
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf, struct log_handle *log);
+
+/*!
+ * @brief Parse a configuration file
+ *
+ * @param[in] stream File stream to parse
+ * @param[in,out] conf Target configuration instance
+ * @param[in,out] log Log handle for reporting logging events
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int conf_parse_stream(FILE *stream, struct proxy_conf *conf, struct log_handle *log);
+
+/*!
+ * @brief Cross-platform implementation of the getline function
+ *
+ * @param[in,out] lineptr Buffer to store read text into
+ * @param[in,out] n Number of bytes in buffer
+ * @param[in] stream File stream to read from
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
 static int conf_readline(char **lineptr, size_t *n, FILE *stream);
 
 static int conf_readline(char **lineptr, size_t *n, FILE *stream)

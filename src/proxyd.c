@@ -1,15 +1,17 @@
 /*!
  * @file proxyd.c
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Executable application which starts OpenELP
  */
 
 #include "openelp/openelp.h"
@@ -55,43 +61,103 @@
 #  define R_OK 0x4
 #endif
 
-/*
- * Constants
- */
+/// Universal fallback configuration path
 const char config_path_default[] = "ELProxy.conf";
 
 #ifdef OPENELP_CONFIG_HINT
 #  define OCH_STR1(x) #x
 #  define OCH_STR2(x) OCH_STR1(x)
+/// Platform-specific path hint
 const char config_path_hint[] = OCH_STR2(OPENELP_CONFIG_HINT);
 #endif
 
-/*
- * Definitions
+/*!
+ * @brief Configuration options for running the application
  */
 struct proxy_opts
 {
+	/// Null terminated path to the proxy configuration file
 	const char *config_path;
+
+	/// Boolean value indicating if debug information should be printed
 	uint8_t debug;
+
+	/// Boolean value indicating if the Windows Event Log should be used
 	uint8_t eventlog;
+
+	/// Boolean value indicating if OpenELP should not daemonize
 	uint8_t foreground;
+
+	/// Path to file where log output should go
 	const char *log_path;
+
+	/// Boolean value indicating if syslog should be used
 	uint8_t syslog;
 };
 
-/*
- * Global Variables
- */
+/// Global proxy handle
 static struct proxy_handle ph;
+
+/// Program termination indicator
 static uint8_t sentinel = 0;
 
-/*
- * Signal Handling
- */
 #ifdef _WIN32
-static BOOL WINAPI graceful_shutdown(DWORD dwCtrlType)
+/*!
+ * @brief Callback which is used to shut down the EchoLink proxy
+ *
+ * @param[in] ctrl_type Control event code
+ *
+ * @returns TRUE if the event was handled, FALSE if not
+ */
+static BOOL WINAPI graceful_shutdown(DWORD ctrl_type);
+#else
+/*!
+ * @brief Callback which is used to shut down the EchoLink proxy
+ *
+ * @param[in] signum Signal number
+ * @param[in] info Extra signal information
+ * @param[in] ptr Signal handler context
+ */
+static void graceful_shutdown(int signum, siginfo_t *info, void *ptr);
+#endif
+
+/*!
+ * @brief Main entry point for the EchoLink Proxy daemon executable
+ *
+ * @param[in] argc Number of arguments in argv
+ * @param[in] argv Array of null-terminated argument strings
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+int main(int argc, const char *argv[]);
+
+/*!
+ * @brief Parse command line arguments into ::proxy_opts values
+ *
+ * @param[in] argc Number of arguments in argv
+ * @param[in] argv Array of null-terminated argument strings
+ * @param[in,out] opts Options parsed from the given arguments
+ */
+static void parse_args(const int argc, const char *argv[], struct proxy_opts *opts);
+
+#ifdef OPENELP_CONFIG_HINT
+/*!
+ * @brief Determine and return the path hint to the proxy configuration file
+ *
+ * @returns Static, null-terminated path to the configuration file
+ */
+static const char * proxy_config_hint();
+#endif
+
+/*!
+ * @brief Print the program usage to STDOUT
+ */
+static void print_usage(void);
+
+#ifdef _WIN32
+static BOOL WINAPI graceful_shutdown(DWORD ctrl_type)
 {
-	if (dwCtrlType == CTRL_C_EVENT)
+	if (ctrl_type == CTRL_C_EVENT)
 	{
 		proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
 
@@ -114,191 +180,6 @@ static void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 	proxy_shutdown(&ph);
 }
 #endif
-
-/*
- * Functions
- */
-#ifdef OPENELP_CONFIG_HINT
-static const char * proxy_config_hint()
-{
-	if (access(config_path_default, R_OK) != 0)
-	{
-#  ifdef _WIN32
-		// Check if path hint is relative
-		if (config_path_hint[0] != '\\' &&
-			config_path_hint[0] != '/' &&
-			config_path_hint[1] != ':' &&
-			config_path_hint[2] != ':')
-		{
-			static char exe_path[MAX_PATH];
-			int exe_path_ret;
-
-			exe_path_ret = GetModuleFileName(NULL, exe_path, MAX_PATH);
-			if (exe_path > 0 && exe_path_ret + strlen(config_path_hint) + 1 < MAX_PATH)
-			{
-				char *tmp;
-
-				for (; exe_path_ret > 0 && exe_path[exe_path_ret - 1] != '\\'; exe_path_ret--);
-				tmp = &exe_path[exe_path_ret];
-				strcpy(tmp, config_path_hint);
-
-				for (; *tmp != '\0'; tmp++)
-				{
-					if (*tmp == '/')
-					{
-						*tmp = '\\';
-					}
-				}
-
-				return exe_path;
-			}
-			else
-			{
-				return config_path_default;
-			}
-		}
-		else
-#  endif
-		{
-			return config_path_hint;
-		}
-	}
-	else
-	{
-		return config_path_default;
-	}
-}
-#endif
-
-static void print_usage(void)
-{
-	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
-		"Usage: openelpd [OPTION...] [CONFIG FILE]\n\n"
-		"  -d            Enable debugging output\n\n"
-#ifdef HAVE_EVENTLOG
-		"  -E            Use Event Log for logging\n\n"
-#endif
-#ifndef _WIN32
-		"  -F            Stay in foreground (don't daemonize)\n\n"
-#endif
-		"  -h,--help     Display this help\n\n"
-		"  -L <log path> Log output the given log file\n\n"
-#ifdef HAVE_SYSLOG
-		"  -S            Use syslog for logging\n\n"
-#endif
-		, OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
-}
-
-static void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
-{
-	int i;
-	size_t j;
-	size_t arg_len;
-
-	for (i = 1; i < argc; i++)
-	{
-		arg_len = strlen(argv[i]);
-
-		if (arg_len > 1 && argv[i][0] == '-')
-		{
-			if (argv[i][1] == '-')
-			{
-				if (strcmp(&argv[i][2], "help") == 0)
-				{
-					print_usage();
-					exit(0);
-				}
-			}
-			else
-			{
-				for (j = 1; j < arg_len; j++)
-				{
-					switch (argv[i][j])
-					{
-					case 'd':
-						opts->debug = 1;
-						break;
-#ifdef HAVE_EVENTLOG
-					case 'E':
-						if (opts->log_path || opts->syslog)
-						{
-							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
-							exit(-EINVAL);
-						}
-						opts->eventlog = 1;
-						break;
-#endif
-#ifndef _WIN32
-					case 'F':
-						opts->foreground = 1;
-						break;
-#endif
-					case 'h':
-						print_usage();
-						exit(0);
-						break;
-					case 'L':
-						if (opts->eventlog || opts->syslog)
-						{
-							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
-							exit(-EINVAL);
-						}
-						else if (arg_len > j + 1)
-						{
-							opts->log_path = &argv[i][j + 1];
-							j = arg_len;
-						}
-						else if (i + 1 < argc)
-						{
-							i++;
-							opts->log_path = argv[i];
-						}
-						else
-						{
-							fprintf(stderr, "ERROR: Invalid log file path\n");
-							exit(-EINVAL);
-						}
-
-						break;
-#ifdef HAVE_SYSLOG
-					case 'S':
-						if (opts->eventlog || opts->log_path)
-						{
-							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
-							exit(-EINVAL);
-						}
-
-						opts->syslog = 1;
-						break;
-#endif
-					default:
-						fprintf(stderr, "ERROR: Invalid flag '%c'\n", argv[i][j]);
-						exit(-EINVAL);
-						break;
-					}
-				}
-
-				continue;
-			}
-		}
-		else if (arg_len > 0)
-		{
-			if (opts->config_path == NULL)
-			{
-				opts->config_path = argv[i];
-				continue;
-			}
-			else
-			{
-				fprintf(stderr, "ERROR: Config path already specified\n");
-				exit(-EINVAL);
-			}
-		}
-
-		fprintf(stderr, "ERROR: Invalid option '%s'\n", argv[i]);
-		exit(-EINVAL);
-	}
-}
 
 int main(int argc, const char *argv[])
 {
@@ -504,4 +385,186 @@ proxyd_exit:
 	proxy_free(&ph);
 
 	return ret;
+}
+
+static void parse_args(const int argc, const char *argv[], struct proxy_opts *opts)
+{
+	int i;
+	size_t j;
+	size_t arg_len;
+
+	for (i = 1; i < argc; i++)
+	{
+		arg_len = strlen(argv[i]);
+
+		if (arg_len > 1 && argv[i][0] == '-')
+		{
+			if (argv[i][1] == '-')
+			{
+				if (strcmp(&argv[i][2], "help") == 0)
+				{
+					print_usage();
+					exit(0);
+				}
+			}
+			else
+			{
+				for (j = 1; j < arg_len; j++)
+				{
+					switch (argv[i][j])
+					{
+					case 'd':
+						opts->debug = 1;
+						break;
+#ifdef HAVE_EVENTLOG
+					case 'E':
+						if (opts->log_path || opts->syslog)
+						{
+							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
+							exit(-EINVAL);
+						}
+						opts->eventlog = 1;
+						break;
+#endif
+#ifndef _WIN32
+					case 'F':
+						opts->foreground = 1;
+						break;
+#endif
+					case 'h':
+						print_usage();
+						exit(0);
+						break;
+					case 'L':
+						if (opts->eventlog || opts->syslog)
+						{
+							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
+							exit(-EINVAL);
+						}
+						else if (arg_len > j + 1)
+						{
+							opts->log_path = &argv[i][j + 1];
+							j = arg_len;
+						}
+						else if (i + 1 < argc)
+						{
+							i++;
+							opts->log_path = argv[i];
+						}
+						else
+						{
+							fprintf(stderr, "ERROR: Invalid log file path\n");
+							exit(-EINVAL);
+						}
+
+						break;
+#ifdef HAVE_SYSLOG
+					case 'S':
+						if (opts->eventlog || opts->log_path)
+						{
+							fprintf(stderr, "ERROR: Only one logging mechanism is allowed\n");
+							exit(-EINVAL);
+						}
+
+						opts->syslog = 1;
+						break;
+#endif
+					default:
+						fprintf(stderr, "ERROR: Invalid flag '%c'\n", argv[i][j]);
+						exit(-EINVAL);
+						break;
+					}
+				}
+
+				continue;
+			}
+		}
+		else if (arg_len > 0)
+		{
+			if (opts->config_path == NULL)
+			{
+				opts->config_path = argv[i];
+				continue;
+			}
+			else
+			{
+				fprintf(stderr, "ERROR: Config path already specified\n");
+				exit(-EINVAL);
+			}
+		}
+
+		fprintf(stderr, "ERROR: Invalid option '%s'\n", argv[i]);
+		exit(-EINVAL);
+	}
+}
+
+#ifdef OPENELP_CONFIG_HINT
+static const char * proxy_config_hint()
+{
+	if (access(config_path_default, R_OK) != 0)
+	{
+#  ifdef _WIN32
+		// Check if path hint is relative
+		if (config_path_hint[0] != '\\' &&
+			config_path_hint[0] != '/' &&
+			config_path_hint[1] != ':' &&
+			config_path_hint[2] != ':')
+		{
+			static char exe_path[MAX_PATH];
+			int exe_path_ret;
+
+			exe_path_ret = GetModuleFileName(NULL, exe_path, MAX_PATH);
+			if (exe_path > 0 && exe_path_ret + strlen(config_path_hint) + 1 < MAX_PATH)
+			{
+				char *tmp;
+
+				for (; exe_path_ret > 0 && exe_path[exe_path_ret - 1] != '\\'; exe_path_ret--);
+				tmp = &exe_path[exe_path_ret];
+				strcpy(tmp, config_path_hint);
+
+				for (; *tmp != '\0'; tmp++)
+				{
+					if (*tmp == '/')
+					{
+						*tmp = '\\';
+					}
+				}
+
+				return exe_path;
+			}
+			else
+			{
+				return config_path_default;
+			}
+		}
+		else
+#  endif
+		{
+			return config_path_hint;
+		}
+	}
+	else
+	{
+		return config_path_default;
+	}
+}
+#endif
+
+static void print_usage(void)
+{
+	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
+		"Usage: openelpd [OPTION...] [CONFIG FILE]\n\n"
+		"  -d            Enable debugging output\n\n"
+#ifdef HAVE_EVENTLOG
+		"  -E            Use Event Log for logging\n\n"
+#endif
+#ifndef _WIN32
+		"  -F            Stay in foreground (don't daemonize)\n\n"
+#endif
+		"  -h,--help     Display this help\n\n"
+		"  -L <log path> Log output the given log file\n\n"
+#ifdef HAVE_SYSLOG
+		"  -S            Use syslog for logging\n\n"
+#endif
+		, OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
 }

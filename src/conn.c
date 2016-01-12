@@ -1,15 +1,17 @@
 /*!
  * @file conn.c
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Network connection implementation
  */
 
 #include "conn.h"
@@ -62,26 +68,56 @@
 #endif
 
 #ifdef _WIN32
+/// Requests not to send SIGPIPE on errors
 #  define MSG_NOSIGNAL 0
+
+/// Disallow further receptions and transmissions
 #  define SHUT_RDWR SD_BOTH
+
+/// Last socket function error value
 #  define SOCK_ERRNO -conn_wsa_errno()
 #else
+/// Close the given socket handle
 #  define closesocket(X) close(X)
+
+/// Invalid socket value
 #  define INVALID_SOCKET -1
+
+/// Last socket function error value
 #  define SOCK_ERRNO -errno
+
+/// Socket function return value indicating an error
 #  define SOCKET_ERROR -1
+
+/// Socket handle type
 typedef int SOCKET;
 #endif
 
+/*!
+ * @brief Private data for an instance of a network connection
+ */
 struct conn_priv
 {
+	/// Actual socket file descriptor
 	SOCKET sock_fd;
+
+	/// Socket connection file descriptor
 	SOCKET conn_fd;
+
+	/// One of conn_priv::sock_fd or conn_priv::conn_fd, used for TX/RX
 	SOCKET fd;
+
+	/// Storage for the remote address of the connection
 	struct sockaddr_storage remote_addr;
+
+	/// Length of conn_priv::remote_addr_len
 	socklen_t remote_addr_len;
+
+	/// Mutex for protecting the socket file descriptors
 	struct mutex_handle mutex;
+
 #ifdef _WIN32
+	/// Information about the Windows Sockets implementation
 	WSADATA wsadat;
 #endif
 };
@@ -198,7 +234,7 @@ int conn_listen(struct conn_handle *conn)
 	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 	if (ret == SOCKET_ERROR)
 	{
-		// TODO: Close priv->sock_fd
+		/// @TODO Close priv->sock_fd
 		ret = SOCK_ERRNO;
 		goto conn_listen_free;
 	}
@@ -206,7 +242,7 @@ int conn_listen(struct conn_handle *conn)
 	ret = bind(priv->sock_fd, res->ai_addr, res->ai_addrlen);
 	if (ret == SOCKET_ERROR)
 	{
-		// TODO: Close priv->sock_fd
+		/// @TODO Close priv->sock_fd
 		ret = SOCK_ERRNO;
 		goto conn_listen_free;
 	}
@@ -216,7 +252,7 @@ int conn_listen(struct conn_handle *conn)
 		ret = listen(priv->sock_fd, 0);
 		if (ret == SOCKET_ERROR)
 		{
-			// TODO: Close priv->sock_fd
+			/// @TODO Close priv->sock_fd
 			ret = SOCK_ERRNO;
 			goto conn_listen_free;
 		}
@@ -659,7 +695,7 @@ void conn_shutdown(struct conn_handle *conn)
 	{
 		shutdown(priv->sock_fd, SHUT_RDWR);
 #ifdef _WIN32
-		// TODO: WIN32 Hack to cancel an in-progress accept
+		/// @TODO WIN32 Hack to cancel an in-progress accept
 		closesocket(priv->sock_fd);
 		priv->sock_fd = INVALID_SOCKET;
 #endif

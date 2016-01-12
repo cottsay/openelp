@@ -1,15 +1,17 @@
 /*!
  * @file log.c
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Logging infrastructure implementation
  */
 
 #include "openelp/openelp.h"
@@ -47,18 +53,35 @@
 #include <stdlib.h>
 #include <time.h>
 
+/*!
+ * @brief Private data for an instance of logging infrastrucure
+ */
 struct log_priv
 {
-	struct log_priv_medium_event_log
+	/*!
+	 * @brief Private data for the Windows Event Log
+	 */
+	struct log_priv_medium_eventlog
 	{
+		/// Handle to the event log
 		EVENTLOG_HANDLE handle;
-	} medium_event_log;
+	}
+	/// Private data for ::LOG_MEDIUM_EVENTLOG
+	medium_eventlog;
+
+	/*!
+	 * @brief Private data for a log file
+	 */
 	struct log_priv_medium_file
 	{
+		/// Handle to the open log file
 		FILE *fp;
-	} medium_file;
+	}
+	/// Private data for ::LOG_MEDIUM_FILE
+	medium_file;
 };
 
+/// Event log Indentifier lookup table
 static const int EVENTLOG_IDENT[] =
 {
 	LOG_IDENT_FATAL,
@@ -68,6 +91,7 @@ static const int EVENTLOG_IDENT[] =
 	LOG_IDENT_DEBUG,
 };
 
+/// Event log level lookup table
 static const int EVENTLOG_LEVEL[] =
 {
 	EVENTLOG_ERROR_TYPE,
@@ -77,6 +101,7 @@ static const int EVENTLOG_LEVEL[] =
 	EVENTLOG_INFORMATION_TYPE,
 };
 
+/// Syslog level lookup table
 static const int SYSLOG_LEVEL[] =
 {
 	LOG_CRIT,
@@ -126,7 +151,7 @@ int log_init(struct log_handle *log)
 	log->medium = LOG_MEDIUM_NONE;
 	log->level = LOG_LEVEL_INFO;
 
-	priv->medium_event_log.handle = NULL;
+	priv->medium_eventlog.handle = NULL;
 	priv->medium_file.fp = NULL;
 
 	return 0;
@@ -151,7 +176,7 @@ const char * log_medium_to_str(enum LOG_MEDIUM medium)
 	}
 }
 
-int log_open(struct log_handle *log, const char *target)
+int log_open(struct log_handle *log)
 {
 	if (log->medium != LOG_MEDIUM_NONE)
 	{
@@ -200,10 +225,10 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 
 			break;
 		case LOG_MEDIUM_EVENTLOG:
-			if (priv->medium_event_log.handle != NULL)
+			if (priv->medium_eventlog.handle != NULL)
 			{
-				DeregisterEventSource(priv->medium_event_log.handle);
-				priv->medium_event_log.handle = NULL;
+				DeregisterEventSource(priv->medium_eventlog.handle);
+				priv->medium_eventlog.handle = NULL;
 			}
 
 			break;
@@ -226,10 +251,10 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 
 			break;
 		case LOG_MEDIUM_EVENTLOG:
-			if (priv->medium_event_log.handle != NULL)
+			if (priv->medium_eventlog.handle != NULL)
 			{
-				DeregisterEventSource(priv->medium_event_log.handle);
-				priv->medium_event_log.handle = NULL;
+				DeregisterEventSource(priv->medium_eventlog.handle);
+				priv->medium_eventlog.handle = NULL;
 			}
 
 			break;
@@ -271,10 +296,10 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 				case LOG_MEDIUM_EVENTLOG:
 					priv->medium_file.fp = fp;
 					log->medium = LOG_MEDIUM_FILE;
-					if (priv->medium_event_log.handle != NULL)
+					if (priv->medium_eventlog.handle != NULL)
 					{
-						DeregisterEventSource(priv->medium_event_log.handle);
-						priv->medium_event_log.handle = NULL;
+						DeregisterEventSource(priv->medium_eventlog.handle);
+						priv->medium_eventlog.handle = NULL;
 					}
 
 					break;
@@ -306,10 +331,10 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 		case LOG_MEDIUM_EVENTLOG:
 			openlog("openelp", LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 			log->medium = LOG_MEDIUM_SYSLOG;
-			if (priv->medium_event_log.handle != NULL)
+			if (priv->medium_eventlog.handle != NULL)
 			{
-				DeregisterEventSource(priv->medium_event_log.handle);
-				priv->medium_event_log.handle = NULL;
+				DeregisterEventSource(priv->medium_eventlog.handle);
+				priv->medium_eventlog.handle = NULL;
 			}
 
 			break;
@@ -325,8 +350,8 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 		switch (log->medium)
 		{
 		case LOG_MEDIUM_FILE:
-			priv->medium_event_log.handle = RegisterEventSource(NULL, "OpenELP");
-			if (priv->medium_event_log.handle == NULL)
+			priv->medium_eventlog.handle = RegisterEventSource(NULL, "OpenELP");
+			if (priv->medium_eventlog.handle == NULL)
 			{
 				ret = EVENTLOG_ERRNO;
 			}
@@ -342,8 +367,8 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 
 			break;
 		case LOG_MEDIUM_SYSLOG:
-			priv->medium_event_log.handle = RegisterEventSource(NULL, "OpenELP");
-			if (priv->medium_event_log.handle == NULL)
+			priv->medium_eventlog.handle = RegisterEventSource(NULL, "OpenELP");
+			if (priv->medium_eventlog.handle == NULL)
 			{
 				ret = EVENTLOG_ERRNO;
 			}
@@ -357,8 +382,8 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
 		case LOG_MEDIUM_EVENTLOG:
 			break;
 		default:
-			priv->medium_event_log.handle = RegisterEventSource(NULL, "OpenELP");
-			if (priv->medium_event_log.handle == NULL)
+			priv->medium_eventlog.handle = RegisterEventSource(NULL, "OpenELP");
+			if (priv->medium_eventlog.handle == NULL)
 			{
 				ret = EVENTLOG_ERRNO;
 			}
@@ -434,7 +459,7 @@ void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va
 			vsnprintf(buff, 256, fmt, args);
 
 			ReportEvent(
-				priv->medium_event_log.handle,
+				priv->medium_eventlog.handle,
 				EVENTLOG_LEVEL[lvl],
 				0,
 				EVENTLOG_IDENT[lvl],

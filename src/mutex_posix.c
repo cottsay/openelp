@@ -1,15 +1,17 @@
 /*!
  * @file mutex_posix.c
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,9 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Mutex implementation for POSIX machines
  */
 
 #include "mutex.h"
@@ -43,15 +49,27 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*!
+ * @brief Private data for an instance of a POSIX mutex
+ */
 struct mutex_priv
 {
+	/// Condition variable used to implement the shared lock
 	pthread_cond_t cond;
+
+	/// POSIX mutex used for exclusive locking
 	pthread_mutex_t lock;
+
+	/// Number of holders of the shared lock
 	unsigned int readers;
 };
 
+/*!
+ * @brief Private data for an instance of a POSIX condition variable
+ */
 struct condvar_priv
 {
+	/// POSIX condition variable
 	pthread_cond_t cond;
 };
 

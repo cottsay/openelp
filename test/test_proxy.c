@@ -1,15 +1,17 @@
 /*!
  * @file test_proxy.c
  *
- * @section LICENSE
- *
+ * @copyright
  * Copyright &copy; 2016, Scott K Logan
  *
+ * @copyright
  * All rights reserved.
  *
+ * @copyright
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
+ * @copyright
  * * Redistributions of source code must retain the above copyright notice, this
  *   list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -19,6 +21,7 @@
  *   may be used to endorse or promote products derived from this software
  *   without specific prior written permission.
  *
+ * @copyright
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,15 +33,43 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * @copyright
  * EchoLink&reg; is a registered trademark of Synergenics, LLC
  *
- * @author Scott K Logan <logans@cottsay.net>
+ * @author Scott K Logan &lt;logans@cottsay.net&gt;
+ *
+ * @brief Tests related to the proxy itself
  */
 
 #include "openelp/openelp.h"
 
 #include <errno.h>
 #include <stdio.h>
+
+/*!
+ * @brief Basic test of proxy password response generation
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ *
+ * @test Basic test of proxy password response generation
+ */
+static int test_proxy_password_response(void);
+
+/*!
+ * @brief Main entry point for MD5 tests
+ *
+ * @returns 0 on success, non-zero value on failure
+ */
+int main(void);
+
+int main(void)
+{
+	int ret = 0;
+
+	ret |= test_proxy_password_response();
+
+	return ret;
+}
 
 static int test_proxy_password_response(void)
 {
@@ -65,22 +96,5 @@ static int test_proxy_password_response(void)
 		}
 	}
 
-	return ret;
-}
-
-int main(void)
-{
-	int ret;
-
-	ret = proxy_init(NULL);
-	if (ret != 0)
-	{
-		fprintf(stderr, "Error: proxy_init returned %d\n", ret);
-		goto main_exit;
-	}
-
-	ret |= test_proxy_password_response();
-
-main_exit:
 	return ret;
 }
