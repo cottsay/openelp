@@ -17,6 +17,9 @@ set(CPACK_PACKAGE_VERSION_PATCH "${OPENELP_PATCH_VERSION}")
 
 set(CPACK_RESOURCE_FILE_LICENSE "${OPENELP_DIR}/LICENSE")
 
+# There is an NSIS bug here - we have to use a backslash
+set(CPACK_PACKAGE_ICON "${OPENELP_DOC_DIR}/icons\\installer.bmp")
+
 if(WIN32)
   set(CPACK_COMPONENTS_SERVICE "service")
 else()

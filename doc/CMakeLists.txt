@@ -72,3 +72,5 @@ if(OPENELP_DOC_HTMLHELP)
     COMPONENT help
     )
 endif()
+
+add_subdirectory("${OPENELP_DOC_DIR}/icons")

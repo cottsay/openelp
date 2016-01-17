@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="1024"
+   height="1024"
+   viewBox="0 0 1024 1024"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="openelp.svg">
+  <title
+     id="title4419">OpenELP Logo</title>
+  <defs
+     id="defs4">
+    <linearGradient
+       id="linearGradient4275"
+       inkscape:collect="always">
+      <stop
+         id="stop4277"
+         offset="0"
+         style="stop-color:#334e91;stop-opacity:1;" />
+      <stop
+         id="stop4279"
+         offset="1"
+         style="stop-color:#6682c8;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient4275"
+       id="linearGradient4269"
+       x1="511.45697"
+       y1="208.95424"
+       x2="511.45697"
+       y2="809.995"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient4275"
+       id="linearGradient4271"
+       x1="513.27399"
+       y1="212.99484"
+       x2="513.27399"
+       y2="812.01532"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient4275"
+       id="linearGradient4273"
+       x1="511.00516"
+       y1="215.01515"
+       x2="511.00516"
+       y2="808.98486"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.49497475"
+     inkscape:cx="581.30044"
+     inkscape:cy="308.95744"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer2"
+     showgrid="false"
+     units="px"
+     inkscape:window-width="1920"
+     inkscape:window-height="1041"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     showborder="true" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title>OpenELP Logo</dc:title>
+        <cc:license
+           rdf:resource="http://creativecommons.org/licenses/by/3.0/" />
+        <dc:date>Sun Jan 17, 2016</dc:date>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>Scott K Logan</dc:title>
+          </cc:Agent>
+        </dc:creator>
+      </cc:Work>
+      <cc:License
+         rdf:about="http://creativecommons.org/licenses/by/3.0/">
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Reproduction" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Distribution" />
+        <cc:requires
+           rdf:resource="http://creativecommons.org/ns#Notice" />
+        <cc:requires
+           rdf:resource="http://creativecommons.org/ns#Attribution" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#DerivativeWorks" />
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Waves"
+     style="display:inline">
+    <path
+       style="fill:url(#linearGradient4269);fill-opacity:1"
+       d="m 752.79688,139.03125 -19.71485,30.53516 A 408,408 0 0 1 920,512 408,408 0 0 1 733.27148,854.72656 l 19.31836,29.92188 A 444,444 0 0 0 956,512 444,444 0 0 0 752.79688,139.03125 Z m -481.38672,0.32031 A 444,444 0 0 0 68,512 444,444 0 0 0 271.20312,884.96875 l 19.71485,-30.53516 A 408,408 0 0 1 104,512 408,408 0 0 1 290.72852,169.27344 l -19.31836,-29.92188 z"
+       id="path4216"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:url(#linearGradient4271);fill-opacity:1"
+       d="m 713.74805,199.51367 -19.67969,30.48242 A 336,336 0 0 1 848,512 336,336 0 0 1 694.22461,794.24609 l 19.35156,29.97266 A 372,372 0 0 0 884,512 372,372 0 0 0 713.74805,199.51367 Z m -403.32422,0.26758 A 372,372 0 0 0 140,512 372,372 0 0 0 310.25195,824.48633 l 19.67969,-30.48242 A 336,336 0 0 1 176,512 336,336 0 0 1 329.77539,229.75391 l -19.35156,-29.97266 z"
+       id="path4212"
+       inkscape:connector-curvature="0" />
+  </g>
+  <g
+     inkscape:label="Circle"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-28.362114)"
+     style="display:inline">
+    <path
+       style="fill:url(#linearGradient4273);fill-opacity:1"
+       d="M 512,212 A 300,300 0 0 0 212,512 300,300 0 0 0 512,812 300,300 0 0 0 812,512 300,300 0 0 0 512,212 Z m 0,88 88,76 -48,0 0,84 -80,0 0,-84 -48,0 88,-76 z m -136,124 0,48 272,0 0,-48 76,88 -76,88 0,-48 -272,0 0,48 -76,-88 76,-88 z m 96,140 80,0 0,84 48,0 -88,76 -88,-76 48,0 0,-84 z"
+       id="path3355"
+       transform="translate(0,28.362114)"
+       inkscape:connector-curvature="0" />
+  </g>
+</svg>

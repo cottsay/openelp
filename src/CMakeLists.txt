@@ -7,12 +7,16 @@ if(UNIX)
     ${OPENELP_SOURCE_DIR}/mutex_posix.c
     ${OPENELP_SOURCE_DIR}/thread_posix.c
     )
+  set(OPENELP_ICON_RESOURCE "")
 elseif(WIN32)
   set(OPENELP_PLATFORM_FILES
     ${CMAKE_CURRENT_BINARY_DIR}/eventlog/log_eventlog_messages.rc
     ${OPENELP_SOURCE_DIR}/conn_wsa_errno.c
     ${OPENELP_SOURCE_DIR}/mutex_win.c
     ${OPENELP_SOURCE_DIR}/thread_win.c
+    )
+  set(OPENELP_ICON_RESOURCE
+    "${CMAKE_CURRENT_BINARY_DIR}/eventlog/icon.rc"
     )
 else()
   message(ERROR "Unsupported platform")
@@ -53,12 +57,18 @@ if(WIN32)
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/eventlog"
     )
 
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/eventlog/icon.rc"
+    "IDI_ICON1 ICON DISCARDABLE \"${OPENELP_DOC_DIR}/icons/windows.ico\""
+    )
+
   target_include_directories(openelp
     PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/eventlog"
     )
 endif()
 
-add_executable(openelpd ${OPENELP_SOURCE_DIR}/proxyd.c)
+add_executable(openelpd
+  "${OPENELP_SOURCE_DIR}/proxyd.c"
+  "${OPENELP_ICON_RESOURCE}")
 
 if(WIN32)
   add_executable(openelp_service ${OPENELP_SOURCE_DIR}/service.c)
