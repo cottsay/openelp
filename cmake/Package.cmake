@@ -18,7 +18,9 @@ set(CPACK_PACKAGE_VERSION_PATCH "${OPENELP_PATCH_VERSION}")
 set(CPACK_RESOURCE_FILE_LICENSE "${OPENELP_DIR}/LICENSE")
 
 # There is an NSIS bug here - we have to use a backslash
-set(CPACK_PACKAGE_ICON "${OPENELP_DOC_DIR}/icons\\installer.bmp")
+set(CPACK_PACKAGE_ICON "${OPENELP_DOC_DIR}/icons\\\\installer.bmp")
+
+set(CPACK_NSIS_INSTALLED_ICON_NAME "bin/openelpd.exe")
 
 if(WIN32)
   set(CPACK_COMPONENTS_SERVICE "service")
@@ -77,21 +79,18 @@ set(CPACK_COMPONENT_DEVEL_DISABLED True)
 
 set(CPACK_NSIS_URL_INFO_ABOUT "http://github.com/cottsay/openelp")
 set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-  WriteRegStr HKLM SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\OpenELP EventMessageFile $INSTDIR\\bin\\openelp.dll
-  WriteRegDWORD HKLM SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\OpenELP TypesSupported 0x07"
+  nsExec::Exec '$INSTDIR\\\\bin\\\\openelp_service.exe install'
+  !include 'FileFunc.nsh'
+  \\\${GetSize} '$INSTDIR' '/S=0K' $0 $1 $2
+  IntFmt $0 '0x%08X' $0
+  WriteRegDWORD HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\OpenELP' 'EstimatedSize' '$0'
+  WriteRegStr HKLM 'SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\\\\Application\\\\OpenELP' 'EventMessageFile' '$INSTDIR\\\\bin\\\\openelp.dll'
+  WriteRegDWORD HKLM 'SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\\\\Application\\\\OpenELP' 'TypesSupported' '0x07'"
   )
 set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-  DeleteRegKey HKLM SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\OpenELP"
+  nsExec::Exec '$INSTDIR\\\\bin\\\\openelp_service.exe uninstall'
+  DeleteRegKey HKLM 'SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\\\\Application\\\\OpenELP'"
   )
-
-if(WIN32)
-  set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-    nsExec::Exec '$INSTDIR\\bin\\openelp_service.exe install'"
-    )
-  set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-    nsExec::Exec '$INSTDIR\\bin\\openelp_service.exe uninstall'"
-    )
-endif()
 
 include(CPack)
 
