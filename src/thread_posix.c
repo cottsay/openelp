@@ -144,13 +144,29 @@ int thread_join(struct thread_handle *pt)
 int thread_start(struct thread_handle *pt)
 {
 	struct thread_priv *priv = (struct thread_priv *)pt->priv;
+	pthread_attr_t attr;
 	int ret;
+
+	ret = pthread_attr_init(&attr);
+	if (ret != 0)
+	{
+		return ret > 0 ? -ret : ret;
+	}
+
+	if (pt->stack_size > 0)
+	{
+		ret = pthread_attr_setstacksize(&attr, pt->stack_size);
+		if (ret != 0)
+		{
+			return ret > 0 ? -ret : ret;
+		}
+	}
 
 	thread_join(pt);
 
 	mutex_lock(&priv->mutex);
 
-	ret = pthread_create(&priv->thread, NULL, pt->func_ptr, pt);
+	ret = pthread_create(&priv->thread, &attr, pt->func_ptr, pt);
 
 	priv->dirty = !(ret);
 

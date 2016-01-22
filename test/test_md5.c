@@ -79,16 +79,10 @@ static int test_md5_basic(void)
 	const char md5_control_str[33] = "308fb76dc4d730360ee33932d2fb1056";
 	uint8_t md5_result[16] = { 0x00 };
 	char md5_result_str[33] = "";
-	int ret = 0;
 
 	digest_get((uint8_t *)md5_challenge, (unsigned int)strlen(md5_challenge), md5_result);
 
-	ret = digest_to_str(md5_control, md5_result_str);
-	if (ret != 0)
-	{
-		fprintf(stderr, "Error: digest_to_str returned %d\n", ret);
-		return ret;
-	}
+	digest_to_str(md5_control, md5_result_str);
 
 	if (strcmp(md5_control_str, md5_result_str) != 0)
 	{
@@ -96,12 +90,7 @@ static int test_md5_basic(void)
 		return -EINVAL;
 	}
 
-	ret = digest_to_str(md5_result, md5_result_str);
-	if (ret != 0)
-	{
-		fprintf(stderr, "Error: digest_to_str returned %d\n", ret);
-		return ret;
-	}
+	digest_to_str(md5_result, md5_result_str);
 
 	if (strcmp(md5_control_str, md5_result_str) != 0)
 	{
