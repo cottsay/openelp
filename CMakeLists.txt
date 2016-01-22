@@ -44,9 +44,6 @@ set(SYSTEMD_SERVICES_INSTALL_DIR "lib/systemd/system" CACHE PATH
 set(BUILD_SHARED_LIBS ON CACHE BOOL
   "Indicates that any libraries which are produced should be shared (.dll/.so)"
   )
-set(OPENELP_BUNDLE_PCRE FALSE CACHE BOOL
-  "Download and compile PCRE2 instead of using the system's libpcre2-32"
-  )
 set(OPENELP_DOC_INTERNAL FALSE CACHE BOOL
   "Include internal code when documenting API"
   )
@@ -54,6 +51,9 @@ set(OPENELP_USE_OPENSSL FALSE CACHE BOOL
   "Use OpenSSL for MD5 computation instead of bundled md5.c"
   )
 if(WIN32)
+  set(OPENELP_BUNDLE_PCRE TRUE CACHE BOOL
+    "Download and compile PCRE2 instead of using the system's libpcre2-32"
+    )
   set(OPENELP_USE_EVENTLOG TRUE CACHE BOOL
     "Enable support for logging to the Windows Event Log"
     )
@@ -67,6 +67,9 @@ if(WIN32)
     "Enable generation of Windows CHM help"
     )
 else()
+  set(OPENELP_BUNDLE_PCRE FALSE CACHE BOOL
+    "Download and compile PCRE2 instead of using the system's libpcre2-32"
+    )
   set(OPENELP_USE_EVENTLOG FALSE CACHE BOOL
     "Enable support for logging to the Windows Event Log"
     )
