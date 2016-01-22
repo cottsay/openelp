@@ -119,16 +119,17 @@ endif()
 # Install
 #
 
-install(TARGETS openelp
-  LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
-  RUNTIME DESTINATION bin
-  COMPONENT libs
-  )
-
 if(WIN32)
   install(TARGETS openelp
     ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
     COMPONENT devel
+    )
+else()
+  install(TARGETS openelp
+    ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
+    LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
+    RUNTIME DESTINATION bin
+    COMPONENT libs
     )
 endif()
 
