@@ -63,13 +63,19 @@
 void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGEST_LEN]);
 
 /*!
+ * @brief Converts a 32-bit value to a base 16 string
+ *
+ * @param[in] data Numeric value to convert
+ * @param[out] result Resulting ASCII characters
+ */
+void digest_to_hex32(const uint32_t data, char result[8]);
+
+/*!
  * @brief Converts the given digest to a null terminated string
  *
  * @param[in] md5 Input digest value
  * @param[out] result Resulting string representation of the given digest
- *
- * @returns 0 on success, negative ERRNO value on failure
  */
-int digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1]);
+void digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1]);
 
 #endif /* _digest_h */

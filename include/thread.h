@@ -65,6 +65,9 @@ struct thread_handle
 
 	/// Context to pass to thread_handle::func_ptr
 	void *func_ctx;
+
+	/// Size for stack used for the thread
+	unsigned int stack_size;
 };
 
 /*!

@@ -47,6 +47,14 @@
 #include <errno.h>
 #include <stdio.h>
 
+/*!
+ * @brief Converts a 8-bit value to a base 16 string
+ *
+ * @param[in] data Numeric value to convert
+ * @param[out] result Resulting ASCII characters
+ */
+static inline void digest_to_hex8(uint8_t data, char result[2]);
+
 void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGEST_LEN])
 {
 	MD5_CTX ctx;
@@ -58,17 +66,30 @@ void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGE
 	MD5_Final((unsigned char *)result, &ctx);
 }
 
-int digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1])
+static inline void digest_to_hex8(uint8_t data, char result[2])
+{
+	static const char lookup[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+	result[0] = lookup[data / 16];
+	result[1] = lookup[data % 16];
+}
+
+void digest_to_hex32(const uint32_t data, char result[8])
+{
+	const uint8_t *tgt = (const uint8_t *)&data;
+
+	digest_to_hex8(tgt[3], &result[0]);
+	digest_to_hex8(tgt[2], &result[2]);
+	digest_to_hex8(tgt[1], &result[4]);
+	digest_to_hex8(tgt[0], &result[6]);
+}
+
+void digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1])
 {
 	size_t i;
 
 	for (i = 0; i < DIGEST_LEN; i++, result += 2)
 	{
-		if (sprintf(result, "%02hhx", (unsigned int)md5[i]) != 2)
-		{
-			return -EINVAL;
-		}
+		digest_to_hex8(md5[i], result);
 	}
-
-	return 0;
 }
