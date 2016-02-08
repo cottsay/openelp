@@ -13,7 +13,7 @@ Prerequisites
 -------------
 To build OpenELP you will need:
 * [CMake](https://cmake.org/)
-* [GCC](https://gcc.gnu.org/) or [Visual Studio](aka.ms/vs2015)
+* [GCC](https://gcc.gnu.org/) or [Visual Studio](http://aka.ms/vs2015)
 * [PCRE2](http://www.pcre.org/) or [SVN](https://subversion.apache.org/)
 
 If your system doesn't have PCRE2 development files installed, you have the
