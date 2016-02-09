@@ -35,6 +35,7 @@ ExternalProject_Add(pcre
   URL "ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-${PCRE_TARGET_VERSION}.tar.gz"
   URL_MD5 b75fcdcce309c9778d1a5733b591c5db
   CMAKE_ARGS ${PCRE_CMAKE_ARGS}
+  PATCH_COMMAND git apply --ignore-whitespace -p1 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pcre2_cmp0026.patch"
   INSTALL_COMMAND ""
   )
 
