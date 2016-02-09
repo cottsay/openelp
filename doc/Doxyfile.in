@@ -1224,7 +1224,7 @@ GENERATE_HTMLHELP      = @OPENELP_DOC_HTMLHELP_YN@
 # written to the html output directory.
 # This tag requires that the tag GENERATE_HTMLHELP is set to YES.
 
-CHM_FILE               = openelp.chm
+CHM_FILE               = "@OPENELP_DOC_HTMLHELP_OUT_PATH_BS@"
 
 # The HHC_LOCATION tag can be used to specify the location (absolute path
 # including file name) of the HTML help compiler (hhc.exe). If non-empty,
@@ -1232,7 +1232,7 @@ CHM_FILE               = openelp.chm
 # The file has to be specified with full path.
 # This tag requires that the tag GENERATE_HTMLHELP is set to YES.
 
-HHC_LOCATION           = @OPENELP_DOC_DIR@/hhc.cmd
+HHC_LOCATION           = "@OPENELP_DOC_HTMLHELP_CMD_BS@"
 
 # The GENERATE_CHI flag controls if a separate .chi index file is generated
 # (YES) or that it should be included in the master .chm file (NO).

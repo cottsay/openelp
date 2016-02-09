@@ -121,6 +121,11 @@ endif()
 
 if(WIN32)
   install(TARGETS openelp
+    RUNTIME DESTINATION bin
+    COMPONENT libs
+    )
+
+  install(TARGETS openelp
     ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
     COMPONENT devel
     )

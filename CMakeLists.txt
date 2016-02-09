@@ -99,6 +99,14 @@ if(OPENELP_USE_OPENSSL)
   find_package(OpenSSL REQUIRED)
 endif()
 
+if(OPENELP_DOC_HTMLHELP)
+  find_program(OPENELP_DOC_HTMLHELP_PATH hhc
+    HINTS "$ENV{ProgramW6432}\\HTML Help Workshop"
+    HINTS "$ENV{ProgramFiles}\\HTML Help Workshop"
+    DOC "HTML Help Compiler Command"
+    )
+endif()
+
 #
 # Variables
 #
