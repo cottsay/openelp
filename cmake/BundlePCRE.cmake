@@ -31,10 +31,17 @@ elseif(DEFINED CMAKE_C_FLAGS)
     )
 endif()
 
+if(${CMAKE_VERSION} VERSION_LESS 3.0)
+  set(PCRE_PATCH_CMD git apply --ignore-whitespace -p1 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pcre2_cmp0026.patch")
+else()
+  set(PCRE_PATCH_CMD "")
+endif()
+
 ExternalProject_Add(pcre
   URL "ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-${PCRE_TARGET_VERSION}.tar.gz"
   URL_MD5 b75fcdcce309c9778d1a5733b591c5db
   CMAKE_ARGS ${PCRE_CMAKE_ARGS}
+  PATCH_COMMAND ${PCRE_PATCH_CMD}
   INSTALL_COMMAND ""
   )
 
