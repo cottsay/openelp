@@ -12,7 +12,6 @@ docker run -p 8100:8100 -p 5198:5198/udp -p 5199:5199/udp -d openelp
 
 
 ## Troubleshooting
->>>>>>> fcf482c07d26bbb98d9b9b9d1db1356711fc568a
 If you forgot to set a password, you'll be greeted with this error message in the log, and the container will exit.
 ```
 OpenELP 0.6.0
