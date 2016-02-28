@@ -26,6 +26,12 @@ To create a Windows installer, you will also need to install
 The only runtime dependency that OpenELP has is on the PCRE2 shared library,
 unless PCRE2 was bundled into OpenELP.
 
+
+## Setting up prerequisites on Centos
+```
+sudo yum install cmake doxygen pcre-devel gcc subversion
+```
+
 Compiling
 ---------
 Linux:
