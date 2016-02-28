@@ -1,8 +1,8 @@
-@"C:\Program Files (x86)\HTML Help Workshop\hhc.exe" %*
+@"@OPENELP_DOC_HTMLHELP_PATH_BS@" %*
 
 @IF %ERRORLEVEL% EQU 0 GOTO DONE
 
-@IF EXIST *.chm GOTO DONE
+@IF EXIST "@OPENELP_DOC_HTMLHELP_OUT_PATH_BS@" GOTO DONE
 
 @ECHO Expected .chm file was not generated!
 @EXIT /B 1

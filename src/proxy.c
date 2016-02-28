@@ -87,9 +87,54 @@ struct proxy_priv
 	char port_str[6];
 };
 
-/*
- * Functions
+/*!
+ * @brief Convert a port number to an ASCII string
+ *
+ * @param[in] port Port number to convert
+ * @param[out] result Resulting ASCII string
  */
+static inline void port_to_str(const uint16_t port, char result[6]);
+
+static inline void port_to_str(const uint16_t port, char result[6])
+{
+	uint16_t port_tmp = port;
+	uint8_t n = 0;
+
+	do
+	{
+		n++;
+		port_tmp /= 10;
+	}
+	while (port_tmp != 0);
+
+	port_tmp = port;
+
+	switch (n)
+	{
+	case 5:
+		*result = 48 + port_tmp / 10000;
+		port_tmp %= 10000;
+		result++;
+	case 4:
+		*result = 48 + port_tmp / 1000;
+		port_tmp %= 1000;
+		result++;
+	case 3:
+		*result = 48 + port_tmp / 100;
+		port_tmp %= 100;
+		result++;
+	case 2:
+		*result = 48 + port_tmp / 10;
+		port_tmp %= 10;
+		result++;
+	case 1:
+		*result = 48 + port_tmp;
+		result++;
+	}
+
+	*result = '\0';
+}
+
 int proxy_authorize_callsign(struct proxy_handle *ph, const char *callsign)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
@@ -137,12 +182,7 @@ int proxy_load_conf(struct proxy_handle *ph, const char *path)
 		return ret;
 	}
 
-	ret = snprintf(priv->port_str, 6, "%hu", ph->conf.port);
-	if (ret < 1 || ret > 5)
-	{
-		proxy_log(ph, LOG_LEVEL_ERROR, "Port conversion failed (%d)\n", ret);
-		return -EINVAL;
-	}
+	port_to_str(ph->conf.port, priv->port_str);
 
 	if (ph->conf.bind_addr_ext_add != NULL)
 	{
@@ -576,9 +616,8 @@ int get_nonce(uint32_t *nonce)
 int get_password_response(const uint32_t nonce, const char *password, uint8_t response[PROXY_PASS_RES_LEN])
 {
 	unsigned int pass_with_nonce_len = (unsigned int)strlen(password) + 8;
-	char *pass_with_nonce = malloc(pass_with_nonce_len + 1);
-	int ret = 0;
-	char *iter = pass_with_nonce;
+	uint8_t *pass_with_nonce = malloc(pass_with_nonce_len);
+	char *iter = (char *)pass_with_nonce;
 
 	while (*password != '\0')
 	{
@@ -595,18 +634,13 @@ int get_password_response(const uint32_t nonce, const char *password, uint8_t re
 		password++;
 	}
 
-	if (snprintf(iter, 9, "%08x", nonce) != 8)
-	{
-		ret = -EINVAL;
-		goto get_password_response_exit;
-	}
+	digest_to_hex32(nonce, iter);
 
-	digest_get((uint8_t *)pass_with_nonce, pass_with_nonce_len, response);
+	digest_get(pass_with_nonce, pass_with_nonce_len, response);
 
-get_password_response_exit:
 	free(pass_with_nonce);
 
-	return ret;
+	return 0;
 }
 
 int proxy_start(struct proxy_handle *ph)

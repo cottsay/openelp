@@ -44,6 +44,7 @@
 #include "openelp/openelp.h"
 
 #include "conn.h"
+#include "digest.h"
 #include "mutex.h"
 #include "proxy_conn.h"
 #include "rand.h"
@@ -365,11 +366,7 @@ static int client_authorize(struct proxy_conn_handle *pc)
 		return ret;
 	}
 
-	ret = snprintf(nonce_str, 9, "%08x", nonce);
-	if (ret != 8)
-	{
-		return -EINVAL;
-	}
+	digest_to_hex32(nonce, nonce_str);
 
 	// Generate the expected auth response
 	ret = get_password_response(nonce, pc->ph->conf.password, response);
@@ -1280,6 +1277,11 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 	priv->thread_control.func_ptr = forwarder_control;
 	priv->thread_data.func_ptr = forwarder_data;
 	priv->thread_tcp.func_ptr = forwarder_tcp;
+
+	priv->thread_client.stack_size = 1024 * 1024;
+	priv->thread_control.stack_size = 1024 * 1024;
+	priv->thread_data.stack_size = 1024 * 1024;
+	priv->thread_tcp.stack_size = 1024 * 1024;
 
 	return 0;
 

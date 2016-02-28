@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.7)
 
 include(ExternalProject)
 
-set(PCRE_TARGET_VERSION "10.20")
+set(PCRE_TARGET_VERSION "10.21")
 
 set(PCRE_CMAKE_ARGS
   -DBUILD_SHARED_LIBS:BOOL=OFF
@@ -15,10 +15,27 @@ set(PCRE_CMAKE_ARGS
   -DPCRE2_BUILD_TESTS:BOOL=OFF
   )
 
+if(DEFINED CMAKE_VERBOSE_MAKEFILE)
+  set(PCRE_CMAKE_ARGS ${PCRE_CMAKE_ARGS}
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}
+    )
+endif()
+
+if(NOT WIN32 AND BUILD_SHARED_LIBS)
+  set(PCRE_CMAKE_ARGS ${PCRE_CMAKE_ARGS}
+    "-DCMAKE_C_FLAGS:STRING=-fPIC ${CMAKE_C_FLAGS}"
+    )
+elseif(DEFINED CMAKE_C_FLAGS)
+  set(PCRE_CMAKE_ARGS ${PCRE_CMAKE_ARGS}
+    -DCMAKE_C_FLAGS:STRING=${CMAKE_C_FLAGS}
+    )
+endif()
+
 ExternalProject_Add(pcre
-  SVN_REPOSITORY
-    "svn://vcs.exim.org/pcre2/code/tags/pcre2-${PCRE_TARGET_VERSION}"
+  URL "ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-${PCRE_TARGET_VERSION}.tar.gz"
+  URL_MD5 b75fcdcce309c9778d1a5733b591c5db
   CMAKE_ARGS ${PCRE_CMAKE_ARGS}
+  PATCH_COMMAND git apply --ignore-whitespace -p1 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pcre2_cmp0026.patch"
   INSTALL_COMMAND ""
   )
 

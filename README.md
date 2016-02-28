@@ -13,12 +13,13 @@ Prerequisites
 -------------
 To build OpenELP you will need:
 * [CMake](https://cmake.org/)
-* [GCC](https://gcc.gnu.org/) or [Visual Studio](http://aka.ms/vs2015)
+ [GCC](https://gcc.gnu.org/) or [Visual Studio](http://aka.ms/vs2015)
 * [PCRE2](http://www.pcre.org/) or [SVN](https://subversion.apache.org/)
 
 If your system doesn't have PCRE2 development files installed, you have the
-option of bundling PCRE2 with OpenELP. To do this, you must have SVN installed,
-and specify `-DOPENELP_BUNDLE_PCRE:BOOL=ON` when you call `cmake`.
+option of bundling PCRE2 with OpenELP. To do this, specify
+`-DOPENELP_BUNDLE_PCRE:BOOL=ON` when you call `cmake`. CMake will download
+the PCRE2 sources automatically and build them into the OpenELP library.
 
 To create a Windows installer, you will also need to install
 [NSIS](http://nsis.sourceforge.net/)

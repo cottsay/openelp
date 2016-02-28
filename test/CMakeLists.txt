@@ -48,6 +48,10 @@ target_link_libraries(test_regex
   ${PCRE_LIBRARIES}
   )
 
+if(UNIX)
+  target_link_libraries(test_regex pthread)
+endif()
+
 #
 # Properties
 #
