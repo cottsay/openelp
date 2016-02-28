@@ -1,4 +1,9 @@
 ##Building and Running OpenELP in Docker
+This covers the steps needed to build a Docker container for OpenELP, based on the official Centos image in Docker Hub.
+
+We will probably push an official image to Docker Hub once we finish these outstanding investigations:
+* Set a password as the container is launched, instead of putting it in ELConfig.conf and rebuilding the Docker image
+* Try deploying it through Docker Cloud - this should work with no compile or VM setup required
 
 ### Building your own Docker image
 1. Create and build in build/ directory per [readme](README.md)
