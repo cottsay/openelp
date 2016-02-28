@@ -1,4 +1,4 @@
-##Building and OpenELP in Docker
+##Building and Running OpenELP in Docker
 
 ### Building your own Docker image
 1. Create and build in build/ directory per [readme](README.md)
