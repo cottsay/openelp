@@ -13,8 +13,13 @@ Prerequisites
 -------------
 To build OpenELP you will need:
 * [CMake](https://cmake.org/)
+* [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/)
 * [GCC](https://gcc.gnu.org/) or [Visual Studio](http://aka.ms/vs2015)
+
+If available, OpenELP can use:
 * [PCRE2](http://www.pcre.org/)
+* [OpenSSL](https://www.openssl.org/)
+* [Doxygen](http://www.doxygen.org/)
 
 If your system doesn't have PCRE2 development files installed, you have the
 option of bundling PCRE2 with OpenELP. To do this, specify
@@ -26,6 +31,11 @@ To create a Windows installer, you will also need to install
 
 The only runtime dependency that OpenELP has is on the PCRE2 shared library,
 unless PCRE2 was bundled into OpenELP.
+
+To install these prerequisites on Fedora (23+) and CentOS/RHEL (6+ w/EPEL), run:
+```
+sudo yum install cmake doxygen gcc pcre2-devel pkgconfig openssl-devel
+```
 
 Compiling
 ---------
