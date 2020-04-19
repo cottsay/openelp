@@ -63,6 +63,8 @@ License
 -------
 See [LICENSE](./LICENSE) file.
 
+EchoLink&reg; is a registered trademark of Synergenics, LLC.
+
 Bugs
 ----
 All issues and feature requests should be directed to
