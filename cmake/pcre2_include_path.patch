@@ -1,0 +1,12 @@
+diff -uNr a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt    2020-05-09 08:43:10.000000000 -0700
++++ b/CMakeLists.txt    2020-05-30 16:29:24.285003088 -0700
+@@ -108,7 +108,7 @@
+ 
+ LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+ 
+-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${PROJECT_SOURCE_DIR}/src")
++SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I\"${PROJECT_SOURCE_DIR}/src\"")
+ 
+ # external packages
+ FIND_PACKAGE( BZip2 )

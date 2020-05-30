@@ -1,2 +1,3 @@
+/cmake/*.patch text eol=lf
 *.c linguist-language=C
 *.h linguist-language=C
