@@ -1,6 +1,6 @@
 project(openelp C)
 
-cmake_minimum_required(VERSION 2.7)
+cmake_minimum_required(VERSION 2.8)
 
 #
 # Installation directories
@@ -40,6 +40,11 @@ set(SYSTEMD_SERVICES_INSTALL_DIR "lib/systemd/system" CACHE PATH
 #
 # Configuration Variables
 #
+
+# Make sure we have CMAKE_BUILD_TYPE set to something
+if(NOT CMAKE_BUILD_TYPE)
+  list(GET CMAKE_CONFIGURATION_TYPES 0 CMAKE_BUILD_TYPE)
+endif()
 
 set(BUILD_SHARED_LIBS ON CACHE BOOL
   "Indicates that any libraries which are produced should be shared (.dll/.so)"
@@ -164,7 +169,12 @@ endif()
 if(WIN32)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3 /D_CRT_SECURE_NO_WARNINGS")
 else()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+endif()
+
+# Default to C11
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 11)
 endif()
 
 #
@@ -196,6 +206,10 @@ endif()
 add_subdirectory(${OPENELP_DOC_DIR})
 add_subdirectory(${OPENELP_INCLUDE_DIR})
 add_subdirectory(${OPENELP_SOURCE_DIR})
-add_subdirectory(${OPENELP_TEST_DIR})
+
+include(CTest)
+if(BUILD_TESTING)
+  add_subdirectory(${OPENELP_TEST_DIR})
+endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Package.cmake")

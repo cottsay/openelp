@@ -2,6 +2,8 @@
 # Targets
 #
 
+set_directory_properties(PROPERTIES CLEAN_NO_CUSTOM 1)
+
 add_custom_command(OUTPUT "${OPENELP_DOC_DIR}/icons/24x24.png"
   COMMAND convert
   ARGS -background none -resize 24x24

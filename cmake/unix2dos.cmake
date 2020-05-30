@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 2.7)
-
 if(NOT ${CMAKE_ARGC} EQUAL 5)
   message(FATAL_ERROR
     "Usage: cmake -P unix2dos.cmake <input file> <output file>"

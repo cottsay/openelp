@@ -64,7 +64,7 @@ if(DOXYGEN_FOUND)
     @ONLY)
 
   add_custom_command(OUTPUT
-      "${OPENELP_DOC_HTMLHELP_OUT_PATH}"
+      ${OPENELP_DOC_HTMLHELP_OUT_PATH}
       "${CMAKE_CURRENT_BINARY_DIR}/html/index.html"
     COMMAND "${DOXYGEN_EXECUTABLE}"
     ARGS "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
@@ -82,7 +82,7 @@ if(DOXYGEN_FOUND)
 
   add_custom_target(doc ${OPENELP_DOC_ALL}
     DEPENDS
-      "${OPENELP_DOC_HTMLHELP_OUT_PATH}"
+      ${OPENELP_DOC_HTMLHELP_OUT_PATH}
       "${CMAKE_CURRENT_BINARY_DIR}/html/index.html"
     )
 else()
@@ -110,7 +110,7 @@ if(UNIX)
     )
 endif()
 
-if(OPENELP_DOC_HTMLHELP)
+if(OPENELP_DOC_HTMLHELP AND DOXYGEN_FOUND)
   install(FILES "${OPENELP_DOC_HTMLHELP_OUT_PATH}"
     DESTINATION "./"
     COMPONENT help
