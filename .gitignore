@@ -1,2 +1,6 @@
-/build
+.*.swp
+/.vs
+/CMakeSettings.json
 /ELProxy.conf
+/build
+/out

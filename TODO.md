@@ -18,6 +18,4 @@ Additional Settings
 
 Other
 -----
-* Travis CI
-* Logo/Icon
 * Investigate if outgoing TCP connections always use 5200
