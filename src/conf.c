@@ -190,7 +190,7 @@ static int conf_parse_line(const char *line, struct proxy_conf *conf, struct log
 	for (; key_len > 0 && (key[key_len - 1] == ' ' || key[key_len - 1] == '\t'); key_len--);
 
 	// Find the beginning of the key
-	for (; *val == ' ' && *val == '\t'; val++);
+	for (; *val == ' ' || *val == '\t'; val++);
 
 	for (; val[val_len] != '\0'; val_len++);
 
