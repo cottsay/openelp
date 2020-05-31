@@ -9,9 +9,7 @@ OpenELP also has the ability to bind to multiple network interfaces which are
 routed to unique external IP addresses, and therefore is capable of accepting
 connections from multiple clients simultaneously.
 
-[![Linux Build Status](https://travis-ci.com/cottsay/openelp.svg?token=YpSax4RnwqGzYmXe4pcn&branch=master)](https://travis-ci.com/cottsay/openelp)
-
-[![Windows Build Status](https://cottsay.visualstudio.com/DefaultCollection/_apis/public/build/definitions/8f1623e0-5816-44f0-8524-fdf6acd23730/1/badge)](https://cottsay.visualstudio.com/DefaultCollection/openelp/_build/index)
+![OpenELP CI](https://github.com/cottsay/openelp/workflows/OpenELP%20CI/badge.svg?branch=master&event=push)
 
 Prerequisites
 -------------
