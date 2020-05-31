@@ -26,7 +26,7 @@ if(WIN32)
     "Installation directory for all configuration files"
     )
 else()
-  set(SYSCONF_INSTALL_DIR "/etc" CACHE PATH
+  set(SYSCONF_INSTALL_DIR "etc" CACHE PATH
     "Installation directory for all configuration files"
     )
 endif()
@@ -46,6 +46,20 @@ if(NOT CMAKE_BUILD_TYPE)
   list(GET CMAKE_CONFIGURATION_TYPES 0 CMAKE_BUILD_TYPE)
 endif()
 
+if(IS_ABSOLUTE ${SYSCONF_INSTALL_DIR})
+  file(TO_CMAKE_PATH
+    "${SYSCONF_INSTALL_DIR}/ELProxy.conf"
+    OPENELP_CONFIG_HINT_DEFAULT)
+elseif(IS_ABSOLUTE ${BIN_INSTALL_DIR})
+  file(RELATIVE_PATH OPENELP_CONFIG_HINT_DEFAULT
+    "${BIN_INSTALL_DIR}"
+    "${CMAKE_PREFIX_PATH}/${SYSCONF_INSTALL_DIR}/ELProxy.conf")
+else()
+  file(RELATIVE_PATH OPENELP_CONFIG_HINT_DEFAULT
+    "${CMAKE_PREFIX_PATH}/${BIN_INSTALL_DIR}"
+    "${CMAKE_PREFIX_PATH}/${SYSCONF_INSTALL_DIR}/ELProxy.conf")
+endif()
+
 set(BUILD_SHARED_LIBS ON CACHE BOOL
   "Indicates that any libraries which are produced should be shared (.dll/.so)"
   )
@@ -54,6 +68,9 @@ set(OPENELP_DOC_INTERNAL FALSE CACHE BOOL
   )
 set(OPENELP_USE_OPENSSL FALSE CACHE BOOL
   "Use OpenSSL for MD5 computation instead of bundled md5.c"
+  )
+set(OPENELP_CONFIG_HINT ${OPENELP_CONFIG_HINT_DEFAULT} CACHE PATH
+  "Hint path when searching for the proxy configuration file at runtime"
   )
 if(WIN32)
   set(OPENELP_BUNDLE_PCRE TRUE CACHE BOOL
@@ -64,9 +81,6 @@ if(WIN32)
     )
   set(OPENELP_USE_SYSLOG FALSE CACHE BOOL
     "Enable support for logging to SYSLOG"
-    )
-  set(OPENELP_CONFIG_HINT "../ELProxy.conf" CACHE PATH
-    "Hint path when searching for the proxy configuration file at runtime"
     )
   set(OPENELP_DOC_HTMLHELP TRUE CACHE BOOL
     "Enable generation of Windows CHM help"
@@ -80,9 +94,6 @@ else()
     )
   set(OPENELP_USE_SYSLOG TRUE CACHE BOOL
     "Enable support for logging to SYSLOG"
-    )
-  set(OPENELP_CONFIG_HINT "/etc/ELProxy.conf" CACHE PATH
-    "Hint path when searching for the proxy configuration file at runtime"
     )
   set(OPENELP_DOC_HTMLHELP FALSE CACHE BOOL
     "Enable generation of Windows CHM help"
