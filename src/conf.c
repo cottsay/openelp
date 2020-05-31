@@ -104,7 +104,7 @@ static int conf_readline(char **lineptr, size_t *n, FILE *stream);
 
 static int conf_readline(char **lineptr, size_t *n, FILE *stream)
 {
-	int so_far = 0;
+	size_t so_far = 0;
 	char temp;
 	char *temp_ptr;
 
@@ -155,7 +155,7 @@ static int conf_readline(char **lineptr, size_t *n, FILE *stream)
 
 	(*lineptr)[so_far] = '\0';
 
-	return so_far;
+	return (int)so_far;
 }
 
 static int conf_parse_line(const char *line, struct proxy_conf *conf, struct log_handle *log)
@@ -350,7 +350,7 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 	case 31:
 		if (strncmp(key, "AdditionalExternalBindAddresses", key_len) == 0)
 		{
-			int i, j;
+			size_t i, j;
 
 			if (conf->bind_addr_ext_add != NULL)
 			{
@@ -384,7 +384,7 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 			for (i = 0, j = 0; i < conf->bind_addr_ext_add_len; i++)
 			{
-				int k = j;
+				size_t k = j;
 
 				for (; j < val_len && val[j] != ','; j++);
 

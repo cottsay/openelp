@@ -56,7 +56,7 @@ typedef HANDLE EVENTLOG_HANDLE;
 #else
 #  define DeregisterEventSource(...)
 #  define RegisterEventSource(...) NULL
-#  define ReportEvent(handle, type, cat, eventId, userSid, numStrings, dataSize, strings, rawData) strings[0]=strings[0]
+#  define ReportEvent(handle, type, cat, eventId, userSid, numStrings, dataSize, strings, rawData) (void)handle, (void)type, (void)cat, (void)eventId, (void)userSid, (void)numStrings, (void)dataSize, (void)strings, (void)rawData
 #  define EVENTLOG_ERRNO -ENOTSUP
 #  define EVENTLOG_ERROR_TYPE 0
 #  define EVENTLOG_WARNING_TYPE 0

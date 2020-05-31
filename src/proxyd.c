@@ -177,6 +177,7 @@ static BOOL WINAPI graceful_shutdown(DWORD ctrl_type)
 static void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 {
 	proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
+	(void)signum, (void)info, (void)ptr;
 
 	sentinel = 1;
 

@@ -403,7 +403,9 @@ static int client_authorize(struct proxy_conn_handle *pc)
 		return -EINVAL;
 	}
 
-	strncpy(priv->callsign, (char *)buff, idx);
+	// Make the callsign null-terminated
+	buff[idx] = '\0';
+	strcpy(priv->callsign, (char *)buff);
 
 	ret = conn_recv(priv->conn_client, &buff[16], idx + 1);
 	if (ret < 0)
@@ -623,6 +625,7 @@ static void * forwarder_control(void *ctx)
 	struct proxy_conn_handle *pc = (struct proxy_conn_handle *)th->func_ctx;
 	struct proxy_conn_priv *priv = (struct proxy_conn_priv *)pc->priv;
 
+	uint32_t addr;
 	uint8_t buf[CONN_BUFF_LEN] = { 0x0 };
 	struct proxy_msg *msg = (struct proxy_msg *)buf;
 	int ret;
@@ -633,9 +636,10 @@ static void * forwarder_control(void *ctx)
 
 	do
 	{
-		ret = conn_recv_any(&priv->conn_control, msg->data, CONN_BUFF_LEN_HEADERLESS, &msg->address, NULL);
+		ret = conn_recv_any(&priv->conn_control, msg->data, CONN_BUFF_LEN_HEADERLESS, &addr, NULL);
 		if (ret > 0)
 		{
+			msg->address = addr;
 			msg->size = ret;
 
 			proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Sending UDP_DATA message to client '%s' (%d bytes)\n", priv->callsign, msg->size);
@@ -703,6 +707,7 @@ static void * forwarder_data(void *ctx)
 	struct proxy_conn_handle *pc = (struct proxy_conn_handle *)th->func_ctx;
 	struct proxy_conn_priv *priv = (struct proxy_conn_priv *)pc->priv;
 
+	uint32_t addr;
 	uint8_t buf[CONN_BUFF_LEN] = { 0x0 };
 	struct proxy_msg *msg = (struct proxy_msg *)buf;
 	int ret;
@@ -713,9 +718,10 @@ static void * forwarder_data(void *ctx)
 
 	do
 	{
-		ret = conn_recv_any(&priv->conn_data, msg->data, CONN_BUFF_LEN_HEADERLESS, &msg->address, NULL);
+		ret = conn_recv_any(&priv->conn_data, msg->data, CONN_BUFF_LEN_HEADERLESS, &addr, NULL);
 		if (ret > 0)
 		{
+			msg->address = addr;
 			msg->size = ret;
 
 			proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Sending UDP_DATA message to client '%s' (%d bytes)\n", priv->callsign, msg->size);
@@ -958,6 +964,7 @@ static int process_tcp_close_message(struct proxy_conn_handle *pc, struct proxy_
 	struct proxy_conn_priv *priv = (struct proxy_conn_priv *)pc->priv;
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Processing TCP_CLOSE message from client '%s'\n", priv->callsign);
+	(void)msg;
 
 	conn_close(&priv->conn_tcp);
 

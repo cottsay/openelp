@@ -242,7 +242,7 @@ int conn_listen(struct conn_handle *conn)
 		goto conn_listen_free;
 	}
 
-	ret = bind(priv->sock_fd, res->ai_addr, res->ai_addrlen);
+	ret = bind(priv->sock_fd, res->ai_addr, (socklen_t)res->ai_addrlen);
 	if (ret == SOCKET_ERROR)
 	{
 		/// @TODO Close priv->sock_fd
@@ -353,14 +353,14 @@ int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 		goto conn_connect_free_early;
 	}
 
-	ret = bind(priv->sock_fd, res->ai_addr, res->ai_addrlen);
+	ret = bind(priv->sock_fd, res->ai_addr, (socklen_t)res->ai_addrlen);
 	if (ret == SOCKET_ERROR)
 	{
 		ret = SOCK_ERRNO;
 		goto conn_connect_free;
 	}
 
-	ret = connect(priv->sock_fd, res_remote->ai_addr, res_remote->ai_addrlen);
+	ret = connect(priv->sock_fd, res_remote->ai_addr, (socklen_t)res_remote->ai_addrlen);
 	if (ret == SOCKET_ERROR)
 	{
 		ret = SOCK_ERRNO;
@@ -420,7 +420,7 @@ int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len)
 
 	while (buff_len > 0)
 	{
-		ret = recvfrom(priv->fd, (char *)buff, buff_len, 0, NULL, NULL);
+		ret = recvfrom(priv->fd, (char *)buff, (socklen_t)buff_len, 0, NULL, NULL);
 
 		if (ret == 0)
 		{
@@ -468,7 +468,7 @@ int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint
 		goto conn_recv_any_exit;
 	}
 
-	ret = recvfrom(priv->fd, (char *)buff, buff_len, 0, (struct sockaddr *)&priv->remote_addr, &priv->remote_addr_len);
+	ret = recvfrom(priv->fd, (char *)buff, (socklen_t)buff_len, 0, (struct sockaddr *)&priv->remote_addr, &priv->remote_addr_len);
 
 	if (ret == 0)
 	{
@@ -518,7 +518,7 @@ int conn_send(struct conn_handle *conn, const uint8_t *buff, size_t buff_len)
 	{
 		while (buff_len > 0)
 		{
-			ret = send(priv->fd, (char *)buff, buff_len, MSG_NOSIGNAL);
+			ret = send(priv->fd, (char *)buff, (socklen_t)buff_len, MSG_NOSIGNAL);
 
 			if (ret == 0)
 			{
@@ -579,7 +579,7 @@ int conn_send_to(struct conn_handle *conn, const uint8_t *buff, size_t buff_len,
 	{
 		while (buff_len > 0)
 		{
-			ret = sendto(priv->fd, (char *)buff, buff_len, MSG_NOSIGNAL, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
+			ret = sendto(priv->fd, (char *)buff, (socklen_t)buff_len, MSG_NOSIGNAL, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
 
 			if (ret == 0)
 			{
