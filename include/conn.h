@@ -92,10 +92,12 @@ struct conn_handle
  *
  * @param[in,out] conn Target network connection instance
  * @param[in,out] accepted Network connection instance for newly accepted client
+ * @param[out] addr Remote address of connecting client, or NULL if unwanted
+ * @param[out] port Remote port on connecting client, or NULL if unwanted
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-int conn_accept(struct conn_handle *conn, struct conn_handle *accepted);
+int conn_accept(struct conn_handle *conn, struct conn_handle *accepted, uint32_t *addr, uint16_t *port);
 
 /*!
  * @brief Closes the target connection with the client
@@ -201,5 +203,13 @@ int conn_send_to(struct conn_handle *conn, const uint8_t *buff, size_t buff_len,
  * @param[in,out] conn Target network connection instance
  */
 void conn_shutdown(struct conn_handle *conn);
+
+/*!
+ * @brief Prints the binary address to the given ASCII string
+ *
+ * @param[in] addr Address to print
+ * @param[out] dest Destination ASCII string
+ */
+void conn_sprintaddr(const uint32_t addr, char dest[16]);
 
 #endif /* _conn_h */
