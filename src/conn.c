@@ -496,7 +496,7 @@ conn_recv_any_exit:
 
 	if (port != NULL && ret > 0)
 	{
-		*port = ((struct sockaddr_in *)&priv->remote_addr)->sin_port;
+		*port = htons(((struct sockaddr_in *)&priv->remote_addr)->sin_port);
 	}
 
 	return ret;
