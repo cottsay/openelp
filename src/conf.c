@@ -320,6 +320,28 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 			memcpy(conf->calls_allowed, val, val_len);
 			conf->calls_allowed[val_len] = '\0';
 		}
+		else if (strncmp(key, "RegistrationName", key_len) == 0)
+		{
+			if (conf->reg_name != NULL)
+			{
+				free(conf->reg_name);
+			}
+
+			if (val_len == 0)
+			{
+				conf->reg_name = NULL;
+				break;
+			}
+
+			conf->reg_name = malloc(val_len + 1);
+			if (conf->reg_name == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memcpy(conf->reg_name, val, val_len);
+			conf->reg_name[val_len] = '\0';
+		}
 
 		break;
 	case 19:
@@ -344,6 +366,28 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 			memcpy(conf->bind_addr_ext, val, val_len);
 			conf->bind_addr_ext[val_len] = '\0';
+		}
+		else if (strncmp(key, "RegistrationComment", key_len) == 0)
+		{
+			if (conf->reg_comment != NULL)
+			{
+				free(conf->reg_comment);
+			}
+
+			if (val_len == 0)
+			{
+				conf->reg_comment = NULL;
+				break;
+			}
+
+			conf->reg_comment = malloc(val_len + 1);
+			if (conf->reg_comment == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memcpy(conf->reg_comment, val, val_len);
+			conf->reg_comment[val_len] = '\0';
 		}
 
 		break;
@@ -499,6 +543,18 @@ void conf_free(struct proxy_conf *conf)
 	{
 		free(conf->password);
 		conf->password = NULL;
+	}
+
+	if (conf->reg_name != NULL)
+	{
+		free(conf->reg_name);
+		conf->reg_name = NULL;
+	}
+
+	if (conf->reg_comment != NULL)
+	{
+		free(conf->reg_comment);
+		conf->reg_comment = NULL;
 	}
 }
 

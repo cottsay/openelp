@@ -149,6 +149,12 @@ struct proxy_conf
 
 	/// Port on which to listen for client connections
 	uint16_t port;
+
+	/// Name to use when registering in the official list
+	char *reg_name;
+
+	/// Optional comment showen in the official proxy list
+	char *reg_comment;
 };
 
 /*!
