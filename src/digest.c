@@ -58,6 +58,22 @@
  */
 static inline void digest_to_hex8(uint8_t data, char result[2]);
 
+/*!
+ * @brief Converts a base 16 string to a 4-bit value
+ *
+ * @param[in] data ASCII character to convert
+ * @returns Resulting numeric value
+ */
+static inline uint8_t hex4_to_digest(const char data);
+
+/*!
+ * @brief Converts a base 16 string to an 8-bit value
+ *
+ * @param[in] data ASCII characters to convert
+ * @returns Resulting numeric value
+ */
+static inline uint8_t hex8_to_digest(const char data[2]);
+
 void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGEST_LEN])
 {
 	MD5_CTX ctx;
@@ -95,4 +111,53 @@ void digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1
 	{
 		digest_to_hex8(md5[i], result);
 	}
+}
+
+static inline uint8_t hex4_to_digest(const char data)
+{
+	char base = '0';
+
+	if (data > '9')
+	{
+		if (data > 'F')
+		{
+			if (data > 'f')
+			{
+				return 0;
+			}
+			else
+			{
+				base = 'a' - 10;
+			}
+		}
+		else
+		{
+			base = 'A' - 10;
+		}
+	}
+
+	if (data < base)
+	{
+		return 0;
+	}
+
+	return data - base;
+}
+
+static inline uint8_t hex8_to_digest(const char data[2])
+{
+	return (hex4_to_digest(data[0]) * 16) + hex4_to_digest(data[1]);
+}
+
+uint32_t hex32_to_digest(const char data[8])
+{
+	uint32_t result;
+	uint8_t *tgt = (uint8_t *)&result;
+
+	tgt[3] = hex8_to_digest(&data[0]);
+	tgt[2] = hex8_to_digest(&data[2]);
+	tgt[1] = hex8_to_digest(&data[4]);
+	tgt[0] = hex8_to_digest(&data[6]);
+
+	return result;
 }

@@ -81,4 +81,12 @@ void digest_to_hex32(const uint32_t data, char result[8]);
  */
 void digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1]);
 
+/*!
+ * @brief Converts a base 16 string to a 32-bit value
+ *
+ * @param[in] data ASCII characters to convert
+ * @returns Resulting numeric value
+ */
+uint32_t hex32_to_digest(const char data[8]);
+
 #endif /* _digest_h */
