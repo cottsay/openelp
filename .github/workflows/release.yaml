@@ -1,0 +1,56 @@
+name: OpenELP Release
+
+on:
+  release:
+    types:
+    - created
+
+jobs:
+  build_windows_installer:
+    name: Build Windows Installer
+    runs-on: windows-latest
+
+    steps:
+    - name: Cache HTML Help Workshop
+      id: cache-hhw
+      uses: actions/cache@v2
+      with:
+        path: ${{runner.workspace}}\hhw
+        key: hhw
+    - name: Download HTML Help Workshop
+      if: steps.cache-hhw.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/0/A/9/0A939EF6-E31C-430F-A3DF-DFAE7960D564/htmlhelp.exe" -OutFile "htmlhelp.exe"
+        Start-Process -FilePath .\htmlhelp.exe -ArgumentList "/T:${{runner.workspace}}\hhw /C /Q" -NoNewWindow -Wait
+    - name: Cache Doxygen
+      id: cache-doxygen
+      uses: actions/cache@v2
+      with:
+        path: ${{runner.workspace}}\doxygen
+        key: doxygen
+    - name: Download Doxygen
+      if: steps.cache-doxygen.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri "http://doxygen.nl/files/doxygen-1.8.18.windows.x64.bin.zip" -OutFile "doxygen.zip"
+        Expand-Archive -Path "doxygen.zip" -DestinationPath "${{runner.workspace}}\doxygen"
+    - name: Cache PCRE2
+      uses: actions/cache@v2
+      with:
+        path: ${{runner.workspace}}\build\pcre-prefix\src\pcre2-10.35.tar.gz
+        key: pcre2-10.35
+    - name: Clone project
+      uses: actions/checkout@v2
+    - name: Create build environment
+      run: mkdir -p ${{runner.workspace}}\build
+    - name: Configure project
+      working-directory: ${{runner.workspace}}\build
+      run: cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING:BOOL=OFF -DBUILD_SHARED_LIBS:BOOL=ON -DCMAKE_PROGRAM_PATH:PATH="${{runner.workspace}}\hhw;${{runner.workspace}}\doxygen"
+    - name: Build project
+      run: cmake --build ${{runner.workspace}}\build --config Release
+    - name: Package project
+      run: cmake --build ${{runner.workspace}}\build --config Release -t package
+    - name: Upload package
+      uses: actions/upload-artifact@v2-preview
+      with:
+        name: OpenELP-win64
+        path: ${{runner.workspace}}\build\OpenELP-*-win64.exe
