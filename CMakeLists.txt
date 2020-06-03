@@ -117,10 +117,14 @@ endif()
 
 if(OPENELP_DOC_HTMLHELP)
   find_program(OPENELP_DOC_HTMLHELP_PATH hhc
-    HINTS "$ENV{ProgramW6432}\\HTML Help Workshop"
-    HINTS "$ENV{ProgramFiles}\\HTML Help Workshop"
+    PATHS
+      "$ENV{ProgramW6432}\\HTML Help Workshop"
+      "$ENV{ProgramFiles}\\HTML Help Workshop"
     DOC "HTML Help Compiler Command"
     )
+  if(NOT OPENELP_DOC_HTMLHELP_PATH)
+    message(FATAL_ERROR "Failed to find HTML Help Compiler (hhc)")
+  endif()
 endif()
 
 #
