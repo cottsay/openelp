@@ -21,13 +21,18 @@ jobs:
           test_target: RUN_TESTS
 
     steps:
+    - name: Cache PCRE2
+      uses: actions/cache@v2
+      with:
+        path: ${{runner.workspace}}\build\pcre-prefix\src\pcre2-10.35.tar.gz
+        key: pcre2-10.35
     - name: Clone project
       uses: actions/checkout@v2
     - name: Create build environment
       run: mkdir -p ${{runner.workspace}}/build
     - name: Configure project
       working-directory: ${{runner.workspace}}/build
-      run: cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DOPENELP_DOC_INTERNAL:BOOL=ON -DBUILD_TESTING:BOOL=ON -DBUILD_SHARED_LIBS:BOOL=ON -DOPENELP_DOC_HTMLHELP:BOOL=OFF -DCPACK_GENERATOR=ZIP -DCPACK_PACKAGE_FILE_NAME=OpenELP-${{runner.os}} -DCPACK_TOPLEVEL_TAG=${{runner.os}}
+      run: cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_TESTING:BOOL=ON -DBUILD_SHARED_LIBS:BOOL=ON -DOPENELP_DOC_HTMLHELP:BOOL=OFF -DCPACK_GENERATOR=ZIP -DCPACK_PACKAGE_FILE_NAME=OpenELP-${{runner.os}} -DCPACK_TOPLEVEL_TAG=${{runner.os}}
     - name: Build project
       run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}}
     - name: Test project
