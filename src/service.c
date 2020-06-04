@@ -51,7 +51,7 @@
 #include <stdio.h>
 
 /// Program usage message
-static const char *usage = "Usage: openelp_service.exe [install|uninstall]\n";
+static const char *usage = "Usage: openelp_service.exe [install|uninstall|-d]\n";
 
 /// Handle to the EchoLink proxy for the service
 static struct proxy_handle ph =
@@ -67,6 +67,9 @@ static char *service_name = "OpenELP";
 
 /// Status handle for the serice
 static SERVICE_STATUS_HANDLE service_status_handle = NULL;
+
+/// Default log level
+static enum LOG_LEVEL default_log_level = LOG_LEVEL_INFO;
 
 /*!
  * @brief Main entry point for the service executable
@@ -163,6 +166,10 @@ int main(int argc, char *argv[])
 		{
 			printf(usage);
 			return 0;
+		}
+		else if (strcmp(argv[1], "-d") == 0)
+		{
+			default_log_level = LOG_LEVEL_DEBUG;
 		}
 		else
 		{
@@ -289,7 +296,7 @@ void WINAPI service_main(int argc, char *argv[])
 	}
 
 	// Set the logging level
-	proxy_log_level(&ph, LOG_LEVEL_INFO);
+	proxy_log_level(&ph, default_log_level);
 
 	// Open the log early
 	ret = proxy_log_select_medium(&ph, LOG_MEDIUM_EVENTLOG, NULL);
