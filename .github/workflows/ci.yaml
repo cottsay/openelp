@@ -24,11 +24,12 @@ jobs:
     - name: Cache PCRE2
       uses: actions/cache@v2
       with:
-        path: ${{runner.workspace}}\build\pcre-prefix\src\pcre2-10.35.tar.gz
+        path: ${{runner.workspace}}/build/pcre-prefix/src/pcre2-10.35.tar.gz
         key: pcre2-10.35
     - name: Clone project
       uses: actions/checkout@v2
     - name: Create build environment
+      shell: bash
       run: mkdir -p ${{runner.workspace}}/build
     - name: Configure project
       working-directory: ${{runner.workspace}}/build
