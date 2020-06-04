@@ -96,6 +96,9 @@ struct proxy_opts
 
 	/// Boolean value indicating if syslog should be used
 	uint8_t syslog;
+
+	/// Boolean value indicating if messages to stdout should be suppressed
+	uint8_t quiet;
 };
 
 /// Global proxy handle
@@ -232,7 +235,7 @@ int main(int argc, const char *argv[])
 	}
 
 	// Set the logging level
-	proxy_log_level(&ph, opts.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
+	proxy_log_level(&ph, opts.quiet ? LOG_LEVEL_WARN : opts.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
 
 	// Open the log
 	ret = proxy_log_select_medium(&ph, LOG_MEDIUM_STDOUT, NULL);
@@ -462,6 +465,9 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 						}
 
 						break;
+					case 'q':
+						opts->quiet = 1;
+						break;
 #ifdef HAVE_SYSLOG
 					case 'S':
 						if (opts->eventlog || opts->log_path)
@@ -567,6 +573,7 @@ static void print_usage(void)
 #endif
 		"  -h,--help     Display this help\n\n"
 		"  -L <log path> Log output the given log file\n\n"
+		"  -q            Suppress messages to stdout\n\n"
 #ifdef HAVE_SYSLOG
 		"  -S            Use syslog for logging\n\n"
 #endif
