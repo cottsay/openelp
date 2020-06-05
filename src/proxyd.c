@@ -67,9 +67,10 @@
 /// Universal fallback configuration path
 const char config_path_default[] = "ELProxy.conf";
 
+#define OCH_STR1(x) #x
+#define OCH_STR2(x) OCH_STR1(x)
+
 #ifdef OPENELP_CONFIG_HINT
-#  define OCH_STR1(x) #x
-#  define OCH_STR2(x) OCH_STR1(x)
 /// Platform-specific path hint
 const char config_path_hint[] = OCH_STR2(OPENELP_CONFIG_HINT);
 #endif
@@ -576,7 +577,7 @@ static const char * proxy_config_hint()
 
 static void print_usage(void)
 {
-	printf("OpenELP - Open EchoLink Proxy %d.%d.%d\n\n"
+	printf("OpenELP - Open EchoLink Proxy " OCH_STR2(OPENELP_VERSION) "\n\n"
 		"Usage: openelpd [OPTION...] [CONFIG FILE]\n\n"
 		"  -d            Enable debugging output\n\n"
 #ifdef HAVE_EVENTLOG
@@ -591,5 +592,5 @@ static void print_usage(void)
 #ifdef HAVE_SYSLOG
 		"  -S            Use syslog for logging\n\n"
 #endif
-		, OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
+		);
 }

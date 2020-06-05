@@ -56,6 +56,9 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define OCH_STR1(x) #x
+#define OCH_STR2(x) OCH_STR1(x)
+
 /*!
  * @brief Private data for an instance of logging infrastrucure
  */
@@ -132,7 +135,7 @@ void log_free(struct log_handle *log)
 
 void log_ident(struct log_handle *log)
 {
-	log_printf(log, LOG_LEVEL_INFO, "OpenELP %d.%d.%d\n", OPENELP_MAJOR_VERSION, OPENELP_MINOR_VERSION, OPENELP_PATCH_VERSION);
+	log_printf(log, LOG_LEVEL_INFO, "OpenELP " OCH_STR2(OPENELP_VERSION) "\n");
 }
 
 int log_init(struct log_handle *log)
