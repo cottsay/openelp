@@ -4,7 +4,7 @@ After=network.target nss-lookup.target
 
 [Service]
 Type=forking
-ExecStart=/usr/bin/openelpd -S /etc/ELProxy.conf
+ExecStart=@FULL_BIN_INSTALL_DIR@/openelpd -q -S @FULL_SYSCONF_INSTALL_DIR@/ELProxy.conf
 
 [Install]
 WantedBy=multi-user.target
