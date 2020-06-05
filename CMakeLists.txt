@@ -86,9 +86,15 @@ if(WIN32)
     "Enable generation of Windows CHM help"
     )
 else()
-  set(OPENELP_BUNDLE_PCRE FALSE CACHE BOOL
-    "Download and compile PCRE2 instead of using the system's libpcre2-32"
-    )
+  if(APPLE)
+    set(OPENELP_BUNDLE_PCRE TRUE CACHE BOOL
+      "Download and compile PCRE2 instead of using the system's libpcre2-32"
+      )
+  else()
+    set(OPENELP_BUNDLE_PCRE FALSE CACHE BOOL
+      "Download and compile PCRE2 instead of using the system's libpcre2-32"
+      )
+  endif()
   set(OPENELP_USE_EVENTLOG FALSE CACHE BOOL
     "Enable support for logging to the Windows Event Log"
     )

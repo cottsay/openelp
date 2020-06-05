@@ -104,10 +104,12 @@ if(UNIX)
     COMPONENT docs
     )
 
-  install(FILES openelp.service
-    DESTINATION "${SYSTEMD_SERVICES_INSTALL_DIR}"
-    COMPONENT systemd
-    )
+  if(NOT APPLE)
+    install(FILES openelp.service
+      DESTINATION "${SYSTEMD_SERVICES_INSTALL_DIR}"
+      COMPONENT systemd
+      )
+  endif()
 endif()
 
 if(OPENELP_DOC_HTMLHELP AND DOXYGEN_FOUND)

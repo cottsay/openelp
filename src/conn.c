@@ -70,10 +70,12 @@
 #  include <unistd.h>
 #endif
 
-#ifdef _WIN32
+#ifndef MSG_NOSIGNAL
 /// Requests not to send SIGPIPE on errors
 #  define MSG_NOSIGNAL 0
+#endif
 
+#ifdef _WIN32
 /// Disallow further receptions and transmissions
 #  define SHUT_RDWR SD_BOTH
 
@@ -242,6 +244,16 @@ int conn_listen(struct conn_handle *conn)
 		goto conn_listen_free;
 	}
 
+#ifdef __APPLE__
+	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(int));
+	if (ret == SOCKET_ERROR)
+	{
+		/// @TODO Close priv->sock_fd
+		ret = SOCK_ERRNO;
+		goto conn_listen_free;
+	}
+#endif
+
 	ret = bind(priv->sock_fd, res->ai_addr, (socklen_t)res->ai_addrlen);
 	if (ret == SOCKET_ERROR)
 	{
@@ -362,6 +374,15 @@ int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 		ret = SOCK_ERRNO;
 		goto conn_connect_free_early;
 	}
+
+#ifdef __APPLE__
+	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(int));
+	if (ret == SOCKET_ERROR)
+	{
+		ret = SOCK_ERRNO;
+		goto conn_connect_free_early;
+	}
+#endif
 
 	ret = bind(priv->sock_fd, res->ai_addr, (socklen_t)res->ai_addrlen);
 	if (ret == SOCKET_ERROR)
