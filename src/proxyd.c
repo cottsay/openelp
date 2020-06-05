@@ -391,6 +391,22 @@ int main(int argc, const char *argv[])
 proxyd_exit:
 	proxy_free(&ph);
 
+#ifdef _WIN32
+	if (ret != 0) {
+		HWND console_window = GetConsoleWindow();
+		if (console_window != NULL)
+		{
+			DWORD process_id;
+			GetWindowThreadProcessId(console_window, &process_id);
+			if (GetCurrentProcessId() == process_id)
+			{
+				printf("Press any key to exit . . . ");
+				getch();
+			}
+		}
+	}
+#endif
+
 	return ret;
 }
 
