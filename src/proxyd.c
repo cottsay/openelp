@@ -449,11 +449,9 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 						opts->eventlog = 1;
 						break;
 #endif
-#ifndef _WIN32
 					case 'F':
 						opts->foreground = 1;
 						break;
-#endif
 					case 'h':
 						print_usage();
 						exit(0);
