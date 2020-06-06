@@ -23,40 +23,36 @@ set(CPACK_PACKAGE_ICON "${OPENELP_DOC_DIR}/icons\\\\installer.bmp")
 
 set(CPACK_NSIS_INSTALLED_ICON_NAME "bin/openelpd.exe")
 
-if(WIN32)
-  set(CPACK_COMPONENTS_SERVICE "service")
-else()
-  set(CPACK_COMPONENTS_SERVICE "")
-endif()
-
-if(OPENELP_DOC_HTMLHELP)
-  set(CPACK_COMPONENTS_HELP "help")
-  set(CPACK_NSIS_CREATE_ICONS_EXTRA "${CPACK_NSIS_CREATE_ICONS_EXTRA}
-    CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\OpenELP Help.lnk' '$INSTDIR\\\\openelp.chm' ''"
-    )
-  set(CPACK_NSIS_DELETE_ICONS_EXTRA "${CPACK_NSIS_DELETE_ICONS_EXTRA}
-    Delete '$SMPROGRAMS\\\\$START_MENU\\\\OpenELP Help.lnk'"
-    )
-else()
-  set(CPACK_COMPONENTS_HELP "")
-endif()
-
 set(CPACK_COMPONENTS_ALL
   app
   config
   devel
   libs
   license
-  ${CPACK_COMPONENTS_SERVICE}
-  ${CPACK_COMPONENTS_HELP}
   )
+
+if(OPENELP_DOC_HTMLHELP)
+  list(APPEND CPACK_COMPONENTS_ALL "help")
+  set(CPACK_NSIS_CREATE_ICONS_EXTRA "${CPACK_NSIS_CREATE_ICONS_EXTRA}
+    CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\OpenELP Help.lnk' '$INSTDIR\\\\openelp.chm' ''"
+    )
+  set(CPACK_NSIS_DELETE_ICONS_EXTRA "${CPACK_NSIS_DELETE_ICONS_EXTRA}
+    Delete '$SMPROGRAMS\\\\$START_MENU\\\\OpenELP Help.lnk'"
+    )
+endif()
+
+if(WIN32)
+  list(APPEND CPACK_COMPONENTS_ALL "runtime" "service")
+endif()
+
 set(CPACK_COMPONENT_LIBS_REQUIRED TRUE)
 set(CPACK_COMPONENT_LICENSE_HIDDEN TRUE)
 set(CPACK_COMPONENT_HELP_HIDDEN TRUE)
 set(CPACK_COMPONENT_APP_DISPLAY_NAME "Executable Application")
 set(CPACK_COMPONENT_CONFIG_DISPLAY_NAME "Sample Configuration")
-set(CPACK_COMPONENT_LIBS_DISPLAY_NAME "Proxy Library")
 set(CPACK_COMPONENT_DEVEL_DISPLAY_NAME "Development Files")
+set(CPACK_COMPONENT_LIBS_DISPLAY_NAME "Proxy Library")
+set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "System Runtime Libraries")
 set(CPACK_COMPONENT_SERVICE_DISPLAY_NAME "Windows Service")
 set(CPACK_COMPONENT_APP_DESCRIPTION
   "Simple executable application which opens an EchoLink proxy"
@@ -64,11 +60,14 @@ set(CPACK_COMPONENT_APP_DESCRIPTION
 set(CPACK_COMPONENT_CONFIG_DESCRIPTION
   "Sample configuration file for customizing an EchoLink proxy"
   )
+set(CPACK_COMPONENT_DEVEL_DESCRIPTION
+  "C headers and library files used by other projects to build using OpenELP"
+  )
 set(CPACK_COMPONENT_LIBS_DESCRIPTION
   "Library used by applications to set up and control an EchoLink proxy"
   )
-set(CPACK_COMPONENT_DEVEL_DESCRIPTION
-  "C headers and library files used by other projects to build using OpenELP"
+set(CPACK_COMPONENT_RUNTIME_DESCRIPTION
+  "System runtime libraries, needed for OpenELP but not always installed on hosts"
   )
 set(CPACK_COMPONENT_SERVICE_DESCRIPTION
   "Windows background service"

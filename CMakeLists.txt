@@ -137,6 +137,11 @@ if(OPENELP_DOC_HTMLHELP)
   endif()
 endif()
 
+if(MSVC)
+  set(CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT runtime)
+  include(InstallRequiredSystemLibraries)
+endif()
+
 #
 # Variables
 #
