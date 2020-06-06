@@ -85,11 +85,18 @@ set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
   IntFmt $0 '0x%08X' $0
   WriteRegDWORD HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\OpenELP' 'EstimatedSize' '$0'
   WriteRegStr HKLM 'SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\\\\Application\\\\OpenELP' 'EventMessageFile' '$INSTDIR\\\\bin\\\\openelp.dll'
-  WriteRegDWORD HKLM 'SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\\\\Application\\\\OpenELP' 'TypesSupported' '0x07'"
+  WriteRegDWORD HKLM 'SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\\\\Application\\\\OpenELP' 'TypesSupported' '0x07'
+  SectionGetFlags \\\${config} $0
+  IntOp $0 $0 & \\\${SF_SELECTED}
+  IntCmp $0 0 no_config
+    CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\ELProxy.conf.lnk' 'notepad.exe' '$INSTDIR\\\\ELProxy.conf'
+  no_config:"
   )
 set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
   nsExec::Exec '$INSTDIR\\\\bin\\\\openelp_service.exe uninstall'
-  DeleteRegKey HKLM 'SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\\\\Application\\\\OpenELP'"
+  DeleteRegKey HKLM 'SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\\\\Application\\\\OpenELP'
+  !insertmacro MUI_STARTMENU_GETFOLDER Application $MUI_TEMP
+  Delete '$SMPROGRAMS\\\\$MUI_TEMP\\\\ELProxy.conf.lnk'"
   )
 
 include(CPack)
