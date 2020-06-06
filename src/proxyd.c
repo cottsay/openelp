@@ -47,6 +47,7 @@
 #include "openelp/openelp.h"
 
 #ifdef _WIN32
+#  include <conio.h>
 #  include <io.h>
 #  include <windows.h>
 #else
@@ -402,7 +403,7 @@ proxyd_exit:
 			if (GetCurrentProcessId() == process_id)
 			{
 				printf("Press any key to exit . . . ");
-				getch();
+				_getch();
 			}
 		}
 	}
