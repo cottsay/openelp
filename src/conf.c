@@ -560,10 +560,12 @@ void conf_free(struct proxy_conf *conf)
 
 int conf_parse_file(const char *file, struct proxy_conf *conf, struct log_handle *log)
 {
-	FILE *stream = fopen(file, "r");
+	FILE *stream;
 	int ret;
 
-	if (stream == NULL)
+	log_printf(log, LOG_LEVEL_DEBUG, "Loading proxy config from '%s'\n", file);
+
+	if ((stream = fopen(file, "r")) == NULL)
 	{
 		return -errno;
 	}
