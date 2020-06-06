@@ -236,7 +236,7 @@ int main(int argc, const char *argv[])
 		goto proxyd_exit;
 	}
 
-	// Set the logging level
+	// Set the initial logging level
 	proxy_log_level(&ph, opts.quiet ? LOG_LEVEL_WARN : opts.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
 
 	// Open the log
@@ -291,6 +291,7 @@ int main(int argc, const char *argv[])
 			{
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to open log file (%d): %s\n", -ret, strerror(-ret));
 			}
+			proxy_log_level(&ph, opts.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
 		}
 		else if (opts.syslog)
 		{
@@ -299,6 +300,7 @@ int main(int argc, const char *argv[])
 			{
 				proxy_log(&ph, LOG_LEVEL_ERROR, "Failed to activate syslog (%d): %s\n", -ret, strerror(-ret));
 			}
+			proxy_log_level(&ph, opts.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
 		}
 
 		umask(0);
