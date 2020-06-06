@@ -4,6 +4,12 @@ Todo Items
 Features
 --------
 * Public proxy registration
+* TCP connection whitelisting
+* More args for Windows service
+
+Optimizations
+-------------
+* Support internal forwarding
 
 Additional Settings
 -------------------
@@ -15,7 +21,3 @@ Additional Settings
 * Max data packet size
 * Buffer sizes
 * Configurable SO_REUSEADDR
-
-Other
------
-* Investigate if outgoing TCP connections always use 5200
