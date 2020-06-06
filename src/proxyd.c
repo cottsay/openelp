@@ -428,10 +428,20 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 		{
 			if (argv[i][1] == '-')
 			{
-				if (strcmp(&argv[i][2], "help") == 0)
+				if (strcmp(&argv[i][2], "debug") == 0)
+				{
+					opts->debug = 1;
+					continue;
+				}
+				else if (strcmp(&argv[i][2], "help") == 0)
 				{
 					print_usage();
 					exit(0);
+				}
+				else if (strcmp(&argv[i][2], "quiet") == 0)
+				{
+					opts->quiet = 1;
+					continue;
 				}
 			}
 			else
@@ -582,18 +592,22 @@ static void print_usage(void)
 {
 	printf("OpenELP - Open EchoLink Proxy " OCH_STR2(OPENELP_VERSION) "\n\n"
 		"Usage: openelpd [OPTION...] [CONFIG FILE]\n\n"
-		"  -d            Enable debugging output\n\n"
+		"Options:\n"
+		"  -d, --debug    Enable debugging output\n"
 #ifdef HAVE_EVENTLOG
-		"  -E            Use Event Log for logging\n\n"
+		"  -E             Use Event Log for logging\n"
 #endif
 #ifndef _WIN32
-		"  -F            Stay in foreground (don't daemonize)\n\n"
+		"  -F             Stay in foreground (don't daemonize)\n"
 #endif
-		"  -h,--help     Display this help\n\n"
-		"  -L <log path> Log output the given log file\n\n"
-		"  -q            Suppress messages to stdout\n\n"
+		"  -h, --help     Display this help\n"
+		"  -L <log path>  Log output the given log file\n"
+		"  -q, --quiet    Suppress messages to stdout\n"
 #ifdef HAVE_SYSLOG
-		"  -S            Use syslog for logging\n\n"
+		"  -S             Use syslog for logging\n"
+#endif
+#ifndef _WIN32
+		"\n"
 #endif
 		);
 }
