@@ -39,6 +39,9 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --force-new-ctest-process
 if(OPENELP_USE_OPENSSL)
   target_link_libraries(test_md5 ${OPENSSL_LIBRARIES})
 endif()
+if(WIN32)
+  target_link_libraries(test_md5 ws2_32)
+endif()
 
 target_link_libraries(test_proxy
   openelp

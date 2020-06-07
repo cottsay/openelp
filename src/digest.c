@@ -50,13 +50,27 @@
 #include <errno.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#  include <winsock2.h>
+#else
+#  include <arpa/inet.h>
+#endif
+
 /*!
  * @brief Converts a 8-bit value to a base 16 string
  *
  * @param[in] data Numeric value to convert
  * @param[out] result Resulting ASCII characters
  */
-static inline void digest_to_hex8(uint8_t data, char result[2]);
+static inline void digest_to_hex8(const uint8_t data, char result[2]);
+
+/*!
+ * @brief Converts a big-endian 32-bit value to a base 16 string
+ *
+ * @param[in] data Numeric value to convert (big-endian)
+ * @param[out] result Resulting ASCII characters
+ */
+static inline void digest_to_hex32_be(const uint32_t data, char result[8]);
 
 /*!
  * @brief Converts a base 16 string to a 4-bit value
@@ -85,7 +99,7 @@ void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGE
 	MD5_Final((unsigned char *)result, &ctx);
 }
 
-static inline void digest_to_hex8(uint8_t data, char result[2])
+static inline void digest_to_hex8(const uint8_t data, char result[2])
 {
 	static const char lookup[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
@@ -95,12 +109,17 @@ static inline void digest_to_hex8(uint8_t data, char result[2])
 
 void digest_to_hex32(const uint32_t data, char result[8])
 {
+	digest_to_hex32_be(htonl(data), result);
+}
+
+static inline void digest_to_hex32_be(const uint32_t data, char result[8])
+{
 	const uint8_t *tgt = (const uint8_t *)&data;
 
-	digest_to_hex8(tgt[3], &result[0]);
-	digest_to_hex8(tgt[2], &result[2]);
-	digest_to_hex8(tgt[1], &result[4]);
-	digest_to_hex8(tgt[0], &result[6]);
+	digest_to_hex8(tgt[0], &result[0]);
+	digest_to_hex8(tgt[1], &result[2]);
+	digest_to_hex8(tgt[2], &result[4]);
+	digest_to_hex8(tgt[3], &result[6]);
 }
 
 void digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1])
@@ -151,13 +170,12 @@ static inline uint8_t hex8_to_digest(const char data[2])
 
 uint32_t hex32_to_digest(const char data[8])
 {
-	uint32_t result;
-	uint8_t *tgt = (uint8_t *)&result;
+	uint8_t result[4] = {
+		hex8_to_digest(&data[0]),
+		hex8_to_digest(&data[2]),
+		hex8_to_digest(&data[4]),
+		hex8_to_digest(&data[6]),
+	};
 
-	tgt[3] = hex8_to_digest(&data[0]);
-	tgt[2] = hex8_to_digest(&data[2]);
-	tgt[1] = hex8_to_digest(&data[4]);
-	tgt[0] = hex8_to_digest(&data[6]);
-
-	return result;
+	return ntohl(*(uint32_t *)result);
 }
