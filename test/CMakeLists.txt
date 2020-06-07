@@ -27,7 +27,7 @@ add_executable(test_regex
   ${OPENELP_SOURCE_DIR}/regex.c
   )
 
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -C ${CMAKE_BUID_TYPE}
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --force-new-ctest-process $(ARGS)
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..
   COMMENT "Running tests..."
   DEPENDS test_md5 test_proxy test_regex)
