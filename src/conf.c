@@ -105,7 +105,7 @@ static int conf_readline(char **lineptr, size_t *n, FILE *stream);
 static int conf_readline(char **lineptr, size_t *n, FILE *stream)
 {
 	size_t so_far = 0;
-	char temp;
+	int temp;
 	char *temp_ptr;
 
 	if (*lineptr == NULL)
