@@ -1,10 +1,10 @@
 [Unit]
 Description=Open Source EchoLink Proxy
 After=network.target nss-lookup.target
+ConditionPathExists=@FULL_SYSCONF_INSTALL_DIR@/ELProxy.conf
 
 [Service]
 Type=forking
-ConditionPathExists=@FULL_SYSCONF_INSTALL_DIR@/ELProxy.conf
 ExecStart=@FULL_BIN_INSTALL_DIR@/openelpd -q -S @FULL_SYSCONF_INSTALL_DIR@/ELProxy.conf
 
 [Install]
