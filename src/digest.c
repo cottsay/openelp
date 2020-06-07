@@ -170,12 +170,18 @@ static inline uint8_t hex8_to_digest(const char data[2])
 
 uint32_t hex32_to_digest(const char data[8])
 {
-	uint8_t result[4] = {
-		hex8_to_digest(&data[0]),
-		hex8_to_digest(&data[2]),
-		hex8_to_digest(&data[4]),
-		hex8_to_digest(&data[6]),
+	union
+	{
+		uint32_t value;
+		uint8_t parts[4];
+	} result = {
+		.parts = {
+			hex8_to_digest(&data[0]),
+			hex8_to_digest(&data[2]),
+			hex8_to_digest(&data[4]),
+			hex8_to_digest(&data[6]),
+		},
 	};
 
-	return ntohl(*(uint32_t *)result);
+	return ntohl(result.value);
 }
