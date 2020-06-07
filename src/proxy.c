@@ -587,7 +587,7 @@ int proxy_process(struct proxy_handle *ph)
 	}
 
 	conn_sprintaddr(remote_addr, remote_addr_str);
-	proxy_log(ph, LOG_LEVEL_INFO, "Incoming connection from %s:%u.\n", remote_addr_str, remote_port);
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Incoming connection from %s:%u.\n", remote_addr_str, remote_port);
 
 	for (i = 0; i < priv->num_clients; i++)
 	{
