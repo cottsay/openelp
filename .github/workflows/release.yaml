@@ -1,9 +1,9 @@
 name: OpenELP Release
 
 on:
-  release:
-    types:
-      - created
+  push:
+    branches:
+      - release/*
 
 jobs:
   build_windows_installer:
