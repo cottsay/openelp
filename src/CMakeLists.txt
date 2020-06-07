@@ -32,7 +32,7 @@ endif()
 # Targets
 #
 
-add_library(openelp
+add_library(openelp_objects OBJECT
   ${OPENELP_SOURCE_DIR}/conf.c
   ${OPENELP_SOURCE_DIR}/conn.c
   ${OPENELP_SOURCE_DIR}/digest.c
@@ -61,10 +61,16 @@ if(WIN32)
     "IDI_ICON1 ICON DISCARDABLE \"${OPENELP_DOC_DIR}/icons/windows.ico\""
     )
 
-  target_include_directories(openelp
+  target_include_directories(openelp_objects
     PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/eventlog"
     )
 endif()
+
+if(NOT WIN32 AND BUILD_SHARED_LIBS)
+  target_compile_options(openelp_objects PRIVATE -fPIC)
+endif()
+
+add_library(openelp $<TARGET_OBJECTS:openelp_objects>)
 
 add_executable(openelpd
   "${OPENELP_SOURCE_DIR}/proxyd.c"
@@ -106,13 +112,13 @@ set_target_properties(openelp PROPERTIES
   )
 
 if(WIN32)
-  set_target_properties(openelp PROPERTIES
+  set_target_properties(openelp_objects PROPERTIES
     COMPILE_FLAGS "/DOPENELP_API=__declspec(dllexport)"
     )
 endif()
 
 if(OPENELP_BUNDLE_PCRE)
-  add_dependencies(openelp pcre)
+  add_dependencies(openelp_objects pcre)
 endif()
 
 #

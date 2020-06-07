@@ -7,7 +7,7 @@ set(PCRE_C_FLAGS ${CMAKE_C_FLAGS})
 if(WIN32)
   # We don't really care about warnings in PCRE
   string(REGEX REPLACE "( |^)/W[0-9]( |$)" "\\1" PCRE_C_FLAGS ${PCRE_C_FLAGS})
-else()
+elseif(BUILD_SHARED_LIBS)
   set(PCRE_C_FLAGS "${PCRE_C_FLAGS} -fPIC")
 endif()
 
