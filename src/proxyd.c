@@ -443,6 +443,11 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 					opts->quiet = 1;
 					continue;
 				}
+				else if (strcmp(&argv[i][2], "version") == 0)
+				{
+					printf(OCH_STR2(OPENELP_VERSION) "\n");
+					exit(0);
+				}
 			}
 			else
 			{
@@ -507,6 +512,9 @@ static void parse_args(const int argc, const char *argv[], struct proxy_opts *op
 						opts->syslog = 1;
 						break;
 #endif
+					case 'V':
+						printf(OCH_STR2(OPENELP_VERSION) "\n");
+						exit(0);
 					default:
 						fprintf(stderr, "ERROR: Invalid flag '%c'\n", argv[i][j]);
 						exit(-EINVAL);
@@ -606,6 +614,7 @@ static void print_usage(void)
 #ifdef HAVE_SYSLOG
 		"  -S             Use syslog for logging\n"
 #endif
+		"  -V, --version  Display version and exit\n"
 #ifndef _WIN32
 		"\n"
 #endif
