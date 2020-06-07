@@ -68,9 +68,6 @@ static char *service_name = "OpenELP";
 /// Status handle for the serice
 static SERVICE_STATUS_HANDLE service_status_handle = NULL;
 
-/// Default log level
-static enum LOG_LEVEL default_log_level = LOG_LEVEL_INFO;
-
 /*!
  * @brief Main entry point for the service executable
  *
@@ -166,10 +163,6 @@ int main(int argc, char *argv[])
 		{
 			printf(usage);
 			return 0;
-		}
-		else if (strcmp(argv[1], "-d") == 0)
-		{
-			default_log_level = LOG_LEVEL_DEBUG;
 		}
 		else
 		{
@@ -274,7 +267,16 @@ service_uninstall_exit:
 void WINAPI service_main(int argc, char *argv[])
 {
 	char config_path[MAX_PATH];
+	enum LOG_LEVEL default_log_level = LOG_LEVEL_INFO;
 	int ret;
+
+	if (argc > 1)
+	{
+		if (strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "--debug") == 0)
+		{
+			default_log_level = LOG_LEVEL_DEBUG;
+		}
+	}
 
 	memset(&ph, 0x0, sizeof(struct proxy_handle));
 
