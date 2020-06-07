@@ -12,6 +12,12 @@ endif()
 # Targets
 #
 
+add_executable(test_digest
+  test_digest.c
+  ${OPENELP_SOURCE_DIR}/digest.c
+  ${OPENELP_MD5_FILES}
+  )
+
 add_executable(test_md5
   test_md5.c
   ${OPENELP_SOURCE_DIR}/digest.c
@@ -37,9 +43,11 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --force-new-ctest-process
 #
 
 if(OPENELP_USE_OPENSSL)
+  target_link_libraries(test_digest ${OPENSSL_LIBRARIES})
   target_link_libraries(test_md5 ${OPENSSL_LIBRARIES})
 endif()
 if(WIN32)
+  target_link_libraries(test_digest ws2_32)
   target_link_libraries(test_md5 ws2_32)
 endif()
 
@@ -67,6 +75,7 @@ endif()
 # Tests
 #
 
+add_test(NAME test_digest COMMAND test_digest)
 add_test(NAME test_md5 COMMAND test_md5)
 add_test(NAME test_proxy COMMAND test_proxy)
 add_test(NAME test_regex COMMAND test_regex)
@@ -83,6 +92,7 @@ set(TEST_ENVIRONMENT
   )
 
 set_tests_properties(
+  test_digest
   test_md5
   test_proxy
   test_regex
