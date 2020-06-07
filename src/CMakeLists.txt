@@ -81,25 +81,46 @@ if(WIN32)
 endif()
 
 #
+# Includes
+#
+
+target_include_directories(openelp_objects PUBLIC
+  ${OPENELP_INCLUDE_DIR}
+  )
+target_include_directories(openelp_objects PRIVATE
+  ${PCRE_INCLUDE_DIRS}
+  ${OPENSSL_INCLUDE_DIRS}
+  )
+target_include_directories(openelpd PRIVATE
+  ${OPENELP_INCLUDE_DIR}
+  )
+
+if(WIN32)
+  target_include_directories(openelp_service PRIVATE
+    ${OPENELP_INCLUDE_DIR}
+    )
+endif()
+
+#
 # Libraries
 #
 
-target_link_libraries(openelp ${PCRE_LIBRARIES})
+target_link_libraries(openelp PRIVATE ${PCRE_LIBRARIES})
 
 if(UNIX)
-  target_link_libraries(openelp pthread)
+  target_link_libraries(openelp PRIVATE pthread)
 elseif(WIN32)
-  target_link_libraries(openelp ws2_32 advapi32)
+  target_link_libraries(openelp PRIVATE ws2_32 advapi32)
 endif()
 
 if(OPENELP_USE_OPENSSL)
-  target_link_libraries(openelp ${OPENSSL_LIBRARIES})
+  target_link_libraries(openelp PRIVATE ${OPENSSL_LIBRARIES})
 endif()
 
-target_link_libraries(openelpd openelp)
+target_link_libraries(openelpd PRIVATE openelp)
 
 if(WIN32)
-  target_link_libraries(openelp_service openelp)
+  target_link_libraries(openelp_service PRIVATE openelp)
 endif()
 
 #

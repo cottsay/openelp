@@ -16,6 +16,16 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --force-new-ctest-process
     test_proxy
     test_regex)
 
+#
+# Includes
+#
+
+get_target_property(OPENELP_INCLUDE_DIRECTORIES openelp_objects INCLUDE_DIRECTORIES)
+target_include_directories(test_digest PRIVATE ${OPENELP_INCLUDE_DIRECTORIES})
+target_include_directories(test_md5 PRIVATE ${OPENELP_INCLUDE_DIRECTORIES})
+target_include_directories(test_proxy PRIVATE ${OPENELP_INCLUDE_DIRECTORIES})
+target_include_directories(test_regex PRIVATE ${OPENELP_INCLUDE_DIRECTORIES})
+
 if(WIN32)
   set_target_properties(test_proxy PROPERTIES
     COMPILE_FLAGS "/DOPENELP_API=__declspec(dllexport)"

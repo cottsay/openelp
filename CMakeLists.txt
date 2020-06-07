@@ -211,26 +211,13 @@ if(NOT CMAKE_C_STANDARD)
 endif()
 
 #
-# Includes
-#
-
-include_directories(${OPENELP_INCLUDE_DIR})
-
-include_directories(${PCRE_INCLUDE_DIRS})
-
-if(OPENELP_USE_OPENSSL)
-  include_directories(${OPENSSL_INCLUDE_DIRS})
-endif()
-
-#
 # Link Dirs
 #
 
-link_directories(${PCRE_LIBRARY_DIRS})
-
-if(OPENELP_USE_OPENSSL)
-  link_directories(${OPENSSL_LIB_DIRS})
-endif()
+link_directories(
+  ${PCRE_LIBRARY_DIRS}
+  ${OPENSSL_LIB_DIRS}
+  )
 
 #
 # Subdirs
