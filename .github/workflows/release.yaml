@@ -46,7 +46,7 @@ jobs:
         run: mkdir -p build
       - name: Configure project
         working-directory: ${{runner.workspace}}\build
-        run: cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING:BOOL=OFF -DBUILD_SHARED_LIBS:BOOL=ON -DCMAKE_PROGRAM_PATH:PATH="${{runner.workspace}}\hhw;${{runner.workspace}}\doxygen"
+        run: cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING:BOOL=OFF -DBUILD_SHARED_LIBS:BOOL=ON -DCMAKE_PROGRAM_PATH:PATH="${{runner.workspace}}\hhw;${{runner.workspace}}\doxygen" -DCMAKE_C_FLAGS="/WX"
       - name: Build project
         run: cmake --build ${{runner.workspace}}\build --config Release
       - name: Package project

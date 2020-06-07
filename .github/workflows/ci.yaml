@@ -21,10 +21,13 @@ jobs:
         include:
           - os: macos-latest
             test_target: test
+            extra_flags: -Werror
           - os: ubuntu-latest
             test_target: test
+            extra_flags: -Werror
           - os: windows-latest
             test_target: RUN_TESTS
+            extra_flags: /WX
 
     steps:
       - name: Cache PCRE2
@@ -44,7 +47,7 @@ jobs:
         run: mkdir -p build
       - name: Configure project
         working-directory: ${{runner.workspace}}/build
-        run: cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_TESTING:BOOL=ON -DBUILD_SHARED_LIBS:BOOL=ON -DOPENELP_DOC_HTMLHELP:BOOL=OFF -DOPENELP_BUNDLE_PCRE:BOOL=ON -DOPENELP_USE_OPENSSL:BOOL=OFF -DCPACK_GENERATOR=ZIP -DCPACK_PACKAGE_FILE_NAME=OpenELP-${{runner.os}} -DCPACK_TOPLEVEL_TAG=${{runner.os}} -DOPENELP_EXTRA_VERSION=${{steps.get-snap-id.outputs.snap_id}}
+        run: cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_TESTING:BOOL=ON -DBUILD_SHARED_LIBS:BOOL=ON -DOPENELP_DOC_HTMLHELP:BOOL=OFF -DOPENELP_BUNDLE_PCRE:BOOL=ON -DOPENELP_USE_OPENSSL:BOOL=OFF -DCPACK_GENERATOR=ZIP -DCPACK_PACKAGE_FILE_NAME=OpenELP-${{runner.os}} -DCPACK_TOPLEVEL_TAG=${{runner.os}} -DOPENELP_EXTRA_VERSION=${{steps.get-snap-id.outputs.snap_id}} -DCMAKE_C_FLAGS="${{matrix.extra_flags}}"
       - name: Build project
         run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}}
       - name: Test project
