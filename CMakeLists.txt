@@ -166,43 +166,57 @@ endif()
 # Flags
 #
 
-set(CMAKE_C_FLAGS
-  "${CMAKE_C_FLAGS} -DOPENELP_MAJOR_VERSION=${OPENELP_MAJOR_VERSION}")
-set(CMAKE_C_FLAGS
-  "${CMAKE_C_FLAGS} -DOPENELP_MINOR_VERSION=${OPENELP_MINOR_VERSION}")
-set(CMAKE_C_FLAGS
-  "${CMAKE_C_FLAGS} -DOPENELP_PATCH_VERSION=${OPENELP_PATCH_VERSION}")
-set(CMAKE_C_FLAGS
-  "${CMAKE_C_FLAGS} -DOPENELP_VERSION=\"${OPENELP_VERSION}\"")
+add_compile_options(
+  -DOPENELP_MAJOR_VERSION=${OPENELP_MAJOR_VERSION}
+  -DOPENELP_MINOR_VERSION=${OPENELP_MINOR_VERSION}
+  -DOPENELP_PATCH_VERSION=${OPENELP_PATCH_VERSION}
+  -DOPENELP_VERSION="${OPENELP_VERSION}"
+  )
 
 if(OPENELP_CONFIG_HINT)
-  set(CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} -DOPENELP_CONFIG_HINT=\"${OPENELP_CONFIG_HINT}\""
+  add_compile_options(
+    -DOPENELP_CONFIG_HINT="${OPENELP_CONFIG_HINT}"
     )
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPCRE2_CODE_UNIT_WIDTH=8")
+add_compile_options(
+  -DPCRE2_CODE_UNIT_WIDTH=8
+  )
 
 if(OPENELP_BUNDLE_PCRE)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPCRE2_STATIC=1")
+  add_compile_options(
+    -DPCRE2_STATIC=1
+    )
 endif()
 
 if(OPENELP_USE_EVENTLOG)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_EVENTLOG=1")
+  add_compile_options(
+    -DHAVE_EVENTLOG=1
+    )
 endif()
 
 if(OPENELP_USE_SYSLOG)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_SYSLOG=1")
+  add_compile_options(
+    -DHAVE_SYSLOG=1
+    )
 endif()
 
 if(OPENELP_USE_OPENSSL)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_OPENSSL=1")
+  add_compile_options(
+    -DHAVE_OPENSSL=1
+    )
 endif()
 
 if(WIN32)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3 /D_CRT_SECURE_NO_WARNINGS")
+  add_compile_options(
+    /W3
+    /D_CRT_SECURE_NO_WARNINGS
+    )
 else()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+  add_compile_options(
+    -Wall
+    -Wextra
+    )
 endif()
 
 # Default to C11

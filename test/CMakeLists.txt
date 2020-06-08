@@ -27,8 +27,8 @@ target_include_directories(test_proxy PRIVATE ${OPENELP_INCLUDE_DIRECTORIES})
 target_include_directories(test_regex PRIVATE ${OPENELP_INCLUDE_DIRECTORIES})
 
 if(WIN32)
-  set_target_properties(test_proxy PROPERTIES
-    COMPILE_FLAGS "/DOPENELP_API=__declspec(dllexport)"
+  target_compile_options(test_proxy PRIVATE
+    "-DOPENELP_API=__declspec(dllexport)"
     )
 endif()
 

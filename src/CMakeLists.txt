@@ -133,8 +133,8 @@ set_target_properties(openelp PROPERTIES
   )
 
 if(WIN32)
-  set_target_properties(openelp_objects PROPERTIES
-    COMPILE_FLAGS "/DOPENELP_API=__declspec(dllexport)"
+  target_compile_options(openelp_objects PRIVATE
+    "-DOPENELP_API=__declspec(dllexport)"
     )
 endif()
 
