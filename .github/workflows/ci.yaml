@@ -65,13 +65,15 @@ jobs:
           -DCMAKE_EXE_LINKER_FLAGS="${{matrix.extra_flags}}"
           -DCMAKE_SHARED_LINKER_FLAGS="${{matrix.extra_flags}}"
           -DCMAKE_STATIC_LINKER_FLAGS="${{matrix.extra_flags}}"
+      - name: Build PCRE2
+        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t pcre
       - name: Build project
-        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}}
+        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2
       - name: Test project
-        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -t ${{matrix.test_target}}
+        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t ${{matrix.test_target}}
         if: ${{matrix.test_target}}
       - name: Package project
-        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -t package
+        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t package
       - name: Upload package
         uses: actions/upload-artifact@v2-preview
         with:

@@ -59,9 +59,11 @@ jobs:
           -DCMAKE_SHARED_LINKER_FLAGS="/WX"
           -DCMAKE_STATIC_LINKER_FLAGS="/WX"
       - name: Build project
-        run: cmake --build ${{runner.workspace}}\build --config Release
+        run: cmake --build ${{runner.workspace}}\build --config Release -j2 -t pcre
+      - name: Build project
+        run: cmake --build ${{runner.workspace}}\build --config Release -j2
       - name: Package project
-        run: cmake --build ${{runner.workspace}}\build --config Release -t package
+        run: cmake --build ${{runner.workspace}}\build --config Release -j2 -t package
       - name: Upload package
         uses: actions/upload-artifact@v2-preview
         with:
