@@ -316,6 +316,13 @@ void OPENELP_API proxy_shutdown(struct proxy_handle *ph);
  */
 int OPENELP_API proxy_start(struct proxy_handle *ph);
 
+/*!
+ * @brief Updates the registration status of the proxy instance
+ *
+ * @param[in] ph Target proxy instance
+ */
+void OPENELP_API proxy_update_registration(struct proxy_handle *ph);
+
 #ifdef __cplusplus
 }
 #endif

@@ -53,6 +53,7 @@
 #include "proxy_conn.h"
 #include "rand.h"
 #include "regex.h"
+#include "registration.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -88,6 +89,9 @@ struct proxy_priv
 
 	/// Null-terminated string which holds the listening port identifier
 	char port_str[6];
+
+	/// Service for registering with echolink.org
+	struct registration_service_handle reg_service;
 };
 
 /*!
@@ -257,6 +261,13 @@ int proxy_init(struct proxy_handle *ph)
 		goto proxy_init_exit;
 	}
 
+	// Initialize registration service
+	ret = registration_service_init(&priv->reg_service);
+	if (ret < 0)
+	{
+		goto proxy_init_exit;
+	}
+
 	priv->num_clients = 0;
 
 	return 0;
@@ -274,6 +285,9 @@ void proxy_free(struct proxy_handle *ph)
 		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 
 		proxy_close(ph);
+
+		// Free registration service
+		registration_service_free(&priv->reg_service);
 
 		// Free connections
 		conn_free(&priv->conn_listen);
@@ -469,6 +483,13 @@ void proxy_close(struct proxy_handle *ph)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 	int i;
+	int ret;
+
+	ret = registration_service_stop(&priv->reg_service);
+	if (ret < 0)
+	{
+		proxy_log(ph, LOG_LEVEL_ERROR, "Failed to stop registration service (%d): %s\n", -ret, strerror(-ret));
+	}
 
 	proxy_shutdown(ph);
 	proxy_drop(ph);
@@ -511,6 +532,8 @@ void proxy_shutdown(struct proxy_handle *ph)
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Proxy shutdown requested.\n");
+
+	proxy_update_registration(ph);
 
 	conn_shutdown(&priv->conn_listen);
 }
@@ -661,14 +684,42 @@ int proxy_start(struct proxy_handle *ph)
 		if (ret < 0)
 		{
 			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to start proxy connection #%d (%d): %s\n", i, -ret, strerror(-ret));
-			for (i--; i >= 0; i--)
-			{
-				proxy_conn_stop(&priv->clients[i]);
-			}
-
-			return ret;
+			goto proxy_start_exit;
 		}
 	}
 
+	proxy_update_registration(ph);
+	ret = registration_service_start(&priv->reg_service, &ph->conf);
+	if (ret < 0)
+	{
+		proxy_log(ph, LOG_LEVEL_FATAL, "Failed to start registration service (%d): %s\n", -ret, strerror(-ret));
+		goto proxy_start_exit;
+	}
+
 	return 0;
+
+proxy_start_exit:
+	for (i--; i >= 0; i--)
+	{
+		proxy_conn_stop(&priv->clients[i]);
+	}
+
+	return ret;
+}
+
+void proxy_update_registration(struct proxy_handle *ph)
+{
+	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	int slots_used = 0;
+	int i;
+
+	for (i = 0; i < priv->num_clients; i++)
+	{
+		if (proxy_conn_in_use(&priv->clients[i]))
+		{
+			slots_used++;
+		}
+	}
+
+	registration_service_update(&priv->reg_service, slots_used, priv->num_clients);
 }

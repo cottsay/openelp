@@ -563,6 +563,8 @@ static void * client_manager(void *ctx)
 
 		proxy_log(pc->ph, LOG_LEVEL_INFO, "Connected to client '%s', using external interface '%s'.\n", priv->callsign, pc->source_addr == NULL ? "0.0.0.0" : pc->source_addr);
 
+		proxy_update_registration(pc->ph);
+
 		// DO STUFF
 		while (1)
 		{
@@ -602,6 +604,8 @@ static void * client_manager(void *ctx)
 		thread_join(&priv->thread_tcp);
 
 		conn_drop(priv->conn_client);
+
+		proxy_update_registration(pc->ph);
 	}
 
 	mutex_lock(&priv->mutex_sentinel);

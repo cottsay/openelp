@@ -3,7 +3,6 @@ Todo Items
 
 Features
 --------
-* Public proxy registration
 * More args for Windows service
 * Publish to statsd
 * Provide fail2ban filter
@@ -11,6 +10,7 @@ Features
 Optimizations
 -------------
 * Re-use same slot on reconnect
+* Skip unnecessary registration updates
 * Stop allocating new memory after proxy\_start
 
 Additional Settings
