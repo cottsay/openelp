@@ -155,6 +155,9 @@ struct proxy_conf
 
 	/// Optional comment showen in the official proxy list
 	char *reg_comment;
+
+	/// Registered address override
+	char *public_addr;
 };
 
 /*!

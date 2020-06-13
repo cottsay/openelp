@@ -272,6 +272,31 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 		}
 
 		break;
+	case 13:
+		if (strncmp(key, "PublicAddress", key_len) == 0)
+		{
+			if (conf->public_addr != NULL)
+			{
+				free(conf->public_addr);
+			}
+
+			if (val_len == 0)
+			{
+				conf->public_addr = NULL;
+				break;
+			}
+
+			conf->public_addr = malloc(val_len + 1);
+			if (conf->public_addr == NULL)
+			{
+				return -ENOMEM;
+			}
+
+			memcpy(conf->public_addr, val, val_len);
+			conf->public_addr[val_len] = '\0';
+		}
+
+		break;
 	case 15:
 		if (strncmp(key, "CallsignsDenied", key_len) == 0)
 		{
@@ -555,6 +580,12 @@ void conf_free(struct proxy_conf *conf)
 	{
 		free(conf->reg_comment);
 		conf->reg_comment = NULL;
+	}
+
+	if (conf->public_addr != NULL)
+	{
+		free(conf->public_addr);
+		conf->public_addr = NULL;
 	}
 }
 
