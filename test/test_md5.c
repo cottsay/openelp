@@ -79,7 +79,7 @@ static int test_md5_basic(void)
 {
 	const char md5_challenge[] = "thequickbrownfox";
 	const uint8_t md5_control[16] = { 0x30, 0x8f, 0xb7, 0x6d, 0xc4, 0xd7, 0x30, 0x36, 0x0e, 0xe3, 0x39, 0x32, 0xd2, 0xfb, 0x10, 0x56 };
-	const char md5_control_str[33] = "308fb76dc4d730360ee33932d2fb1056";
+	const char md5_control_str[33] = "308FB76DC4D730360EE33932D2FB1056";
 	uint8_t md5_result[16] = { 0x00 };
 	char md5_result_str[33] = "";
 

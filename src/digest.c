@@ -65,6 +65,14 @@
 static inline void digest_to_hex8(const uint8_t data, char result[2]);
 
 /*!
+ * @brief Converts a 8-bit value to a base 16 string with uppercase letters
+ *
+ * @param[in] data Numeric value to convert
+ * @param[out] result Resulting ASCII characters
+ */
+static inline void digest_to_hex8_u(const uint8_t data, char result[2]);
+
+/*!
  * @brief Converts a big-endian 32-bit value to a base 16 string
  *
  * @param[in] data Numeric value to convert (big-endian)
@@ -107,6 +115,14 @@ static inline void digest_to_hex8(const uint8_t data, char result[2])
 	result[1] = lookup[data % 16];
 }
 
+static inline void digest_to_hex8_u(const uint8_t data, char result[2])
+{
+	static const char lookup[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+
+	result[0] = lookup[data / 16];
+	result[1] = lookup[data % 16];
+}
+
 void digest_to_hex32(const uint32_t data, char result[8])
 {
 	digest_to_hex32_be(htonl(data), result);
@@ -128,7 +144,7 @@ void digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1
 
 	for (i = 0; i < DIGEST_LEN; i++, result += 2)
 	{
-		digest_to_hex8(md5[i], result);
+		digest_to_hex8_u(md5[i], result);
 	}
 }
 
