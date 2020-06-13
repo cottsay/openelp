@@ -165,7 +165,7 @@ int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len);
  *
  * @param[in] conn Target network connection instance
  * @param[out] buff Buffer to copy received into
- * @param[in] buff_len Maximu number of bytes of data to read
+ * @param[in] buff_len Maximum number of bytes of data to read
  * @param[out] addr Remote address of sending client, or NULL if unwanted
  * @param[out] port Remote port on sending client, or NULL if unwanted
  *
