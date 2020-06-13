@@ -1316,6 +1316,23 @@ proxy_conn_init_exit:
 	return 0;
 }
 
+int proxy_conn_in_use(struct proxy_conn_handle *pc)
+{
+	struct proxy_conn_priv *priv = (struct proxy_conn_priv *)pc->priv;
+	int ret = 0;
+
+	mutex_lock_shared(&priv->mutex_sentinel);
+
+	if (priv->conn_client != NULL)
+	{
+		ret = conn_in_use(priv->conn_client);
+	}
+
+	mutex_unlock_shared(&priv->mutex_sentinel);
+
+	return ret;
+}
+
 int proxy_conn_start(struct proxy_conn_handle *pc)
 {
 	struct proxy_conn_priv *priv = (struct proxy_conn_priv *)pc->priv;

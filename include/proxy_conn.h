@@ -102,6 +102,15 @@ void proxy_conn_free(struct proxy_conn_handle *pc);
 int proxy_conn_init(struct proxy_conn_handle *pc);
 
 /*!
+ * @brief Determine if the connection is currently in use
+ *
+ * @param[in] pc Target proxy client connection instance
+ *
+ * @returns 1 if in use, 0 if idle
+ */
+int proxy_conn_in_use(struct proxy_conn_handle *pc);
+
+/*!
  * @brief Starts the client thread and prepares to accept connections
  *
  * @param[in,out] pc Target proxy client connection instance

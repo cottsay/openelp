@@ -141,6 +141,15 @@ void conn_free(struct conn_handle *conn);
 int conn_init(struct conn_handle *conn);
 
 /*!
+ * @brief Determine if the connection is currently in use
+ *
+ * @param[in] conn Target network connection instance
+ *
+ * @returns 1 if in use, 0 if idle
+ */
+int conn_in_use(struct conn_handle *conn);
+
+/*!
  * @brief Blocking call to listen for incoming connections from clients
  *
  * @param[in,out] conn Target network connection instance

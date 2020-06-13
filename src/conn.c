@@ -744,3 +744,20 @@ void conn_sprintaddr(const uint32_t addr, char dest[16])
 {
 	inet_ntop(AF_INET, &addr, dest, 16);
 }
+
+int conn_in_use(struct conn_handle *conn)
+{
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
+	int ret = 0;
+
+	mutex_lock_shared(&priv->mutex);
+
+	if (priv->fd != INVALID_SOCKET)
+	{
+		ret = 1;
+	}
+
+	mutex_unlock_shared(&priv->mutex);
+
+	return ret;
+}
