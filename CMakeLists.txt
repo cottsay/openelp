@@ -216,8 +216,12 @@ else()
   add_compile_options(
     -Wall
     -Wextra
-    -Wpedantic
     )
+  include(CheckCCompilerFlag)
+  check_c_compiler_flag(-Wpedantic HAVE_W_PEDANTIC)
+  if(HAVE_W_PEDANTIC)
+    add_compile_options(-Wpedantic)
+  endif()
 endif()
 
 # Default to C11
