@@ -54,7 +54,7 @@
 /*!
  * @brief Represents an instance of a thread
  *
- * This struct should be initialized to zero before bing used. The private data
+ * This struct should be initialized to zero before being used. The private data
  * should be initialized using the ::thread_init function, and subsequently
  * freed by ::thread_free when the thread is no longer needed.
  */

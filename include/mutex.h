@@ -50,7 +50,7 @@
 /*!
  * @brief Represents an instance of a condition variable
  *
- * This struct should be initialized to zero before bing used. The private data
+ * This struct should be initialized to zero before being used. The private data
  * should be initialized using the ::condvar_init function, and subsequently
  * freed by ::condvar_free when the condition variable is no longer needed.
  */
@@ -63,7 +63,7 @@ struct condvar_handle
 /*!
  * @brief Represents an instance of a mutex
  *
- * This struct should be initialized to zero before bing used. The private data
+ * This struct should be initialized to zero before being used. The private data
  * should be initialized using the ::mutex_init function, and subsequently
  * freed by ::mutex_free when the mutex is no longer needed.
  */

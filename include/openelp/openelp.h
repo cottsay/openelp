@@ -160,7 +160,7 @@ struct proxy_conf
 /*!
  * @brief Represents an instance of an EchoLink proxy
  *
- * This struct should be initialized to zero before bing used. The private data
+ * This struct should be initialized to zero before being used. The private data
  * should be initialized using the ::proxy_init function, and subsequently
  * freed by ::proxy_free when the proxy is no longer needed.
  */

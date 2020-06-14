@@ -55,7 +55,7 @@
 /*!
  * @brief Represents an instance of logging infrastructure
  *
- * This struct should be initialized to zero before bing used. The private data
+ * This struct should be initialized to zero before being used. The private data
  * should be initialized using the ::log_init function, and subsequently
  * freed by ::log_free when the logging infrastructure is no longer needed.
  */

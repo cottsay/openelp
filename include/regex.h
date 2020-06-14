@@ -50,7 +50,7 @@
 /*!
  * @brief Represents an instance of a compiled regular expression
  *
- * This struct should be initialized to zero before bing used. The private data
+ * This struct should be initialized to zero before being used. The private data
  * should be initialized using the ::regex_init function, and subsequently
  * freed by ::regex_free when the regular expression is no longer needed.
  */

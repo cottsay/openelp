@@ -68,7 +68,7 @@ enum CONN_TYPE
 /*!
  * @brief Represents an instance of a network connection
  *
- * This struct should be initialized to zero before bing used. The private data
+ * This struct should be initialized to zero before being used. The private data
  * should be initialized using the ::conn_init function, and subsequently
  * freed by ::conn_free when the network connection is no longer needed.
  */
