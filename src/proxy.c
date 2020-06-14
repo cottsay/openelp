@@ -264,8 +264,6 @@ int proxy_init(struct proxy_handle *ph)
 proxy_init_exit:
 	proxy_free(ph);
 
-	free(ph->priv);
-
 	return ret;
 }
 
