@@ -285,7 +285,7 @@ conn_listen_free:
 	return ret;
 }
 
-int conn_accept(struct conn_handle *conn, struct conn_handle *accepted, uint32_t *addr, uint16_t *port)
+int conn_accept(struct conn_handle *conn, struct conn_handle *accepted)
 {
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	struct conn_priv *apriv = (struct conn_priv *)accepted->priv;
@@ -308,16 +308,6 @@ int conn_accept(struct conn_handle *conn, struct conn_handle *accepted, uint32_t
 	apriv->fd = apriv->conn_fd;
 
 	mutex_unlock(&apriv->mutex);
-
-	if (addr != NULL)
-	{
-		*addr = ((struct sockaddr_in *)&apriv->remote_addr)->sin_addr.s_addr;
-	}
-
-	if (port != NULL)
-	{
-		*port = htons(((struct sockaddr_in *)&apriv->remote_addr)->sin_port);
-	}
 
 	return 0;
 }
@@ -740,9 +730,11 @@ void conn_shutdown(struct conn_handle *conn)
 	mutex_unlock_shared(&priv->mutex);
 }
 
-void conn_sprintaddr(const uint32_t addr, char dest[16])
+void conn_get_remote_addr(const struct conn_handle *conn, char dest[40])
 {
-	inet_ntop(AF_INET, &addr, dest, 16);
+	struct conn_priv *priv = (struct conn_priv *)conn->priv;
+	struct sockaddr_in *addr = (struct sockaddr_in *)&priv->remote_addr;
+	inet_ntop(addr->sin_family, &addr->sin_addr.s_addr, dest, 40);
 }
 
 int conn_in_use(struct conn_handle *conn)

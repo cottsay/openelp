@@ -445,6 +445,7 @@ static void * client_manager(void *ctx)
 	struct proxy_conn_priv *priv = (struct proxy_conn_priv *)pc->priv;
 	int ret;
 	uint8_t buff[CONN_BUFF_LEN];
+	char remote_addr[40];
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG, "Proxy connection is ready on interface '%s'\n", pc->source_addr == NULL ? "0.0.0.0" : pc->source_addr);
 
@@ -486,6 +487,8 @@ static void * client_manager(void *ctx)
 
 		mutex_unlock(&priv->mutex_sentinel);
 
+		conn_get_remote_addr(priv->conn_client, remote_addr);
+
 		proxy_log(pc->ph, LOG_LEVEL_DEBUG, "New connection - beginning authorization procedure\n");
 
 		ret = client_authorize(pc);
@@ -498,10 +501,9 @@ static void * client_manager(void *ctx)
 			case -ENOTCONN:
 			case -EPIPE:
 				proxy_log(pc->ph, LOG_LEVEL_WARN, "Connection to client was lost before authorization could complete\n");
-			case -EACCES:
 				break;
 			default:
-				proxy_log(pc->ph, LOG_LEVEL_ERROR, "Failed to connect to client (%d): %s\n", -ret, strerror(-ret));
+				proxy_log(pc->ph, LOG_LEVEL_ERROR, "Authorization failed for client '%s' (%d): %s\n", remote_addr, -ret, strerror(-ret));
 			}
 
 			conn_drop(priv->conn_client);

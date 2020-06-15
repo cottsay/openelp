@@ -557,9 +557,7 @@ int proxy_process(struct proxy_handle *ph)
 	struct conn_handle *conn = NULL;
 	int ret = -EBUSY;
 	int i;
-	uint32_t remote_addr;
-	uint16_t remote_port;
-	char remote_addr_str[16] = { 0x0 };
+	char remote_addr[40] = { 0x0 };
 
 	conn = malloc(sizeof(struct conn_handle));
 	if (conn == NULL)
@@ -578,14 +576,14 @@ int proxy_process(struct proxy_handle *ph)
 
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Waiting for a client...\n");
 
-	ret = conn_accept(&priv->conn_listen, conn, &remote_addr, &remote_port);
+	ret = conn_accept(&priv->conn_listen, conn);
 	if (ret < 0)
 	{
 		goto conn_process_exit;
 	}
 
-	conn_sprintaddr(remote_addr, remote_addr_str);
-	proxy_log(ph, LOG_LEVEL_DEBUG, "Incoming connection from %s:%u.\n", remote_addr_str, remote_port);
+	conn_get_remote_addr(conn, remote_addr);
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Incoming connection from %s.\n", remote_addr);
 
 	for (i = 0; i < priv->num_clients; i++)
 	{
