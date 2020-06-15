@@ -47,6 +47,8 @@
 #ifndef _mutex_h
 #define _mutex_h
 
+#include <stdint.h>
+
 /*!
  * @brief Represents an instance of a condition variable
  *
@@ -99,6 +101,18 @@ int condvar_init(struct condvar_handle *condvar);
  * @returns 0 on success, negative ERRNO value on failure
  */
 int condvar_wait(struct condvar_handle *condvar, struct mutex_handle *mutex);
+
+/*!
+ * @brief Unlocks the given mutex and blocks until awoken by ::condvar_wake_all,
+ *        ::condvar_wake_one, or a specified timeout.
+ *
+ * @param[in,out] condvar Target condition variable instance
+ * @param[in,out] mutex Target mutex instance
+ * @param[in] msec Number of milliseconds to wait before returning
+ *
+ * @returns 0 on success, 1 on timeout, negative ERRNO value on failure
+ */
+int condvar_wait_time(struct condvar_handle *condvar, struct mutex_handle *mutex, uint32_t msec);
 
 /*!
  * @brief Awakens all calls to ::condvar_wait currently blocked

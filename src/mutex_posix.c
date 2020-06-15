@@ -263,6 +263,22 @@ int condvar_wait(struct condvar_handle *condvar, struct mutex_handle *mutex)
 	return -pthread_cond_wait(&priv->cond, &mpriv->lock);
 }
 
+int condvar_wait_time(struct condvar_handle *condvar, struct mutex_handle *mutex, uint32_t msec)
+{
+	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+	struct mutex_priv *mpriv = (struct mutex_priv *)mutex->priv;
+	struct timespec abstime;
+	int ret;
+
+	clock_gettime(CLOCK_REALTIME, &abstime);
+	abstime.tv_nsec += (msec % 1000) * 1000000;
+	abstime.tv_sec += (msec / 1000) + (abstime.tv_nsec / 1000000000);
+	abstime.tv_nsec %= 1000000000;
+
+	ret = pthread_cond_timedwait(&priv->cond, &mpriv->lock, &abstime);
+	return ret == ETIMEDOUT ? 1 : -ret;
+}
+
 int condvar_wake_one(struct condvar_handle *condvar)
 {
 	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;

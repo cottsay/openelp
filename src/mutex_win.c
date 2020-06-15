@@ -176,6 +176,24 @@ int condvar_wait(struct condvar_handle *condvar, struct mutex_handle *mutex)
 	return 0;
 }
 
+int condvar_wait_time(struct condvar_handle *condvar, struct mutex_handle *mutex, uint32_t msec)
+{
+	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
+	struct mutex_priv *mpriv = (struct mutex_priv *)mutex->priv;
+	int ret = 0;
+
+	if (!SleepConditionVariableSRW(&priv->cond, &mpriv->lock, msec, 0))
+	{
+		ret = GetLastError();
+		if (ret == ERROR_TIMEOUT)
+		{
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
+
 int condvar_wake_one(struct condvar_handle *condvar)
 {
 	struct condvar_priv *priv = (struct condvar_priv *)condvar->priv;
