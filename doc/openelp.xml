@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>Open Source EchoLink Proxy</short>
+  <description>OpenELP is an open source EchoLink proxy for Linux and Windows. Enable this option, if you are providing a EchoLink proxy server. You need the openelp package installed for this option to be useful.</description>
+  <port protocol="udp" port="5198"/>
+  <port protocol="udp" port="5199"/>
+  <port protocol="tcp" port="8100"/>
+</service>
