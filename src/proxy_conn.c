@@ -1342,9 +1342,14 @@ int proxy_conn_in_use(struct proxy_conn_handle *pc)
 int proxy_conn_start(struct proxy_conn_handle *pc)
 {
 	struct proxy_conn_priv *priv = (struct proxy_conn_priv *)pc->priv;
-	int ret;
+	int ret = 0;
 
-	ret = thread_start(&priv->thread_client);
+	mutex_lock_shared(&priv->mutex_sentinel);
+	if (priv->conn_client == NULL)
+	{
+		ret = thread_start(&priv->thread_client);
+	}
+	mutex_unlock_shared(&priv->mutex_sentinel);
 
 	return ret;
 }
