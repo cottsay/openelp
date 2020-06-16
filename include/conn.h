@@ -217,6 +217,6 @@ void conn_shutdown(struct conn_handle *conn);
  * @param[in] conn Target network connection instance
  * @param[out] dest Destination ASCII string
  */
-void conn_get_remote_addr(const struct conn_handle *conn, char dest[40]);
+void conn_get_remote_addr(const struct conn_handle *conn, char dest[46]);
 
 #endif /* _conn_h */

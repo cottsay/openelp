@@ -226,7 +226,7 @@ int conn_listen(struct conn_handle *conn)
 		return -1;
 	}
 
-	hints.ai_family = AF_INET;
+	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_PASSIVE;
 
 	ret = getaddrinfo(conn->source_addr, conn->source_port == NULL ? "0" : conn->source_port, &hints, &res);
@@ -403,7 +403,7 @@ int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 		goto conn_connect_free_early;
 	}
 
-	priv->sock_fd = socket(AF_INET, res->ai_socktype, res->ai_protocol);
+	priv->sock_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (priv->sock_fd == INVALID_SOCKET)
 	{
 		ret = SOCK_ERRNO;
@@ -782,11 +782,24 @@ void conn_shutdown(struct conn_handle *conn)
 	mutex_unlock_shared(&priv->mutex);
 }
 
-void conn_get_remote_addr(const struct conn_handle *conn, char dest[40])
+void conn_get_remote_addr(const struct conn_handle *conn, char dest[46])
 {
-	struct conn_priv *priv = (struct conn_priv *)conn->priv;
-	struct sockaddr_in *addr = (struct sockaddr_in *)&priv->remote_addr;
-	inet_ntop(addr->sin_family, &addr->sin_addr.s_addr, dest, 40);
+	const struct conn_priv *priv = (const struct conn_priv *)conn->priv;
+	const struct sockaddr_in *addr = (const struct sockaddr_in *)&priv->remote_addr;
+	const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6 *)&priv->remote_addr;
+
+	switch (priv->remote_addr.ss_family)
+	{
+	case AF_INET:
+		inet_ntop(addr->sin_family, &addr->sin_addr.s_addr, dest, 46);
+		break;
+	case AF_INET6:
+		inet_ntop(addr6->sin6_family, &addr6->sin6_addr.s6_addr, dest, 46);
+		break;
+	default:
+		strcpy(dest, "(unknown)");
+		break;
+	}
 }
 
 int conn_in_use(struct conn_handle *conn)
