@@ -19,8 +19,8 @@ Additional Settings
 * Inactivity timeout
 * TCP connection whitelisting
 * TCP Retry Count
-* Keepalive
 * Max data packet size
 * Buffer sizes
+* Configurable SO\_KEEPALIVE
 * Configurable SO\_REUSEADDR
 * Allow/reject duplicate callsigns

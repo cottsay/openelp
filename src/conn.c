@@ -53,11 +53,17 @@
 #ifdef _WIN32
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
+#  include <mstcpip.h>
 #else
 #  include <sys/socket.h>
 #  include <netdb.h>
 #  include <netinet/in.h>
+#  include <netinet/tcp.h>
 #  include <arpa/inet.h>
+#  ifdef __APPLE__
+#    define SOL_TCP IPPROTO_TCP
+#    define TCP_KEEPIDLE TCP_KEEPALIVE
+#  endif
 #endif
 
 #include <errno.h>
@@ -289,6 +295,20 @@ int conn_accept(struct conn_handle *conn, struct conn_handle *accepted)
 {
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	struct conn_priv *apriv = (struct conn_priv *)accepted->priv;
+#ifdef _WIN32
+	uint32_t bytes_returned;
+	struct tcp_keepalive keepalive =
+	{
+		.onoff = 1,
+		.keepalivetime = 600 * 1000,
+		.keepaliveinterval = 12 * 1000,
+	};
+#else
+	const int yes = 1;
+	const int ten_min = 600;
+	const int twelve_sec = 12;
+	const int ten = 10;
+#endif
 
 	apriv->remote_addr_len = sizeof(struct sockaddr_storage);
 
@@ -302,6 +322,38 @@ int conn_accept(struct conn_handle *conn, struct conn_handle *accepted)
 	{
 		return SOCK_ERRNO;
 	}
+
+#ifdef _WIN32
+	if (WSAIoctl(apriv->conn_fd, SIO_KEEPALIVE_VALS, &keepalive, sizeof(struct tcp_keepalive), NULL, 0, &bytes_returned, NULL, NULL) != 0)
+	{
+		/// @TODO Close apriv->conn_fd
+		return SOCK_ERRNO;
+	}
+#else
+	if (setsockopt(apriv->conn_fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(int)) == SOCKET_ERROR)
+	{
+		/// @TODO Close apriv->conn_fd
+		return SOCK_ERRNO;
+	}
+
+	if (setsockopt(apriv->conn_fd, SOL_TCP, TCP_KEEPIDLE, &ten_min, sizeof(int)) == SOCKET_ERROR)
+	{
+		/// @TODO Close apriv->conn_fd
+		return SOCK_ERRNO;
+	}
+
+	if (setsockopt(apriv->conn_fd, SOL_TCP, TCP_KEEPINTVL, &twelve_sec, sizeof(int)) == SOCKET_ERROR)
+	{
+		/// @TODO Close apriv->conn_fd
+		return SOCK_ERRNO;
+	}
+
+	if (setsockopt(apriv->conn_fd, SOL_TCP, TCP_KEEPCNT, &ten, sizeof(int)) == SOCKET_ERROR)
+	{
+		/// @TODO Close apriv->conn_fd
+		return SOCK_ERRNO;
+	}
+#endif
 
 	mutex_lock(&apriv->mutex);
 
