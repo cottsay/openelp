@@ -204,7 +204,7 @@ int conn_listen(struct conn_handle *conn)
 	struct addrinfo *res = NULL;
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	int ret;
-	const char yes = 1;
+	const int yes = 1;
 
 	memset(&hints, 0x0, sizeof(struct addrinfo));
 
@@ -236,7 +236,7 @@ int conn_listen(struct conn_handle *conn)
 		goto conn_listen_free;
 	}
 
-	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(int));
 	if (ret == SOCKET_ERROR)
 	{
 		/// @TODO Close priv->sock_fd
@@ -245,7 +245,7 @@ int conn_listen(struct conn_handle *conn)
 	}
 
 #ifdef __APPLE__
-	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(int));
+	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&yes, sizeof(int));
 	if (ret == SOCKET_ERROR)
 	{
 		/// @TODO Close priv->sock_fd
@@ -328,7 +328,7 @@ int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 	struct addrinfo hints;
 	struct addrinfo *res = NULL;
 	struct addrinfo *res_remote = NULL;
-	const char yes = 1;
+	const int yes = 1;
 	int ret;
 
 	if (conn->type != CONN_TYPE_TCP)
@@ -368,7 +368,7 @@ int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 		goto conn_connect_free_early;
 	}
 
-	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(int));
 	if (ret == SOCKET_ERROR)
 	{
 		ret = SOCK_ERRNO;
@@ -376,7 +376,7 @@ int conn_connect(struct conn_handle *conn, const char *addr, const char *port)
 	}
 
 #ifdef __APPLE__
-	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(int));
+	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&yes, sizeof(int));
 	if (ret == SOCKET_ERROR)
 	{
 		ret = SOCK_ERRNO;
