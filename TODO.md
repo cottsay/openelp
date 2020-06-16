@@ -4,20 +4,23 @@ Todo Items
 Features
 --------
 * Public proxy registration
-* TCP connection whitelisting
 * More args for Windows service
+* Publish to statsd
+* Provide fail2ban filter
 
 Optimizations
 -------------
-* Support internal forwarding
+* Re-use same slot on reconnect
+* Stop allocating new memory after proxy\_start
 
 Additional Settings
 -------------------
-* Timeout
+* Timeout (ConnectionTimeout in config)
 * Inactivity timeout
+* TCP connection whitelisting
 * TCP Retry Count
 * Keepalive
-* Keepalive Interval
 * Max data packet size
 * Buffer sizes
-* Configurable SO_REUSEADDR
+* Configurable SO\_REUSEADDR
+* Allow/reject duplicate callsigns
