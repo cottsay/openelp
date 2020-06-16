@@ -50,6 +50,7 @@
 #include "conn.h"
 #include "digest.h"
 #include "log.h"
+#include "mutex.h"
 #include "proxy_conn.h"
 #include "rand.h"
 #include "regex.h"
@@ -78,8 +79,14 @@ struct proxy_priv
 	/// Logging infrastructure handle
 	struct log_handle log;
 
-	/// Number of clients in proxy_priv::clients
+	/// Total number of clients in proxy_priv::clients
 	int num_clients;
+
+	/// Number of 'usable' clients in proxy_priv::clients
+	int usable_clients;
+
+	/// Used to protect proxy_priv::usable_clients
+	struct mutex_handle usable_clients_mutex;
 
 	/// Regular expression for matching allowed callsigns
 	struct regex_handle *re_calls_allowed;
@@ -268,7 +275,15 @@ int proxy_init(struct proxy_handle *ph)
 		goto proxy_init_exit;
 	}
 
+	// Initialize the usable_clients mutex
+	ret = mutex_init(&priv->usable_clients_mutex);
+	if (ret < 0)
+	{
+		goto proxy_init_exit;
+	}
+
 	priv->num_clients = 0;
+	priv->usable_clients = 0;
 
 	return 0;
 
@@ -285,6 +300,9 @@ void proxy_free(struct proxy_handle *ph)
 		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 
 		proxy_close(ph);
+
+		// Free usable_clients mutex
+		mutex_free(&priv->usable_clients_mutex);
 
 		// Free registration service
 		registration_service_free(&priv->reg_service);
@@ -533,6 +551,10 @@ void proxy_shutdown(struct proxy_handle *ph)
 
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Proxy shutdown requested.\n");
 
+	mutex_lock(&priv->usable_clients_mutex);
+	priv->usable_clients = 0;
+	mutex_unlock(&priv->usable_clients_mutex);
+
 	proxy_update_registration(ph);
 
 	conn_shutdown(&priv->conn_listen);
@@ -608,7 +630,8 @@ int proxy_process(struct proxy_handle *ph)
 	conn_get_remote_addr(conn, remote_addr);
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Incoming connection from %s.\n", remote_addr);
 
-	for (i = 0; i < priv->num_clients; i++)
+	mutex_lock_shared(&priv->usable_clients_mutex);
+	for (i = 0; i < priv->usable_clients; i++)
 	{
 		ret = proxy_conn_accept(&priv->clients[i], conn);
 		if (ret != -EBUSY)
@@ -616,6 +639,7 @@ int proxy_process(struct proxy_handle *ph)
 			break;
 		}
 	}
+	mutex_unlock_shared(&priv->usable_clients_mutex);
 
 	if (ret == -EBUSY)
 	{
@@ -688,6 +712,10 @@ int proxy_start(struct proxy_handle *ph)
 		}
 	}
 
+	mutex_lock(&priv->usable_clients_mutex);
+	priv->usable_clients = priv->num_clients;
+	mutex_unlock(&priv->usable_clients_mutex);
+
 	proxy_update_registration(ph);
 	ret = registration_service_start(&priv->reg_service, &ph->conf);
 	if (ret < 0)
@@ -711,6 +739,7 @@ void proxy_update_registration(struct proxy_handle *ph)
 {
 	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
 	int slots_used = 0;
+	int slots_total;
 	int i;
 
 	for (i = 0; i < priv->num_clients; i++)
@@ -721,5 +750,9 @@ void proxy_update_registration(struct proxy_handle *ph)
 		}
 	}
 
-	registration_service_update(&priv->reg_service, slots_used, priv->num_clients);
+	mutex_lock_shared(&priv->usable_clients_mutex);
+	slots_total = priv->usable_clients;
+	mutex_unlock_shared(&priv->usable_clients_mutex);
+
+	registration_service_update(&priv->reg_service, slots_used, slots_total);
 }
