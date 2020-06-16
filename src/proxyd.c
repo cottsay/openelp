@@ -182,11 +182,17 @@ static BOOL WINAPI graceful_shutdown(DWORD ctrl_type)
 static void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 {
 	proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
-	(void)signum, (void)info, (void)ptr;
+	(void)info, (void)ptr;
 
-	sentinel = 1;
+	if (signum == SIGTERM || signum == SIGINT)
+	{
+		sentinel = 1;
+	}
 
-	proxy_shutdown(&ph);
+	if (signum == SIGTERM || signum == SIGINT || signum == SIGUSR1)
+	{
+		proxy_shutdown(&ph);
+	}
 }
 #endif
 
@@ -221,10 +227,11 @@ int main(int argc, const char *argv[])
 
 	sigaction(SIGINT, &sigact, NULL);
 	sigaction(SIGTERM, &sigact, NULL);
+	sigaction(SIGUSR1, &sigact, NULL);
 #else
 	if (!SetConsoleCtrlHandler(graceful_shutdown, TRUE))
 	{
-		fprintf(stderr, "Failed to set SIGINT handler (%d)\n", GetLastError());
+		fprintf(stderr, "Failed to set signal handler (%d)\n", GetLastError());
 	}
 #endif
 
@@ -382,6 +389,17 @@ int main(int argc, const char *argv[])
 			{
 			case -EINTR:
 				ret = 0;
+
+				/// @TODO: Something better than a busy loop
+				while (!sentinel)
+				{
+#ifdef _WIN32
+					Sleep(50);
+#else
+					usleep(50000);
+#endif
+				}
+
 				break;
 			default:
 				proxy_log(&ph, LOG_LEVEL_FATAL, "Message processing failure (%d): %s\n", -ret, strerror(-ret));

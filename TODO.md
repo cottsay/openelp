@@ -6,6 +6,7 @@ Features
 * More args for Windows service
 * Publish to statsd
 * Provide fail2ban filter
+* Support pause/continue in Windows service
 
 Optimizations
 -------------
