@@ -434,6 +434,7 @@ int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len)
 {
 	struct conn_priv *priv = (struct conn_priv *)conn->priv;
 	int ret = 0;
+	int bytes_read = 0;
 
 	if (conn->type != CONN_TYPE_TCP)
 	{
@@ -475,6 +476,7 @@ int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len)
 
 		buff_len -= ret;
 		buff += ret;
+		ret = bytes_read += ret;
 	}
 
 conn_recv_exit:
