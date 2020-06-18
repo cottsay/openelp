@@ -24,7 +24,7 @@ jobs:
             extra_flags: -Werror
           - os: ubuntu-latest
             test_target: test
-            extra_flags: -Werror
+            extra_flags: -Werror -Wformat-overflow -Wformat-security
           - os: windows-latest
             test_target: RUN_TESTS
             extra_flags: /WX
