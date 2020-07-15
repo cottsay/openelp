@@ -9,7 +9,7 @@ OpenELP also has the ability to bind to multiple network interfaces which are
 routed to unique external IP addresses, and therefore is capable of accepting
 connections from multiple clients simultaneously.
 
-![OpenELP CI](https://github.com/cottsay/openelp/workflows/OpenELP%20CI/badge.svg?branch=master&event=push)
+![OpenELP CI](https://github.com/cottsay/openelp/workflows/OpenELP%20CI/badge.svg?branch=main&event=push)
 
 Prerequisites
 -------------

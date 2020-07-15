@@ -24,7 +24,7 @@ Code Format
 
 Important Links
 ---------------
-* [OpenELP authors list](https://raw.githubusercontent.com/cottsay/openelp/master/AUTHORS)
-* [OpenELP license](https://raw.githubusercontent.com/cottsay/openelp/master/LICENSE)
+* [OpenELP authors list](https://raw.githubusercontent.com/cottsay/openelp/main/AUTHORS)
+* [OpenELP license](https://raw.githubusercontent.com/cottsay/openelp/main/LICENSE)
 * [OpenELP bug tracker](https://github.com/cottsay/openelp/issues)
 * [EchoLink proxy information](http://www.echolink.org/proxy.htm)
