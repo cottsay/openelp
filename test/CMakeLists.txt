@@ -37,9 +37,3 @@ add_openelp_test(test_digest test_digest.c)
 add_openelp_test(test_md5 test_md5.c)
 add_openelp_test(test_proxy test_proxy.c)
 add_openelp_test(test_regex test_regex.c)
-
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --force-new-ctest-process $(ARGS)
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..
-  COMMENT "Running tests..."
-  DEPENDS ${OPENELP_TEST_TARGETS}
-  )
