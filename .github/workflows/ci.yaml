@@ -28,6 +28,7 @@ jobs:
           - os: windows-latest
             test_target: RUN_TESTS
             extra_flags: /WX
+            extra_compiler_flags: /experimental:external /external:anglebrackets /external:W0
 
     steps:
       - name: Cache PCRE2
@@ -61,7 +62,7 @@ jobs:
           -DCPACK_PACKAGE_FILE_NAME=OpenELP-${{runner.os}}
           -DCPACK_TOPLEVEL_TAG=${{runner.os}}
           -DOPENELP_EXTRA_VERSION=${{steps.get-snap-id.outputs.snap_id}}
-          -DCMAKE_C_FLAGS="${{matrix.extra_flags}}"
+          -DCMAKE_C_FLAGS="${{matrix.extra_flags}} ${{matrix.extra_compiler_flags}}"
           -DCMAKE_EXE_LINKER_FLAGS="${{matrix.extra_flags}}"
           -DCMAKE_SHARED_LINKER_FLAGS="${{matrix.extra_flags}}"
           -DCMAKE_STATIC_LINKER_FLAGS="${{matrix.extra_flags}}"

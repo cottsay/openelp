@@ -54,7 +54,7 @@ jobs:
           -DBUILD_TESTING:BOOL=OFF
           -DBUILD_SHARED_LIBS:BOOL=ON
           -DCMAKE_PROGRAM_PATH:PATH="${{runner.workspace}}\hhw;${{runner.workspace}}\doxygen"
-          -DCMAKE_C_FLAGS="/WX"
+          -DCMAKE_C_FLAGS="/WX /experimental:external /external:anglebrackets /external:W0"
           -DCMAKE_EXE_LINKER_FLAGS="/WX"
           -DCMAKE_SHARED_LINKER_FLAGS="/WX"
           -DCMAKE_STATIC_LINKER_FLAGS="/WX"
