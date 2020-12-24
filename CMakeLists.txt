@@ -211,6 +211,7 @@ if(WIN32)
   add_compile_options(
     /W3
     /D_CRT_SECURE_NO_WARNINGS
+    /DWIN32_LEAN_AND_MEAN
     )
 else()
   add_compile_options(
