@@ -1,6 +1,6 @@
 include(ExternalProject)
 
-set(PCRE_TARGET_VERSION "10.35")
+set(PCRE_TARGET_VERSION "10.36")
 set(PCRE_DIR ${CMAKE_CURRENT_BINARY_DIR}/pcre2)
 set(PCRE_C_FLAGS ${CMAKE_C_FLAGS})
 
@@ -32,14 +32,10 @@ set(PCRE_CMAKE_ARGS
   -DPCRE2_SUPPORT_LIBZ:BOOL=OFF
   )
 
-set(PATCH_COMMAND git apply CACHE STRING "Command for patching files")
-set(PCRE_PATCH_CMD ${PATCH_COMMAND} -p1 < "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pcre2_include_path.patch")
-
 ExternalProject_Add(pcre
   URL "https://ftp.pcre.org/pub/pcre/pcre2-${PCRE_TARGET_VERSION}.tar.gz"
-  URL_MD5 626ae9ad9a1d4a09ef4221c885574ff5
+  URL_MD5 a5d9aa7d18b61b0226696510e60c9582
   CMAKE_ARGS ${PCRE_CMAKE_ARGS}
-  PATCH_COMMAND ${PCRE_PATCH_CMD}
   )
 
 ExternalProject_Get_Property(pcre
