@@ -44,12 +44,8 @@
  * @brief Internal API for configuration values
  */
 
-#ifndef _conf_h
-#define _conf_h
-
-#include "openelp/openelp.h"
-
-#include "log.h"
+#ifndef CONF_H_
+#define CONF_H_
 
 #include <stdint.h>
 #include <stdio.h>
@@ -57,6 +53,9 @@
 #ifndef _WIN32
 #  include <unistd.h>
 #endif
+
+#include "openelp/openelp.h"
+#include "log.h"
 
 /*!
  * @brief Frees data allocated by ::conf_init
@@ -79,10 +78,11 @@ int conf_init(struct proxy_conf *conf);
  *
  * @param[in] file Null-terminated string containing the path to the config
  * @param[in,out] conf Target configuration instance
- * @param[in,out] log Log handle for reporting logging events
+ * @param[in,out] log Handle for reporting logging events
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-int conf_parse_file(const char *file, struct proxy_conf *conf, struct log_handle *log);
+int conf_parse_file(const char *file, struct proxy_conf *conf,
+		    struct log_handle *log);
 
-#endif /* _conf_h */
+#endif /* CONF_H_ */

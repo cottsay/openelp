@@ -44,11 +44,11 @@
  * @brief Tests related to digest utilities
  */
 
-#include "digest.h"
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "digest.h"
 
 /*!
  * @brief Test of the round-trip digest conversion routines
@@ -78,22 +78,24 @@ int main(void)
 static int test_digest_conversion(void)
 {
 	const uint32_t nonce = 0x4d3b6d47;
-	const char expected_response[9] = "4d3b6d47";
+	static const char expected_response[9] = "4d3b6d47";
 	char response[9] = { 0x00 };
 	uint32_t round_trip;
 	int ret = 0;
 
 	digest_to_hex32(nonce, response);
-	if (strcmp(expected_response, response) != 0)
-	{
-		fprintf(stderr, "Error: Conversion to hex32 failed. Expected: '%s'. Got: '%s'.\n", expected_response, response);
+	if (strcmp(expected_response, response) != 0) {
+		fprintf(stderr,
+			"Error: Conversion to hex32 failed. Expected: '%s'. Got: '%s'.\n",
+			expected_response, response);
 		ret |= -EINVAL;
 	}
 
 	round_trip = hex32_to_digest(expected_response);
-	if (nonce != round_trip)
-	{
-		fprintf(stderr, "Error: Conversion from hex32 failed. Expected: 0x%08X. Got: 0x%08X.\n", nonce, round_trip);
+	if (nonce != round_trip) {
+		fprintf(stderr,
+			"Error: Conversion from hex32 failed. Expected: 0x%08X. Got: 0x%08X.\n",
+			nonce, round_trip);
 		ret |= -EINVAL;
 	}
 

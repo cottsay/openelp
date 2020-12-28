@@ -44,8 +44,8 @@
  * @brief Internal API for message logging
  */
 
-#ifndef _log_h
-#define _log_h
+#ifndef LOG_H_
+#define LOG_H_
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -59,16 +59,15 @@
  * should be initialized using the ::log_init function, and subsequently
  * freed by ::log_free when the logging infrastructure is no longer needed.
  */
-struct log_handle
-{
-	/// Severigy threshold for reporting log messages
+struct log_handle {
+	/*! Private data - used internally by log functions */
+	void *priv;
+
+	/*! Severigy threshold for reporting log messages */
 	uint32_t level;
 
-	/// Logging facility used to report logging event messages
+	/*! Logging facility used to report logging event messages */
 	uint32_t medium;
-
-	/// Private data - used internally by log functions
-	void *priv;
 };
 
 /*!
@@ -108,7 +107,7 @@ int log_init(struct log_handle *log);
  *
  * @returns Pointer to a null-terminated static const string
  */
-const char * log_medium_to_str(enum LOG_MEDIUM medium);
+const char *log_medium_to_str(enum LOG_MEDIUM medium);
 
 /*!
  * @brief Opens the log infrastructure by switching to ::LOG_MEDIUM_STDOUT
@@ -127,7 +126,8 @@ int log_open(struct log_handle *log);
  * @param[in] fmt String format of message
  * @param[in] ... Arguments for format specification
  */
-void log_printf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, ...);
+void log_printf(struct log_handle *log, enum LOG_LEVEL lvl,
+		const char *fmt, ...);
 
 /*!
  * @brief Changes the target logging medium
@@ -138,7 +138,8 @@ void log_printf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, ...
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, const char *target);
+int log_select_medium(struct log_handle *log, enum LOG_MEDIUM medium,
+		      const char *target);
 
 /*!
  * @brief Logs the given message to the current logging facility
@@ -148,6 +149,7 @@ int log_select_medium(struct log_handle *log, const enum LOG_MEDIUM medium, cons
  * @param[in] fmt String format of message
  * @param[in] args Arguments for format specification
  */
-void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl, const char *fmt, va_list args);
+void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl,
+		 const char *fmt, va_list args);
 
-#endif /* _log_h */
+#endif /* LOG_H_ */

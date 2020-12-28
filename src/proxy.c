@@ -44,8 +44,12 @@
  * @brief Implementation of OpenELP
  */
 
-#include "openelp/openelp.h"
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "openelp/openelp.h"
 #include "conf.h"
 #include "conn.h"
 #include "digest.h"
@@ -56,11 +60,6 @@
 #include "regex.h"
 #include "registration.h"
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #if PROXY_PASS_RES_LEN != DIGEST_LEN
 #error Password Response Length Mismatch
 #endif
@@ -68,83 +67,79 @@
 /*!
  * @brief Private data for an instance of an EchoLink proxy
  */
-struct proxy_priv
-{
-	/// Array which holds all of the proxy client connection handles
+struct proxy_priv {
+	/*! Array which holds all of the proxy client connection handles */
 	struct proxy_conn_handle *clients;
 
-	/// Network connection which listens for connections from clients
-	struct conn_handle conn_listen;
-
-	/// Logging infrastructure handle
-	struct log_handle log;
-
-	/// Total number of clients in proxy_priv::clients
-	int num_clients;
-
-	/// Number of 'usable' clients in proxy_priv::clients
-	int usable_clients;
-
-	/// Used to protect proxy_priv::usable_clients
-	struct mutex_handle usable_clients_mutex;
-
-	/// Regular expression for matching allowed callsigns
+	/*! Regular expression for matching allowed callsigns */
 	struct regex_handle *re_calls_allowed;
 
-	/// Regular expression for matching denied callsigns
+	/*! Regular expression for matching denied callsigns */
 	struct regex_handle *re_calls_denied;
 
-	/// Null-terminated string which holds the listening port identifier
-	char port_str[6];
+	/*! Total number of clients in proxy_priv::clients */
+	int num_clients;
 
-	/// Service for registering with echolink.org
+	/*! Number of 'usable' clients in proxy_priv::clients */
+	int usable_clients;
+
+	/*! Network connection which listens for connections from clients */
+	struct conn_handle conn_listen;
+
+	/*! Logging infrastructure handle */
+	struct log_handle log;
+
+	/*! Used to protect proxy_priv::usable_clients */
+	struct mutex_handle usable_clients_mutex;
+
+	/*! Service for registering with echolink.org */
 	struct registration_service_handle reg_service;
+
+	/*! Null-terminated string which holds the listening port identifier */
+	char port_str[6];
 };
 
 /*!
  * @brief Convert a port number to an ASCII string
  *
- * @param[in] port Port number to convert
+ * @param[in] port The port number to convert
  * @param[out] result Resulting ASCII string
  */
-static inline void port_to_str(const uint16_t port, char result[6]);
+static inline void port_to_str(uint16_t port, char result[6]);
 
-static inline void port_to_str(const uint16_t port, char result[6])
+static inline void port_to_str(uint16_t port, char result[6])
 {
 	uint16_t port_tmp = port;
 	uint8_t n = 0;
 
-	do
-	{
+	do {
 		n++;
 		port_tmp /= 10;
-	}
-	while (port_tmp != 0);
+	} while (port_tmp != 0);
 
 	port_tmp = port;
 
-	switch (n)
-	{
+	switch (n) {
 	case 5:
 		*result = (char)(48 + port_tmp / 10000);
 		port_tmp %= 10000;
 		result++;
-		// fall through
+		/* fall through */
 	case 4:
 		*result = (char)(48 + port_tmp / 1000);
 		port_tmp %= 1000;
 		result++;
-		// fall through
+		/* fall through */
 	case 3:
 		*result = (char)(48 + port_tmp / 100);
 		port_tmp %= 100;
 		result++;
-		// fall through
+		/* fall through */
 	case 2:
 		*result = (char)(48 + port_tmp / 10);
 		port_tmp %= 10;
 		result++;
-		// fall through
+		/* fall through */
 	case 1:
 		*result = (char)(48 + port_tmp);
 		result++;
@@ -153,34 +148,31 @@ static inline void port_to_str(const uint16_t port, char result[6])
 	*result = '\0';
 }
 
-int proxy_authorize_callsign(struct proxy_handle *ph, const char *callsign)
+int proxy_authorize_callsign(struct proxy_handle *ph,
+			     const char *callsign)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	int ret;
 
-	if (priv->re_calls_denied != NULL)
-	{
+	if (priv->re_calls_denied != NULL) {
 		ret = regex_is_match(priv->re_calls_denied, callsign);
-		if (ret != 0)
-		{
+		if (ret != 0) {
 			if (ret < 0)
-			{
-				proxy_log(ph, LOG_LEVEL_WARN, "Failed to match callsign '%s' against denial pattern (%d): %s\n", callsign, -ret, strerror(-ret));
-			}
+				proxy_log(ph, LOG_LEVEL_WARN,
+					  "Failed to match callsign '%s' against denial pattern (%d): %s\n",
+					  callsign, -ret, strerror(-ret));
 
 			return 0;
 		}
 	}
 
-	if (priv->re_calls_allowed != NULL)
-	{
+	if (priv->re_calls_allowed != NULL) {
 		ret = regex_is_match(priv->re_calls_allowed, callsign);
-		if (ret != 1)
-		{
+		if (ret != 1) {
 			if (ret < 0)
-			{
-				proxy_log(ph, LOG_LEVEL_WARN, "Failed to match callsign '%s' against allowing pattern (%d): %s\n", callsign, -ret, strerror(-ret));
-			}
+				proxy_log(ph, LOG_LEVEL_WARN,
+					  "Failed to match callsign '%s' against allowing pattern (%d): %s\n",
+					  callsign, -ret, strerror(-ret));
 
 			return 0;
 		}
@@ -191,22 +183,20 @@ int proxy_authorize_callsign(struct proxy_handle *ph, const char *callsign)
 
 int proxy_load_conf(struct proxy_handle *ph, const char *path)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	int ret;
 
 	ret = conf_parse_file(path, &ph->conf, &priv->log);
 	if (ret < 0)
-	{
 		return ret;
-	}
 
 	port_to_str(ph->conf.port, priv->port_str);
 
-	if (ph->conf.bind_addr_ext_add != NULL)
-	{
-		if (ph->conf.bind_addr_ext == NULL || strcmp(ph->conf.bind_addr_ext, "0.0.0.0") == 0)
-		{
-			proxy_log(ph, LOG_LEVEL_ERROR, "ExternalBindAddresses must be specified if AdditionalExternalBindAddresses is used\n");
+	if (ph->conf.bind_addr_ext_add != NULL) {
+		if (ph->conf.bind_addr_ext == NULL ||
+		    strcmp(ph->conf.bind_addr_ext, "0.0.0.0") == 0) {
+			proxy_log(ph, LOG_LEVEL_ERROR,
+				  "ExternalBindAddresses must be specified if AdditionalExternalBindAddresses is used\n");
 			return -EINVAL;
 		}
 	}
@@ -216,7 +206,7 @@ int proxy_load_conf(struct proxy_handle *ph, const char *path)
 
 void proxy_ident(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 
 	log_ident(&priv->log);
 }
@@ -227,60 +217,44 @@ int proxy_init(struct proxy_handle *ph)
 	int ret;
 
 	if (ph->priv == NULL)
-	{
 		ph->priv = malloc(sizeof(struct proxy_priv));
-	}
 
 	if (ph->priv == NULL)
-	{
 		return -ENOMEM;
-	}
 
 	memset(ph->priv, 0x0, sizeof(struct proxy_priv));
-	priv = (struct proxy_priv *)ph->priv;
+	priv = ph->priv;
 
-	// Initialize RNG
+	/* Initialize RNG */
 	ret = rand_init();
 	if (ret < 0)
-	{
 		goto proxy_init_exit;
-	}
 
-	// Initialize log
+	/* Initialize log */
 	ret = log_init(&priv->log);
 	if (ret < 0)
-	{
 		goto proxy_init_exit;
-	}
 
-	// Initialize config
+	/* Initialize config */
 	ret = conf_init(&ph->conf);
 	if (ret < 0)
-	{
 		goto proxy_init_exit;
-	}
 
-	// Initialize communications
+	/* Initialize communications */
 	priv->conn_listen.type = CONN_TYPE_TCP;
 	ret = conn_init(&priv->conn_listen);
 	if (ret < 0)
-	{
 		goto proxy_init_exit;
-	}
 
-	// Initialize registration service
+	/* Initialize registration service */
 	ret = registration_service_init(&priv->reg_service);
 	if (ret < 0)
-	{
 		goto proxy_init_exit;
-	}
 
-	// Initialize the usable_clients mutex
+	/* Initialize the usable_clients mutex */
 	ret = mutex_init(&priv->usable_clients_mutex);
 	if (ret < 0)
-	{
 		goto proxy_init_exit;
-	}
 
 	priv->num_clients = 0;
 	priv->usable_clients = 0;
@@ -295,40 +269,37 @@ proxy_init_exit:
 
 void proxy_free(struct proxy_handle *ph)
 {
-	if (ph->priv != NULL)
-	{
-		struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	if (ph->priv != NULL) {
+		struct proxy_priv *priv = ph->priv;
 
 		proxy_close(ph);
 
-		// Free usable_clients mutex
+		/* Free usable_clients mutex */
 		mutex_free(&priv->usable_clients_mutex);
 
-		// Free registration service
+		/* Free registration service */
 		registration_service_free(&priv->reg_service);
 
-		// Free connections
+		/* Free connections */
 		conn_free(&priv->conn_listen);
 
-		// Free config
+		/* Free config */
 		conf_free(&ph->conf);
 
-		// Free logger
+		/* Free logger */
 		log_free(&priv->log);
 
-		if (priv->re_calls_allowed != NULL)
-		{
+		if (priv->re_calls_allowed != NULL) {
 			regex_free(priv->re_calls_allowed);
 			free(priv->re_calls_allowed);
 		}
 
-		if (priv->re_calls_denied != NULL)
-		{
+		if (priv->re_calls_denied != NULL) {
 			regex_free(priv->re_calls_denied);
 			free(priv->re_calls_denied);
 		}
 
-		// Free RNG
+		/* Free RNG */
 		rand_free();
 
 		free(ph->priv);
@@ -338,91 +309,88 @@ void proxy_free(struct proxy_handle *ph)
 
 int proxy_open(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	int i;
 	int ret;
 
 	priv->num_clients = 1 + ph->conf.bind_addr_ext_add_len;
 
-	priv->clients = malloc(sizeof(struct proxy_conn_handle) * priv->num_clients);
+	priv->clients = malloc(sizeof(*priv->clients) * priv->num_clients);
 	if (priv->clients == NULL)
-	{
 		return -ENOMEM;
-	}
 
-	memset(priv->clients, 0x0, sizeof(struct proxy_conn_handle) * priv->num_clients);
+	memset(priv->clients, 0x0,
+	       sizeof(*priv->clients) * priv->num_clients);
 
 	ret = log_open(&priv->log);
 	if (ret < 0)
-	{
 		goto proxy_open_exit;
-	}
 
-	if (ph->conf.calls_allowed != NULL)
-	{
-		if (priv->re_calls_allowed == NULL)
-		{
-			priv->re_calls_allowed = malloc(sizeof(struct regex_handle));
-			if (priv->re_calls_allowed == NULL)
-			{
+	if (ph->conf.calls_allowed != NULL) {
+		if (priv->re_calls_allowed == NULL) {
+			priv->re_calls_allowed = malloc(
+				sizeof(*priv->re_calls_allowed));
+			if (priv->re_calls_allowed == NULL) {
 				ret = -ENOMEM;
 				goto proxy_open_exit;
 			}
 
-			memset(priv->re_calls_allowed, 0x0, sizeof(struct regex_handle));
+			memset(priv->re_calls_allowed, 0x0,
+			       sizeof(*priv->re_calls_allowed));
 
 			ret = regex_init(priv->re_calls_allowed);
-			if (ret < 0)
-			{
-				proxy_log(ph, LOG_LEVEL_FATAL, "Failed to initialize allowed callsigns regex (%d): %s\n", -ret, strerror(-ret));
+			if (ret < 0) {
+				proxy_log(ph, LOG_LEVEL_FATAL,
+					  "Failed to initialize allowed callsigns regex (%d): %s\n",
+					  -ret, strerror(-ret));
 				goto proxy_open_exit;
 			}
 		}
 
-		ret = regex_compile(priv->re_calls_allowed, ph->conf.calls_allowed);
-		if (ret < 0)
-		{
-			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to compile allowed callsigns regex (%d): %s\n", -ret, strerror(-ret));
+		ret = regex_compile(priv->re_calls_allowed,
+				    ph->conf.calls_allowed);
+		if (ret < 0) {
+			proxy_log(ph, LOG_LEVEL_FATAL,
+				  "Failed to compile allowed callsigns regex (%d): %s\n",
+				  -ret, strerror(-ret));
 			goto proxy_open_exit;
 		}
-	}
-	else if (priv->re_calls_allowed != NULL)
-	{
+	} else if (priv->re_calls_allowed != NULL) {
 		regex_free(priv->re_calls_allowed);
 		free(priv->re_calls_allowed);
 		priv->re_calls_allowed = NULL;
 	}
 
-	if (ph->conf.calls_denied != NULL)
-	{
-		if (priv->re_calls_denied == NULL)
-		{
-			priv->re_calls_denied = malloc(sizeof(struct regex_handle));
-			if (priv->re_calls_denied == NULL)
-			{
+	if (ph->conf.calls_denied != NULL) {
+		if (priv->re_calls_denied == NULL) {
+			priv->re_calls_denied = malloc(
+				sizeof(*priv->re_calls_denied));
+			if (priv->re_calls_denied == NULL) {
 				ret = -ENOMEM;
 				goto proxy_open_exit;
 			}
 
-			memset(priv->re_calls_denied, 0x0, sizeof(struct regex_handle));
+			memset(priv->re_calls_denied, 0x0,
+			       sizeof(*priv->re_calls_denied));
 
 			ret = regex_init(priv->re_calls_denied);
-			if (ret < 0)
-			{
-				proxy_log(ph, LOG_LEVEL_FATAL, "Failed to initialize denied callsigns regex (%d): %s\n", -ret, strerror(-ret));
+			if (ret < 0) {
+				proxy_log(ph, LOG_LEVEL_FATAL,
+					  "Failed to initialize denied callsigns regex (%d): %s\n",
+					  -ret, strerror(-ret));
 				goto proxy_open_exit;
 			}
 		}
 
-		ret = regex_compile(priv->re_calls_denied, ph->conf.calls_denied);
-		if (ret < 0)
-		{
-			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to compile denied callsigns regex (%d): %s\n", -ret, strerror(-ret));
+		ret = regex_compile(priv->re_calls_denied,
+				    ph->conf.calls_denied);
+		if (ret < 0) {
+			proxy_log(ph, LOG_LEVEL_FATAL,
+				  "Failed to compile denied callsigns regex (%d): %s\n",
+				  -ret, strerror(-ret));
 			goto proxy_open_exit;
 		}
-	}
-	else if (priv->re_calls_denied != NULL)
-	{
+	} else if (priv->re_calls_denied != NULL) {
 		regex_free(priv->re_calls_denied);
 		free(priv->re_calls_denied);
 		priv->re_calls_denied = NULL;
@@ -431,22 +399,18 @@ int proxy_open(struct proxy_handle *ph)
 	priv->clients[0].source_addr = ph->conf.bind_addr_ext;
 
 	for (i = 1; i < priv->num_clients; i++)
-	{
 		priv->clients[i].source_addr = ph->conf.bind_addr_ext_add[i - 1];
-	}
 
-	for (i = 0; i < priv->num_clients; i++)
-	{
+	for (i = 0; i < priv->num_clients; i++) {
 		priv->clients[i].ph = ph;
 		ret = proxy_conn_init(&priv->clients[i]);
-		if (ret < 0)
-		{
-			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to initialize proxy connection #%d (%d): %s\n", i, -ret, strerror(-ret));
+		if (ret < 0) {
+			proxy_log(ph, LOG_LEVEL_FATAL,
+				  "Failed to initialize proxy connection #%d (%d): %s\n",
+				  i, -ret, strerror(-ret));
 
 			for (i--; i >= 0; i--)
-			{
 				proxy_conn_free(&priv->clients[i]);
-			}
 
 			goto proxy_open_exit;
 		}
@@ -456,32 +420,31 @@ int proxy_open(struct proxy_handle *ph)
 	priv->conn_listen.source_port = (const char *)priv->port_str;
 
 	ret = conn_listen(&priv->conn_listen);
-	if (ret < 0)
-	{
-		proxy_log(ph, LOG_LEVEL_FATAL, "Failed to open listening port (%d): %s\n", -ret, strerror(-ret));
+	if (ret < 0) {
+		proxy_log(ph, LOG_LEVEL_FATAL,
+			  "Failed to open listening port (%d): %s\n",
+			  -ret, strerror(-ret));
 		goto proxy_open_exit_late;
 	}
 
 	if (ph->conf.bind_addr == NULL)
-	{
-		proxy_log(ph, LOG_LEVEL_INFO, "Listening for connections on port %s\n", priv->port_str);
-	}
+		proxy_log(ph, LOG_LEVEL_INFO,
+			  "Listening for connections on port %s\n",
+			  priv->port_str);
 	else
-	{
-		proxy_log(ph, LOG_LEVEL_INFO, "Listening for connections at %s:%s\n", ph->conf.bind_addr, priv->port_str);
-	}
+		proxy_log(ph, LOG_LEVEL_INFO,
+			  "Listening for connections at %s:%s\n",
+			  ph->conf.bind_addr,
+			  priv->port_str);
 
 	return 0;
 
 proxy_open_exit_late:
 	for (i = 0; i < priv->num_clients; i++)
-	{
 		proxy_conn_free(&priv->clients[i]);
-	}
 
 proxy_open_exit:
-	if (priv->re_calls_allowed != NULL)
-	{
+	if (priv->re_calls_allowed != NULL) {
 		regex_free(priv->re_calls_allowed);
 		free(priv->re_calls_allowed);
 		priv->re_calls_allowed = NULL;
@@ -499,15 +462,15 @@ proxy_open_exit:
 
 void proxy_close(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	int i;
 	int ret;
 
 	ret = registration_service_stop(&priv->reg_service);
 	if (ret < 0)
-	{
-		proxy_log(ph, LOG_LEVEL_ERROR, "Failed to stop registration service (%d): %s\n", -ret, strerror(-ret));
-	}
+		proxy_log(ph, LOG_LEVEL_ERROR,
+			  "Failed to stop registration service (%d): %s\n",
+			  -ret, strerror(-ret));
 
 	proxy_shutdown(ph);
 	proxy_drop(ph);
@@ -515,9 +478,7 @@ void proxy_close(struct proxy_handle *ph)
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Closing client connections...\n");
 
 	for (i = 0; i < priv->num_clients; i++)
-	{
 		proxy_conn_free(&priv->clients[i]);
-	}
 
 	free(priv->clients);
 	priv->clients = NULL;
@@ -534,20 +495,18 @@ void proxy_close(struct proxy_handle *ph)
 
 void proxy_drop(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	int i;
 
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Dropping all clients...\n");
 
 	for (i = 0; i < priv->num_clients; i++)
-	{
 		proxy_conn_drop(&priv->clients[i]);
-	}
 }
 
 void proxy_shutdown(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Proxy shutdown requested.\n");
 
@@ -560,61 +519,56 @@ void proxy_shutdown(struct proxy_handle *ph)
 	conn_shutdown(&priv->conn_listen);
 }
 
-void proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...)
+void proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl,
+	       const char *fmt, ...)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	va_list args;
 
-	if (priv == NULL || (unsigned)lvl > priv->log.level)
-	{
+	if (priv == NULL || (unsigned int)lvl > priv->log.level)
 		return;
-	}
 
 	va_start(args, fmt);
 	log_vprintf(&priv->log, lvl, fmt, args);
 	va_end(args);
 }
 
-void proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL lvl)
+void proxy_log_level(struct proxy_handle *ph, enum LOG_LEVEL lvl)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 
 	priv->log.level = lvl;
 }
 
-int proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM medium, const char *target)
+int proxy_log_select_medium(struct proxy_handle *ph, enum LOG_MEDIUM medium,
+			    const char *target)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	int ret;
 
 	ret = log_select_medium(&priv->log, medium, target);
 	if (medium != LOG_MEDIUM_NONE && ret == 0)
-	{
 		log_ident(&priv->log);
-	}
 
 	return ret;
 }
 
 int proxy_process(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	struct conn_handle *conn = NULL;
 	int ret = -EBUSY;
 	int i;
-	char remote_addr[40] = { 0x0 };
+	char remote_addr[40] = { 0 };
 
-	conn = malloc(sizeof(struct conn_handle));
+	conn = malloc(sizeof(*conn));
 	if (conn == NULL)
-	{
 		return -ENOMEM;
-	}
 
-	memset(conn, 0x0, sizeof(struct conn_handle));
+	memset(conn, 0x0, sizeof(*conn));
 
 	ret = conn_init(conn);
-	if (ret < 0)
-	{
+	if (ret < 0) {
 		free(conn);
 		return ret;
 	}
@@ -623,32 +577,26 @@ int proxy_process(struct proxy_handle *ph)
 
 	ret = conn_accept(&priv->conn_listen, conn);
 	if (ret < 0)
-	{
 		goto conn_process_exit;
-	}
 
 	conn_get_remote_addr(conn, remote_addr);
-	proxy_log(ph, LOG_LEVEL_DEBUG, "Incoming connection from %s.\n", remote_addr);
+	proxy_log(ph, LOG_LEVEL_DEBUG, "Incoming connection from %s.\n",
+		  remote_addr);
 
 	mutex_lock_shared(&priv->usable_clients_mutex);
-	for (i = 0; i < priv->usable_clients; i++)
-	{
+	for (i = 0; i < priv->usable_clients; i++) {
 		ret = proxy_conn_accept(&priv->clients[i], conn);
 		if (ret != -EBUSY)
-		{
 			break;
-		}
 	}
 	mutex_unlock_shared(&priv->usable_clients_mutex);
 
-	if (ret == -EBUSY)
-	{
-		proxy_log(ph, LOG_LEVEL_INFO, "Dropping client because there are no available slots.\n");
+	if (ret == -EBUSY) {
+		proxy_log(ph, LOG_LEVEL_INFO,
+			  "Dropping client because there are no available slots.\n");
 		ret = 0;
 		goto conn_process_exit;
-	}
-	else if (ret < 0)
-	{
+	} else if (ret < 0) {
 		goto conn_process_exit;
 	}
 
@@ -666,22 +614,18 @@ int get_nonce(uint32_t *nonce)
 	return rand_get(nonce);
 }
 
-int get_password_response(const uint32_t nonce, const char *password, uint8_t response[PROXY_PASS_RES_LEN])
+int get_password_response(uint32_t nonce, const char *password,
+			  uint8_t response[PROXY_PASS_RES_LEN])
 {
 	unsigned int pass_with_nonce_len = (unsigned int)strlen(password) + 8;
 	uint8_t *pass_with_nonce = malloc(pass_with_nonce_len);
 	char *iter = (char *)pass_with_nonce;
 
-	while (*password != '\0')
-	{
+	while (*password != '\0') {
 		if (*password >= 97 && *password <= 122)
-		{
 			*iter = *password - 32;
-		}
 		else
-		{
 			*iter = *password;
-		}
 
 		iter++;
 		password++;
@@ -698,16 +642,16 @@ int get_password_response(const uint32_t nonce, const char *password, uint8_t re
 
 int proxy_start(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	int ret;
 	int i;
 
-	for (i = 0; i < priv->num_clients; i++)
-	{
+	for (i = 0; i < priv->num_clients; i++) {
 		ret = proxy_conn_start(&priv->clients[i]);
-		if (ret < 0)
-		{
-			proxy_log(ph, LOG_LEVEL_FATAL, "Failed to start proxy connection #%d (%d): %s\n", i, -ret, strerror(-ret));
+		if (ret < 0) {
+			proxy_log(ph, LOG_LEVEL_FATAL,
+				  "Failed to start proxy connection #%d (%d): %s\n",
+				  i, -ret, strerror(-ret));
 			goto proxy_start_exit;
 		}
 	}
@@ -718,9 +662,10 @@ int proxy_start(struct proxy_handle *ph)
 
 	proxy_update_registration(ph);
 	ret = registration_service_start(&priv->reg_service, &ph->conf);
-	if (ret < 0)
-	{
-		proxy_log(ph, LOG_LEVEL_FATAL, "Failed to start registration service (%d): %s\n", -ret, strerror(-ret));
+	if (ret < 0) {
+		proxy_log(ph, LOG_LEVEL_FATAL,
+			  "Failed to start registration service (%d): %s\n",
+			  -ret, strerror(-ret));
 		goto proxy_start_exit;
 	}
 
@@ -728,31 +673,26 @@ int proxy_start(struct proxy_handle *ph)
 
 proxy_start_exit:
 	for (i--; i >= 0; i--)
-	{
 		proxy_conn_stop(&priv->clients[i]);
-	}
 
 	return ret;
 }
 
 void proxy_update_registration(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv = (struct proxy_priv *)ph->priv;
+	struct proxy_priv *priv = ph->priv;
 	int slots_used = 0;
 	int slots_total;
 	int i;
 
 	for (i = 0; i < priv->num_clients; i++)
-	{
 		if (proxy_conn_in_use(&priv->clients[i]))
-		{
 			slots_used++;
-		}
-	}
 
 	mutex_lock_shared(&priv->usable_clients_mutex);
 	slots_total = priv->usable_clients;
 	mutex_unlock_shared(&priv->usable_clients_mutex);
 
-	registration_service_update(&priv->reg_service, slots_used, slots_total);
+	registration_service_update(&priv->reg_service, slots_used,
+				    slots_total);
 }

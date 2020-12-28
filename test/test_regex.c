@@ -44,22 +44,23 @@
  * @brief tests related to regular expressions
  */
 
-#include "regex.h"
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "regex.h"
 
 /*!
  * @brief Perform a regular expression matching test
  *
  * @param[in] pattern Regular expression pattern
  * @param[in] subject String to match pattern against
- * @param[in] expected Expected return value of match
+ * @param[in] expected The expected return value of match
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-static int assert_match(const char *pattern, const char *subject, int expected);
+static int assert_match(const char * const pattern, const char * const subject,
+			int expected);
 
 /*!
  * @brief Main entry point for MD5 tests
@@ -166,26 +167,31 @@ static int test_regex_or_superstring_exact(void);
  *
  * @returns 1 if matched, 0 if no match, negative ERRNO value on failure
  */
-static int try_match(const char *pattern, const char *subject);
+static int try_match(const char * const pattern, const char * const subject);
 
-static int assert_match(const char *pattern, const char *subject, int expected)
+static int assert_match(const char * const pattern, const char * const subject,
+			int expected)
 {
 	int ret = try_match(pattern, subject);
 
-	if (ret != expected)
-	{
-		switch (ret)
-		{
+	if (ret != expected) {
+		switch (ret) {
 		case 1:
-			fprintf(stderr, "Error: Regex '%s' was not expected to match subject '%s', but did\n", pattern, subject);
+			fprintf(stderr,
+				"Error: Regex '%s' was not expected to match subject '%s', but did\n",
+				pattern, subject);
 			ret = -EINVAL;
 			break;
 		case 0:
-			fprintf(stderr, "Error: Regex '%s' was expected to match subject '%s', but did not\n", pattern, subject);
+			fprintf(stderr,
+				"Error: Regex '%s' was expected to match subject '%s', but did not\n",
+				pattern, subject);
 			ret = -EINVAL;
 			break;
 		default:
-			fprintf(stderr, "Error: Failure while attempting to match regex '%s' to subject '%s' (%d): %s\n", pattern, subject, -ret, strerror(-ret));
+			fprintf(stderr,
+				"Error: Failure while attempting to match regex '%s' to subject '%s' (%d): %s\n",
+				pattern, subject, -ret, strerror(-ret));
 			break;
 		}
 
@@ -263,7 +269,7 @@ static int test_regex_or_superstring_exact(void)
 	return assert_match("^(KM0H|KD0JLT)$", "KKM0H", 0);
 }
 
-static int try_match(const char *pattern, const char *subject)
+static int try_match(const char * const pattern, const char * const subject)
 {
 	struct regex_handle re;
 	int ret;
@@ -271,24 +277,25 @@ static int try_match(const char *pattern, const char *subject)
 	memset(&re, 0x0, sizeof(struct regex_handle));
 
 	ret = regex_init(&re);
-	if (ret < 0)
-	{
-		fprintf(stderr, "Error: Failed to initialize regex (%d): %s\n", -ret, strerror(-ret));
+	if (ret < 0) {
+		fprintf(stderr, "Error: Failed to initialize regex (%d): %s\n",
+			-ret, strerror(-ret));
 		return ret;
 	}
 
 	ret = regex_compile(&re, pattern);
-	if (ret < 0)
-	{
-		fprintf(stderr, "Error: Failed to compile regex '%s' (%d): %s\n", pattern, -ret, strerror(-ret));
+	if (ret < 0) {
+		fprintf(stderr,
+			"Error: Failed to compile regex '%s' (%d): %s\n",
+			pattern, -ret, strerror(-ret));
 		goto try_match_exit;
 	}
 
 	ret = regex_is_match(&re, subject);
 	if (ret < 0)
-	{
-		fprintf(stderr, "Error: Failed to match '%s' against '%s' (%d): %s\n", subject, pattern, -ret, strerror(-ret));
-	}
+		fprintf(stderr,
+			"Error: Failed to match '%s' against '%s' (%d): %s\n",
+			subject, pattern, -ret, strerror(-ret));
 
 try_match_exit:
 	regex_free(&re);

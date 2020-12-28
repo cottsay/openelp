@@ -44,12 +44,12 @@
  * @brief Internal API for threads
  */
 
-#ifndef _thread_h
-#define _thread_h
-
-#include "mutex.h"
+#ifndef THREAD_H_
+#define THREAD_H_
 
 #include <stdint.h>
+
+#include "mutex.h"
 
 /*!
  * @brief Represents an instance of a thread
@@ -58,18 +58,17 @@
  * should be initialized using the ::thread_init function, and subsequently
  * freed by ::thread_free when the thread is no longer needed.
  */
-struct thread_handle
-{
-	/// Private data - used internally by thread functions
+struct thread_handle {
+	/*! Private data - used internally by thread functions */
 	void *priv;
 
-	/// Pointer to the function to be called by the thread when it starts
-	void * (*func_ptr)(void *);
+	/*! Pointer to the function to be called by the thread when it starts */
+	void * (*func_ptr)(void *ctx);
 
-	/// Context to pass to thread_handle::func_ptr
+	/*! Context to pass to thread_handle::func_ptr */
 	void *func_ctx;
 
-	/// Size for stack used for the thread
+	/*! Size for stack used for the thread */
 	unsigned int stack_size;
 };
 
@@ -107,4 +106,4 @@ int thread_join(struct thread_handle *th);
  */
 int thread_start(struct thread_handle *th);
 
-#endif /* _thread_h */
+#endif /* THREAD_H_ */

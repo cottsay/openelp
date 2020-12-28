@@ -231,9 +231,9 @@ else()
   endif()
 endif()
 
-# Default to C11
+# Default to C90
 if(NOT CMAKE_C_STANDARD)
-  set(CMAKE_C_STANDARD 11)
+  set(CMAKE_C_STANDARD 90)
 endif()
 
 #

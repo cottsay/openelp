@@ -44,11 +44,11 @@
  * @brief Tests related to MD5 generation
  */
 
-#include "digest.h"
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "digest.h"
 
 /*!
  * @brief Basic test of MD5 generation
@@ -77,27 +77,33 @@ int main(void)
 
 static int test_md5_basic(void)
 {
-	const char md5_challenge[] = "thequickbrownfox";
-	const uint8_t md5_control[16] = { 0x30, 0x8f, 0xb7, 0x6d, 0xc4, 0xd7, 0x30, 0x36, 0x0e, 0xe3, 0x39, 0x32, 0xd2, 0xfb, 0x10, 0x56 };
-	const char md5_control_str[33] = "308FB76DC4D730360EE33932D2FB1056";
+	static const char md5_challenge[] = "thequickbrownfox";
+	const uint8_t md5_control[16] = {
+		0x30, 0x8f, 0xb7, 0x6d, 0xc4, 0xd7, 0x30, 0x36,
+		0x0e, 0xe3, 0x39, 0x32, 0xd2, 0xfb, 0x10, 0x56,
+	};
+	static const char md5_control_str[33] = "308FB76DC4D730360EE33932D2FB1056";
 	uint8_t md5_result[16] = { 0x00 };
 	char md5_result_str[33] = "";
 
-	digest_get((uint8_t *)md5_challenge, (unsigned int)strlen(md5_challenge), md5_result);
+	digest_get((const uint8_t *)md5_challenge,
+		   (unsigned int)strlen(md5_challenge), md5_result);
 
 	digest_to_str(md5_control, md5_result_str);
 
-	if (strcmp(md5_control_str, md5_result_str) != 0)
-	{
-		fprintf(stderr, "Error: digest_to_str mismatch. Expected 0x%s Got: 0x%s\n", md5_control_str, md5_result_str);
+	if (strcmp(md5_control_str, md5_result_str) != 0) {
+		fprintf(stderr,
+			"Error: digest_to_str mismatch. Expected 0x%s Got: 0x%s\n",
+			md5_control_str, md5_result_str);
 		return -EINVAL;
 	}
 
 	digest_to_str(md5_result, md5_result_str);
 
-	if (strcmp(md5_control_str, md5_result_str) != 0)
-	{
-		fprintf(stderr, "Error: digest_get mismatch. Expected: 0x%s Got: 0x%s\n", md5_control_str, md5_result_str);
+	if (strcmp(md5_control_str, md5_result_str) != 0) {
+		fprintf(stderr,
+			"Error: digest_get mismatch. Expected: 0x%s Got: 0x%s\n",
+			md5_control_str, md5_result_str);
 		return -EINVAL;
 	}
 

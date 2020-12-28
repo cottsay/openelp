@@ -44,8 +44,8 @@
  * @brief Internal API for proxy server registration
  */
 
-#ifndef _registration_h
-#define _registration_h
+#ifndef REGISTRATION_H_
+#define REGISTRATION_H_
 
 #include "conf.h"
 
@@ -57,9 +57,8 @@
  * subsequently freed by ::registration_service_free when the registration
  * infrastructure is no longer needed.
  */
-struct registration_service_handle
-{
-	/// Private data - used internally by proxy_conn functions
+struct registration_service_handle {
+	/*! Private data - used internally by registration_service functions */
 	void *priv;
 };
 
@@ -87,7 +86,8 @@ int registration_service_init(struct registration_service_handle *rs);
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-int registration_service_start(struct registration_service_handle *rs, const struct proxy_conf *conf);
+int registration_service_start(struct registration_service_handle *rs,
+			       const struct proxy_conf *conf);
 
 /*!
  * @brief Sends a final status message and stops the registration thread
@@ -105,6 +105,7 @@ int registration_service_stop(struct registration_service_handle *rs);
  * @param[in] slots_used Number of proxy slots currently in use
  * @param[in] slots_total Total number of configured proxy slots
  */
-void registration_service_update(struct registration_service_handle *rs, size_t slots_used, size_t slots_avail);
+void registration_service_update(struct registration_service_handle *rs,
+				 size_t slots_used, size_t slots_total);
 
-#endif /* _registration_h */
+#endif /* REGISTRATION_H_ */

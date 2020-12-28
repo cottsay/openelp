@@ -44,47 +44,43 @@
  * @brief Implementation of the regular expression matcher
  */
 
-#include "regex.h"
-
-#include <pcre2.h>
-
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <pcre2.h>
+
+#include "regex.h"
+
 /*!
  * @brief Private data for an instance of a compiled regular expression
  */
-struct regex_priv
-{
-	/// Perl Compatible Regular Expression
+struct regex_priv {
+	/*! Perl Compatible Regular Expression */
 	pcre2_code *re;
 };
 
 int regex_compile(struct regex_handle *re, const char *pattern)
 {
-	struct regex_priv *priv = (struct regex_priv *)re->priv;
+	struct regex_priv *priv = re->priv;
 	int errorcode;
 	PCRE2_SIZE erroroffset;
 	int ret;
 
 	if (priv->re != NULL)
-	{
 		pcre2_code_free(priv->re);
-	}
 
-	priv->re = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, 0, &errorcode, &erroroffset, NULL);
-	if (priv->re == NULL)
-	{
-		ret =-EINVAL;
+	priv->re = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, 0,
+				 &errorcode, &erroroffset, NULL);
+	if (priv->re == NULL) {
+		ret = -EINVAL;
 		goto regex_compile_exit;
 	}
 
 	return 0;
 
 regex_compile_exit:
-	if (priv->re != NULL)
-	{
+	if (priv->re != NULL) {
 		pcre2_code_free(priv->re);
 		priv->re = NULL;
 	}
@@ -94,14 +90,11 @@ regex_compile_exit:
 
 void regex_free(struct regex_handle *re)
 {
-	if (re->priv != NULL)
-	{
-		struct regex_priv *priv = (struct regex_priv *)re->priv;
+	if (re->priv != NULL) {
+		struct regex_priv *priv = re->priv;
 
 		if (priv->re != NULL)
-		{
 			pcre2_code_free(priv->re);
-		}
 
 		free(re->priv);
 		re->priv = NULL;
@@ -111,50 +104,37 @@ void regex_free(struct regex_handle *re)
 int regex_init(struct regex_handle *re)
 {
 	if (re->priv == NULL)
-	{
 		re->priv = malloc(sizeof(struct regex_priv));
-	}
 
 	if (re->priv == NULL)
-	{
 		return -ENOMEM;
-	}
 
 	memset(re->priv, 0x0, sizeof(struct regex_priv));
 
 	return 0;
 }
 
-int regex_is_match(struct regex_handle *re, const char *subject)
+int regex_is_match(const struct regex_handle *re, const char *subject)
 {
-	struct regex_priv *priv = (struct regex_priv *)re->priv;
+	const struct regex_priv *priv = (const struct regex_priv *)re->priv;
 	PCRE2_SPTR sub = (PCRE2_SPTR)subject;
 	size_t sub_len = strlen(subject);
 	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(priv->re, NULL);
 	int ret;
 
 	if (match_data == NULL)
-	{
 		return -EINVAL;
-	}
 
 	ret = pcre2_match(priv->re, sub, sub_len, 0, 0, match_data, NULL);
 
 	pcre2_match_data_free(match_data);
 
-	if (ret < 0)
-	{
+	if (ret < 0) {
 		if (ret == PCRE2_ERROR_NOMATCH)
-		{
 			return 0;
-		}
 		else
-		{
 			return -EINVAL;
-		}
-	}
-	else
-	{
+	} else {
 		return 1;
 	}
 }

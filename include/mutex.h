@@ -44,8 +44,8 @@
  * @brief Internal API for mutual exclusion objects
  */
 
-#ifndef _mutex_h
-#define _mutex_h
+#ifndef MUTEX_H_
+#define MUTEX_H_
 
 #include <stdint.h>
 
@@ -56,9 +56,8 @@
  * should be initialized using the ::condvar_init function, and subsequently
  * freed by ::condvar_free when the condition variable is no longer needed.
  */
-struct condvar_handle
-{
-	/// Private data - used internally by condvar functions
+struct condvar_handle {
+	/*! Private data - used internally by condvar functions */
 	void *priv;
 };
 
@@ -69,9 +68,8 @@ struct condvar_handle
  * should be initialized using the ::mutex_init function, and subsequently
  * freed by ::mutex_free when the mutex is no longer needed.
  */
-struct mutex_handle
-{
-	/// Private data - used internally by mutex functions
+struct mutex_handle {
+	/*! Private data - used internally by mutex functions */
 	void *priv;
 };
 
@@ -112,7 +110,8 @@ int condvar_wait(struct condvar_handle *condvar, struct mutex_handle *mutex);
  *
  * @returns 0 on success, 1 on timeout, negative ERRNO value on failure
  */
-int condvar_wait_time(struct condvar_handle *condvar, struct mutex_handle *mutex, uint32_t msec);
+int condvar_wait_time(struct condvar_handle *condvar,
+		      struct mutex_handle *mutex, uint32_t msec);
 
 /*!
  * @brief Awakens all calls to ::condvar_wait currently blocked
@@ -186,4 +185,4 @@ int mutex_unlock(struct mutex_handle *mutex);
  */
 int mutex_unlock_shared(struct mutex_handle *mutex);
 
-#endif /* _mutex_h */
+#endif /* MUTEX_H_ */

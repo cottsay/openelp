@@ -44,8 +44,8 @@
  * @brief Internal API for proxy client connections
  */
 
-#ifndef _proxy_conn_h
-#define _proxy_conn_h
+#ifndef PROXY_CONN_H_
+#define PROXY_CONN_H_
 
 #include "conn.h"
 
@@ -56,15 +56,14 @@
  * should be initialized using the ::proxy_conn_init function, and subsequently
  * freed by ::proxy_conn_free when the regular expression is no longer needed.
  */
-struct proxy_conn_handle
-{
-	/// Reference to the parent proxy instance handle
-	struct proxy_handle *ph;
-
-	/// Private data - used internally by proxy_conn functions
+struct proxy_conn_handle {
+	/*! Private data - used internally by proxy_conn functions */
 	void *priv;
 
-	/// Null-terminated string containing the source address for client data
+	/*! Reference to the parent proxy instance handle */
+	struct proxy_handle *ph;
+
+	/*! Null-terminated string containing the source address for client data */
 	const char *source_addr;
 };
 
@@ -76,7 +75,8 @@ struct proxy_conn_handle
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-int proxy_conn_accept(struct proxy_conn_handle *pc, struct conn_handle *conn_client);
+int proxy_conn_accept(struct proxy_conn_handle *pc,
+		      struct conn_handle *conn_client);
 
 /*!
  * @brief Disconnects the connecte client and returns the connection to idle
@@ -128,4 +128,4 @@ int proxy_conn_start(struct proxy_conn_handle *pc);
  */
 int proxy_conn_stop(struct proxy_conn_handle *pc);
 
-#endif /* _proxy_conn_h */
+#endif /* PROXY_CONN_H_ */

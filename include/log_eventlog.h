@@ -44,19 +44,22 @@
  * @brief Defenitions and prototypes for interfacing with the Windows Event Log
  */
 
-#ifndef _log_eventlog_h
-#define _log_eventlog_h
+#ifndef LOG_EVENTLOG_H_
+#define LOG_EVENTLOG_H_
 
 #ifdef HAVE_EVENTLOG
 #  include <windows.h>
 #  include <winbase.h>
 #  include "log_eventlog_messages.h"
-#  define EVENTLOG_ERRNO -(long)GetLastError()
+#  define EVENTLOG_ERRNO (-(int64_t)GetLastError())
 typedef HANDLE EVENTLOG_HANDLE;
 #else
-#  define DeregisterEventSource(...)
-#  define RegisterEventSource(...) NULL
-#  define ReportEvent(handle, type, cat, eventId, userSid, numStrings, dataSize, strings, rawData) (void)handle, (void)type, (void)cat, (void)eventId, (void)userSid, (void)numStrings, (void)dataSize, (void)strings, (void)rawData
+#  define DeregisterEventSource(hEventLog)
+#  define RegisterEventSource(lpUNCServerName, lpSourceName) NULL
+#  define ReportEvent(handle, type, cat, eventId, userSid, numStrings, \
+	dataSize, strings, rawData) ((void)handle, (void)type, (void)cat, \
+	(void)eventId, (void)userSid, (void)numStrings, (void)dataSize, \
+	(void)strings, (void)rawData)
 #  define EVENTLOG_ERRNO -ENOTSUP
 #  define EVENTLOG_ERROR_TYPE 0
 #  define EVENTLOG_WARNING_TYPE 0
@@ -66,7 +69,7 @@ typedef HANDLE EVENTLOG_HANDLE;
 #  define LOG_IDENT_WARN 0
 #  define LOG_IDENT_INFO 0
 #  define LOG_IDENT_DEBUG 0
-typedef void * EVENTLOG_HANDLE;
+typedef void *EVENTLOG_HANDLE;
 #endif
 
-#endif /* _log_eventlog_h */
+#endif /* LOG_EVENTLOG_H_ */

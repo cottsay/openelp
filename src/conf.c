@@ -44,24 +44,25 @@
  * @brief Proxy configuration implementation
  */
 
-#include "conf.h"
-#include "log.h"
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "conf.h"
+#include "log.h"
 
 /*!
  * @brief Parse a single null- or newline-terminated line into the configuration
  *
  * @param[in] line null- or newline-terminated line to parse
  * @param[in,out] conf Target configuration instance
- * @param[in,out] log Log handle for reporting logging events
+ * @param[in,out] log Handle for reporting logging events
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-static int conf_parse_line(const char *line, struct proxy_conf *conf, struct log_handle *log);
+static int conf_parse_line(const char *line, struct proxy_conf *conf,
+			   struct log_handle *log);
 
 /*!
  * @brief Parse a key/value pair into the configuration
@@ -71,22 +72,25 @@ static int conf_parse_line(const char *line, struct proxy_conf *conf, struct log
  * @param[in] val Configuration value
  * @param[in] val_len Length of val in characters
  * @param[in,out] conf Target configuration instance
- * @param[in,out] log Log handle for reporting logging events
+ * @param[in,out] log Handle for reporting logging events
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-static int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf, struct log_handle *log);
+static int conf_parse_pair(const char *key, size_t key_len,
+			   const char *val, size_t val_len,
+			   struct proxy_conf *conf, struct log_handle *log);
 
 /*!
  * @brief Parse a configuration file
  *
  * @param[in] stream File stream to parse
  * @param[in,out] conf Target configuration instance
- * @param[in,out] log Log handle for reporting logging events
+ * @param[in,out] log Handle for reporting logging events
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-static int conf_parse_stream(FILE *stream, struct proxy_conf *conf, struct log_handle *log);
+static int conf_parse_stream(FILE *stream, struct proxy_conf *conf,
+			     struct log_handle *log);
 
 /*!
  * @brief Cross-platform implementation of the getline function
@@ -105,49 +109,36 @@ static int conf_readline(char **lineptr, size_t *n, FILE *stream)
 	int temp;
 	char *temp_ptr;
 
-	if (*lineptr == NULL)
-	{
+	if (*lineptr == NULL) {
 		*lineptr = malloc(128);
 		if (*lineptr == NULL)
-		{
 			return -ENOMEM;
-		}
 
 		*n = 128;
-	}
-	else if (*n == 0)
-	{
+	} else if (*n == 0) {
 		temp_ptr = realloc(*lineptr, 128);
 		if (temp_ptr == NULL)
-		{
 			return -ENOMEM;
-		}
 
 		*lineptr = temp_ptr;
 		*n = 128;
 	}
 
-	while ((temp = fgetc(stream)) != EOF)
-	{
-		// Need more space?
-		if (so_far + 1 >= *n)
-		{
+	while ((temp = fgetc(stream)) != EOF) {
+		/* Need more space? */
+		if (so_far + 1 >= *n) {
 			temp_ptr = realloc(*lineptr, *n + 128);
 			if (temp_ptr == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			*lineptr = temp_ptr;
 			*n += 128;
 		}
 
-		(*lineptr)[so_far++] = temp;
+		(*lineptr)[so_far++] = (char)temp;
 
 		if (temp == '\n')
-		{
 			break;
-		}
 	}
 
 	(*lineptr)[so_far] = '\0';
@@ -155,60 +146,67 @@ static int conf_readline(char **lineptr, size_t *n, FILE *stream)
 	return (int)so_far;
 }
 
-static int conf_parse_line(const char *line, struct proxy_conf *conf, struct log_handle *log)
+static int conf_parse_line(const char *line, struct proxy_conf *conf,
+			   struct log_handle *log)
 {
 	const char *key = line;
 	size_t key_len = 0;
 	const char *val;
 	size_t val_len = 0;
 
-	// Find the beginning of the key
-	for (; *key == ' ' || *key == '\t' || *key == '\n' || *key == '\r'; key++);
+	/* Find the beginning of the key */
+	while (*key == ' ' || *key == '\t' || *key == '\n' || *key == '\r')
+		key++;
 
-	// If the line is a comment or empty, ignore it
+	/* If the line is a comment or empty, ignore it */
 	if (*key == '#' || *key == '\0' || *key == '=')
-	{
 		return 0;
-	}
 
-	// Find the '='
-	for (; key[key_len] != '='; key_len++)
-	{
-		// If the line doesn't have '=', ignore it
+	/* Find the '=' */
+	while (key[key_len] != '=') {
+		/* If the line doesn't have '=', ignore it */
 		if (key[key_len] == '\0')
-		{
 			return 0;
-		}
-	};
+		key_len++;
+	}
 
 	val = &key[key_len + 1];
 
-	// Backtrack if there is a space
-	for (; key_len > 0 && (key[key_len - 1] == ' ' || key[key_len - 1] == '\t'); key_len--);
+	/* Backtrack if there is a space */
+	while (key_len > 0 && (key[key_len - 1] == ' ' ||
+			       key[key_len - 1] == '\t'))
+		key_len--;
 
-	// Find the beginning of the key
-	for (; *val == ' ' || *val == '\t'; val++);
+	/* Find the beginning of the key */
+	while (*val == ' ' || *val == '\t')
+		val++;
 
-	for (; val[val_len] != '\0'; val_len++);
+	while (val[val_len] != '\0')
+		val_len++;
 
-	// Backtrack if there is a space
-	for (; val_len > 0 && (val[val_len - 1] == ' ' || val[val_len - 1] == '\t' || val[val_len - 1] == '\n' || val[val_len - 1] == '\r'); val_len--);
+	/* Backtrack if there is a space */
+	while (val_len > 0 && (val[val_len - 1] == ' ' ||
+			       val[val_len - 1] == '\t' ||
+			       val[val_len - 1] == '\n' ||
+			       val[val_len - 1] == '\r'))
+		val_len--;
 
 	return conf_parse_pair(key, key_len, val, val_len, conf, log);
 }
 
-static int conf_parse_pair(const char *key, size_t key_len, const char *val, size_t val_len, struct proxy_conf *conf, struct log_handle *log)
+static int conf_parse_pair(const char *key, size_t key_len,
+			   const char *val, size_t val_len,
+			   struct proxy_conf *conf, struct log_handle *log)
 {
 	char dummy[2];
 
-	switch (key_len)
-	{
+	switch (key_len) {
 	case 4:
-		if (strncmp(key, "Port", key_len) == 0)
-		{
-			if (sscanf(val, "%hu%1s", &conf->port, dummy) != 1)
-			{
-				log_printf(log, LOG_LEVEL_ERROR, "Invalid configuration value for 'Port': '%.*s'\n", (int)val_len, val);
+		if (strncmp(key, "Port", key_len) == 0) {
+			if (sscanf(val, "%hu%1s", &conf->port, dummy) != 1) {
+				log_printf(log, LOG_LEVEL_ERROR,
+					   "Invalid configuration value for 'Port': '%.*s'\n",
+					   (int)val_len, val);
 
 				return -EINVAL;
 			}
@@ -216,28 +214,23 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 		break;
 	case 8:
-		if (strncmp(key, "Password", key_len) == 0)
-		{
+		if (strncmp(key, "Password", key_len) == 0) {
 			if (conf->password != NULL)
-			{
 				free(conf->password);
-			}
 
 			conf->password = malloc(val_len + 1);
 			if (conf->password == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			memcpy(conf->password, val, val_len);
 			conf->password[val_len] = '\0';
 
-			if (strcmp(conf->password, "notset") == 0)
-			{
+			if (strcmp(conf->password, "notset") == 0) {
 				free(conf->password);
 				conf->password = NULL;
 
-				log_printf(log, LOG_LEVEL_ERROR, "Error: Missing password\n");
+				log_printf(log, LOG_LEVEL_ERROR,
+					   "Error: Missing password\n");
 
 				return -EINVAL;
 			}
@@ -245,24 +238,18 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 		break;
 	case 11:
-		if (strncmp(key, "BindAddress", key_len) == 0)
-		{
+		if (strncmp(key, "BindAddress", key_len) == 0) {
 			if (conf->bind_addr != NULL)
-			{
 				free(conf->bind_addr);
-			}
 
-			if (val_len == 0)
-			{
+			if (val_len == 0) {
 				conf->bind_addr = NULL;
 				break;
 			}
 
 			conf->bind_addr = malloc(val_len + 1);
 			if (conf->bind_addr == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			memcpy(conf->bind_addr, val, val_len);
 			conf->bind_addr[val_len] = '\0';
@@ -270,24 +257,18 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 		break;
 	case 13:
-		if (strncmp(key, "PublicAddress", key_len) == 0)
-		{
+		if (strncmp(key, "PublicAddress", key_len) == 0) {
 			if (conf->public_addr != NULL)
-			{
 				free(conf->public_addr);
-			}
 
-			if (val_len == 0)
-			{
+			if (val_len == 0) {
 				conf->public_addr = NULL;
 				break;
 			}
 
 			conf->public_addr = malloc(val_len + 1);
 			if (conf->public_addr == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			memcpy(conf->public_addr, val, val_len);
 			conf->public_addr[val_len] = '\0';
@@ -295,24 +276,18 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 		break;
 	case 15:
-		if (strncmp(key, "CallsignsDenied", key_len) == 0)
-		{
+		if (strncmp(key, "CallsignsDenied", key_len) == 0) {
 			if (conf->calls_denied != NULL)
-			{
 				free(conf->calls_denied);
-			}
 
-			if (val_len == 0)
-			{
+			if (val_len == 0) {
 				conf->calls_denied = NULL;
 				break;
 			}
 
 			conf->calls_denied = malloc(val_len + 1);
 			if (conf->calls_denied == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			memcpy(conf->calls_denied, val, val_len);
 			conf->calls_denied[val_len] = '\0';
@@ -320,46 +295,33 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 		break;
 	case 16:
-		if (strncmp(key, "CallsignsAllowed", key_len) == 0)
-		{
+		if (strncmp(key, "CallsignsAllowed", key_len) == 0) {
 			if (conf->calls_allowed != NULL)
-			{
 				free(conf->calls_allowed);
-			}
 
-			if (val_len == 0)
-			{
+			if (val_len == 0) {
 				conf->calls_allowed = NULL;
 				break;
 			}
 
 			conf->calls_allowed = malloc(val_len + 1);
 			if (conf->calls_allowed == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			memcpy(conf->calls_allowed, val, val_len);
 			conf->calls_allowed[val_len] = '\0';
-		}
-		else if (strncmp(key, "RegistrationName", key_len) == 0)
-		{
+		} else if (strncmp(key, "RegistrationName", key_len) == 0) {
 			if (conf->reg_name != NULL)
-			{
 				free(conf->reg_name);
-			}
 
-			if (val_len == 0)
-			{
+			if (val_len == 0) {
 				conf->reg_name = NULL;
 				break;
 			}
 
 			conf->reg_name = malloc(val_len + 1);
 			if (conf->reg_name == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			memcpy(conf->reg_name, val, val_len);
 			conf->reg_name[val_len] = '\0';
@@ -367,46 +329,33 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 		break;
 	case 19:
-		if (strncmp(key, "ExternalBindAddress", key_len) == 0)
-		{
+		if (strncmp(key, "ExternalBindAddress", key_len) == 0) {
 			if (conf->bind_addr_ext != NULL)
-			{
 				free(conf->bind_addr_ext);
-			}
 
-			if (val_len == 0)
-			{
+			if (val_len == 0) {
 				conf->bind_addr_ext = NULL;
 				break;
 			}
 
 			conf->bind_addr_ext = malloc(val_len + 1);
 			if (conf->bind_addr_ext == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			memcpy(conf->bind_addr_ext, val, val_len);
 			conf->bind_addr_ext[val_len] = '\0';
-		}
-		else if (strncmp(key, "RegistrationComment", key_len) == 0)
-		{
+		} else if (strncmp(key, "RegistrationComment", key_len) == 0) {
 			if (conf->reg_comment != NULL)
-			{
 				free(conf->reg_comment);
-			}
 
-			if (val_len == 0)
-			{
+			if (val_len == 0) {
 				conf->reg_comment = NULL;
 				break;
 			}
 
 			conf->reg_comment = malloc(val_len + 1);
 			if (conf->reg_comment == NULL)
-			{
 				return -ENOMEM;
-			}
 
 			memcpy(conf->reg_comment, val, val_len);
 			conf->reg_comment[val_len] = '\0';
@@ -414,51 +363,43 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 		break;
 	case 31:
-		if (strncmp(key, "AdditionalExternalBindAddresses", key_len) == 0)
-		{
+		if (strncmp(key, "AdditionalExternalBindAddresses", key_len) == 0) {
 			size_t i, j;
 
 			if (conf->bind_addr_ext_add != NULL)
-			{
 				free(conf->bind_addr_ext_add);
-			}
 
-			if (val_len == 0)
-			{
+			if (val_len == 0) {
 				conf->bind_addr_ext_add = NULL;
 				conf->bind_addr_ext_add_len = 0;
 				break;
 			}
 
 			for (i = 1; i < val_len; i++)
-			{
 				if (val[i] == ',')
-				{
 					conf->bind_addr_ext_add_len++;
-				}
-			}
 
 			conf->bind_addr_ext_add_len++;
 
-			conf->bind_addr_ext_add = malloc(conf->bind_addr_ext_add_len * sizeof(char *));
+			conf->bind_addr_ext_add = malloc(
+				conf->bind_addr_ext_add_len *
+				sizeof(*conf->bind_addr_ext_add));
 			if (conf->bind_addr_ext_add == NULL)
-			{
 				return -ENOMEM;
-			}
 
-			memset(conf->bind_addr_ext_add, 0x0, conf->bind_addr_ext_add_len * sizeof(char *));
+			memset(conf->bind_addr_ext_add, 0x0,
+			       conf->bind_addr_ext_add_len *
+			       sizeof(*conf->bind_addr_ext_add));
 
-			for (i = 0, j = 0; i < conf->bind_addr_ext_add_len; i++)
-			{
+			for (i = 0, j = 0; i < conf->bind_addr_ext_add_len; i++) {
 				size_t k = j;
 
-				for (; j < val_len && val[j] != ','; j++);
+				while (j < val_len && val[j] != ',')
+					j++;
 
 				conf->bind_addr_ext_add[i] = malloc(j - k + 1);
 				if (conf->bind_addr_ext_add[i] == NULL)
-				{
 					goto bind_addr_ext_add_exit;
-				}
 
 				memcpy(conf->bind_addr_ext_add[i], &val[k], j - k);
 				conf->bind_addr_ext_add[i][j - k] = '\0';
@@ -468,14 +409,10 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 
 			break;
 
-		bind_addr_ext_add_exit:
+bind_addr_ext_add_exit:
 			for (i = 0; i < conf->bind_addr_ext_add_len; i++)
-			{
 				if (conf->bind_addr_ext_add[i] != NULL)
-				{
 					free(conf->bind_addr_ext_add[i]);
-				}
-			}
 
 			free(conf->bind_addr_ext_add);
 			conf->bind_addr_ext_add = NULL;
@@ -488,23 +425,21 @@ static int conf_parse_pair(const char *key, size_t key_len, const char *val, siz
 	return 0;
 }
 
-static int conf_parse_stream(FILE *stream, struct proxy_conf *conf, struct log_handle *log)
+static int conf_parse_stream(FILE *stream, struct proxy_conf *conf,
+			     struct log_handle *log)
 {
 	char *line = NULL;
 	size_t line_len = 0;
 	int ret = 0;
 
-	while (conf_readline(&line, &line_len, stream) > 0)
-	{
+	while (conf_readline(&line, &line_len, stream) > 0) {
 		ret = conf_parse_line(line, conf, log);
 
 		free(line);
 		line = NULL;
 
 		if (ret < 0)
-		{
 			return ret;
-		}
 	}
 
 	free(line);
@@ -524,12 +459,9 @@ void conf_free(struct proxy_conf *conf)
 {
 	int i;
 
-	if (conf->bind_addr_ext_add != NULL)
-	{
+	if (conf->bind_addr_ext_add != NULL) {
 		for (i = 0; i < conf->bind_addr_ext_add_len; i++)
-		{
 			free(conf->bind_addr_ext_add[i]);
-		}
 
 		conf->bind_addr_ext_add_len = 0;
 
@@ -537,66 +469,58 @@ void conf_free(struct proxy_conf *conf)
 		conf->bind_addr_ext_add = NULL;
 	}
 
-	if (conf->bind_addr != NULL)
-	{
+	if (conf->bind_addr != NULL) {
 		free(conf->bind_addr);
 		conf->bind_addr = NULL;
 	}
 
-	if (conf->bind_addr_ext != NULL)
-	{
+	if (conf->bind_addr_ext != NULL) {
 		free(conf->bind_addr_ext);
 		conf->bind_addr_ext = NULL;
 	}
 
-	if (conf->calls_allowed != NULL)
-	{
+	if (conf->calls_allowed != NULL) {
 		free(conf->calls_allowed);
 		conf->calls_allowed = NULL;
 	}
 
-	if (conf->calls_denied != NULL)
-	{
+	if (conf->calls_denied != NULL) {
 		free(conf->calls_denied);
 		conf->calls_denied = NULL;
 	}
 
-	if (conf->password != NULL)
-	{
+	if (conf->password != NULL) {
 		free(conf->password);
 		conf->password = NULL;
 	}
 
-	if (conf->reg_name != NULL)
-	{
+	if (conf->reg_name != NULL) {
 		free(conf->reg_name);
 		conf->reg_name = NULL;
 	}
 
-	if (conf->reg_comment != NULL)
-	{
+	if (conf->reg_comment != NULL) {
 		free(conf->reg_comment);
 		conf->reg_comment = NULL;
 	}
 
-	if (conf->public_addr != NULL)
-	{
+	if (conf->public_addr != NULL) {
 		free(conf->public_addr);
 		conf->public_addr = NULL;
 	}
 }
 
-int conf_parse_file(const char *file, struct proxy_conf *conf, struct log_handle *log)
+int conf_parse_file(const char *file, struct proxy_conf *conf,
+		    struct log_handle *log)
 {
 	FILE *stream;
 	int ret;
 
 	log_printf(log, LOG_LEVEL_DEBUG, "Loading proxy config from '%s'\n", file);
 
-	if ((stream = fopen(file, "r")) == NULL)
-	{
+	stream = fopen(file, "r");
+	if (stream == NULL)
 		return -errno;
-	}
 
 	ret = conf_parse_stream(stream, conf, log);
 

@@ -44,8 +44,8 @@
  * @brief Internal API for network connections
  */
 
-#ifndef _conn_h
-#define _conn_h
+#ifndef CONN_H_
+#define CONN_H_
 
 #include <stdint.h>
 
@@ -56,13 +56,12 @@
 /*!
  * @brief Supported connection protocols
  */
-enum CONN_TYPE
-{
-	/// Transmission Control Protocol
+enum CONN_TYPE {
+	/*! Transmission Control Protocol */
 	CONN_TYPE_TCP,
 
-	/// User Datagram Protocol
-	CONN_TYPE_UDP,
+	/*! User Datagram Protocol */
+	CONN_TYPE_UDP
 };
 
 /*!
@@ -72,18 +71,17 @@ enum CONN_TYPE
  * should be initialized using the ::conn_init function, and subsequently
  * freed by ::conn_free when the network connection is no longer needed.
  */
-struct conn_handle
-{
-	/// Private data - used internally by conn functions
+struct conn_handle {
+	/*! Private data - used internally by conn functions */
 	void *priv;
 
-	/// Local network interface to bind to, or NULL for all
+	/*! Local network interface to bind to, or NULL for all */
 	const char *source_addr;
 
-	/// Local socket port to bind to, or NULL for any
+	/*! Local socket port to bind to, or NULL for any */
 	const char *source_port;
 
-	/// Protocol to use for this connection
+	/*! Protocol to use for this connection */
 	enum CONN_TYPE type;
 };
 
@@ -178,7 +176,8 @@ int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len);
  *
  * @returns Number of bytes copied on success, negative ERRNO value on failure
  */
-int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len, uint32_t *addr, uint16_t *port);
+int conn_recv_any(struct conn_handle *conn, uint8_t *buff, size_t buff_len,
+		  uint32_t *addr, uint16_t *port);
 
 /*!
  * @brief Send data to the connected client
@@ -202,7 +201,8 @@ int conn_send(struct conn_handle *conn, const uint8_t *buff, size_t buff_len);
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-int conn_send_to(struct conn_handle *conn, const uint8_t *buff, size_t buff_len, uint32_t addr, uint16_t port);
+int conn_send_to(struct conn_handle *conn, const uint8_t *buff,
+		 size_t buff_len, uint32_t addr, uint16_t port);
 
 /*!
  * @brief Stops socket operations but does not close the socket
@@ -219,4 +219,4 @@ void conn_shutdown(struct conn_handle *conn);
  */
 void conn_get_remote_addr(const struct conn_handle *conn, char dest[46]);
 
-#endif /* _conn_h */
+#endif /* CONN_H_ */

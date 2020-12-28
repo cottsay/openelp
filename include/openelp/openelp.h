@@ -49,8 +49,8 @@
  * proxy.
  */
 
-#ifndef _openelp_h
-#define _openelp_h
+#ifndef OPENELP_H_
+#define OPENELP_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,53 +63,51 @@ extern "C" {
 #endif
 
 #ifndef OPENELP_API
-   /// Public API decorator
+/*! Public API decorator */
 #  define OPENELP_API
 #endif
 
-/// Length in bytes of the expected password response from the client
+/*! Length in bytes of the expected password response from the client */
 #define PROXY_PASS_RES_LEN 16
 
 /*!
  * @brief Severity level of log information
  */
-enum LOG_LEVEL
-{
-	/// A fatal event, which will result in program termination
+enum LOG_LEVEL {
+	/*! A fatal event, which will result in program termination */
 	LOG_LEVEL_FATAL = 0,
 
-	/// A failure event which should not have happened under normal circumstances
+	/*! A failure event which should not have happened under normal circumstances */
 	LOG_LEVEL_ERROR,
 
-	/// An unusual event which could indicate a problem
+	/*! An unusual event which could indicate a problem */
 	LOG_LEVEL_WARN,
 
-	/// An event which is part of the normal lifecycle of the program
+	/*! An event which is part of the normal lifecycle of the program */
 	LOG_LEVEL_INFO,
 
-	/// A verbose event
-	LOG_LEVEL_DEBUG,
+	/*! A verbose event */
+	LOG_LEVEL_DEBUG
 };
 
 /*!
  * @brief Logging facilities to write logging events to
  */
-enum LOG_MEDIUM
-{
-	/// Discard all log messages
+enum LOG_MEDIUM {
+	/*! Discard all log messages */
 	LOG_MEDIUM_NONE = 0,
 
-	/// Print all log messages to stdout and stderr
+	/*! Print all log messages to stdout and stderr */
 	LOG_MEDIUM_STDOUT,
 
-	/// Append all log messages to the given file.
+	/*! Append all log messages to the given file */
 	LOG_MEDIUM_FILE,
 
-	/// Send all log messages to Syslog
+	/*! Send all log messages to Syslog */
 	LOG_MEDIUM_SYSLOG,
 
-	/// Send all log messages to the Windows Event Log
-	LOG_MEDIUM_EVENTLOG,
+	/*! Send all log messages to the Windows Event Log */
+	LOG_MEDIUM_EVENTLOG
 };
 
 /*!
@@ -119,40 +117,39 @@ enum LOG_MEDIUM
  * value is absent or empty in the configuration file, it is NULL in this
  * struct.
  */
-struct proxy_conf
-{
-	/// Address to bind to for listening for client connections
+struct proxy_conf {
+	/*! Address to bind to for listening for client connections */
 	char *bind_addr;
 
-	/// Address to bind to for sending and receiving the client's data
+	/*! Address to bind to for sending and receiving the client's data */
 	char *bind_addr_ext;
 
-	/// Additional addresses to bind to for additional clients' data
+	/*! Additional addresses to bind to for additional clients' data */
 	char **bind_addr_ext_add;
 
-	/// Number of additional addresses specified by bind_addr_ext_add
-	uint16_t bind_addr_ext_add_len;
-
-	/// Regular expression for matching allowed callsigns
+	/*! Regular expression for matching allowed callsigns */
 	char *calls_allowed;
 
-	/// Regular expression for matching denied callsigns
+	/*! Regular expression for matching denied callsigns */
 	char *calls_denied;
 
-	/// Required password for access
+	/*! Required password for access */
 	char *password;
 
-	/// Port on which to listen for client connections
-	uint16_t port;
-
-	/// Name to use when registering in the official list
+	/*! Name to use when registering in the official list */
 	char *reg_name;
 
-	/// Optional comment showen in the official proxy list
+	/*! Optional comment showen in the official proxy list */
 	char *reg_comment;
 
-	/// Registered address override
+	/*! Registered address override */
 	char *public_addr;
+
+	/*! Number of additional addresses specified by bind_addr_ext_add */
+	uint16_t bind_addr_ext_add_len;
+
+	/*! Port on which to listen for client connections */
+	uint16_t port;
 };
 
 /*!
@@ -162,13 +159,12 @@ struct proxy_conf
  * should be initialized using the ::proxy_init function, and subsequently
  * freed by ::proxy_free when the proxy is no longer needed.
  */
-struct proxy_handle
-{
-	/// Configuration for the proxy
-	struct proxy_conf conf;
-
-	/// Private data - used internally by proxy functions
+struct proxy_handle {
+	/*! Private data - used internally by proxy functions */
 	void *priv;
+
+	/*! Configuration for the proxy */
+	struct proxy_conf conf;
 };
 
 /*!
@@ -189,7 +185,8 @@ int OPENELP_API get_nonce(uint32_t *nonce);
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-int OPENELP_API get_password_response(const uint32_t nonce, const char *password, uint8_t response[PROXY_PASS_RES_LEN]);
+int OPENELP_API get_password_response(uint32_t nonce, const char *password,
+				      uint8_t response[PROXY_PASS_RES_LEN]);
 
 /*!
  * @brief Authorizes the given callsign against the proxy's configuration
@@ -199,7 +196,8 @@ int OPENELP_API get_password_response(const uint32_t nonce, const char *password
  *
  * @returns 1 if call is authorized, 0 if not, negative ERRNO value on failure
  */
-int OPENELP_API proxy_authorize_callsign(struct proxy_handle *ph, const char *callsign);
+int OPENELP_API proxy_authorize_callsign(struct proxy_handle *ph,
+					 const char *callsign);
 
 /*!
  * @brief Closes the proxy so no more clients can connect
@@ -256,7 +254,8 @@ int OPENELP_API proxy_load_conf(struct proxy_handle *ph, const char *path);
  * @param[in] fmt String format of message
  * @param[in] ... Arguments for format specification
  */
-void OPENELP_API proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const char *fmt, ...);
+void OPENELP_API proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl,
+			   const char *fmt, ...);
 
 /*!
  * @brief Changes the log message importance threshold
@@ -264,7 +263,7 @@ void OPENELP_API proxy_log(struct proxy_handle *ph, enum LOG_LEVEL lvl, const ch
  * @param[in,out] ph Target proxy instance
  * @param[in] lvl New message importance threshold
  */
-void OPENELP_API proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL lvl);
+void OPENELP_API proxy_log_level(struct proxy_handle *ph, enum LOG_LEVEL lvl);
 
 /*!
  * @brief Changes the target logging medium
@@ -275,7 +274,9 @@ void OPENELP_API proxy_log_level(struct proxy_handle *ph, const enum LOG_LEVEL l
  *
  * @returns 0 on success, negative ERRNO value on failure
  */
-int OPENELP_API proxy_log_select_medium(struct proxy_handle *ph, const enum LOG_MEDIUM medium, const char *target);
+int OPENELP_API proxy_log_select_medium(struct proxy_handle *ph,
+					enum LOG_MEDIUM medium,
+					const char *target);
 
 /*!
  * @brief Opens the proxy for client connections
@@ -322,4 +323,4 @@ void OPENELP_API proxy_update_registration(struct proxy_handle *ph);
 }
 #endif
 
-#endif /* _openelp_h */
+#endif /* OPENELP_H_ */

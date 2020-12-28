@@ -44,14 +44,14 @@
  * @brief Internal API for retrieving WSA errors
  */
 
-#ifndef _conn_wsa_errno_h
-#define _conn_wsa_errno_h
+#ifndef CONN_WSA_ERRNO_H_
+#define CONN_WSA_ERRNO_H_
 
 /*!
  * @brief Retrieves the last WSA error
  *
  * @returns ERRNO value, or WSA error if conversion failed
  */
-int conn_wsa_errno();
+int conn_wsa_errno(void);
 
-#endif /* _conn_wsa_errno_h */
+#endif /* CONN_WSA_ERRNO_H_ */

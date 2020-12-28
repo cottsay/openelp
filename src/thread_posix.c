@@ -44,36 +44,34 @@
  * @brief Threading implementation for POSIX machines
  */
 
-#include "mutex.h"
-#include "thread.h"
-
-#include <pthread.h>
-
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <pthread.h>
+
+#include "mutex.h"
+#include "thread.h"
+
 /*!
  * @brief Private data for an instance of a POSIX thread
  */
-struct thread_priv
-{
-	/// Boolean value indicating if the mutex has been initialized
-	uint8_t dirty;
+struct thread_priv {
+	/*! POSIX thread */
+	pthread_t		thread;
 
-	/// Mutex for protecting the thread handle
-	struct mutex_handle mutex;
+	/*! Mutex for protecting the thread handle */
+	struct mutex_handle	mutex;
 
-	/// POSIX thread
-	pthread_t thread;
+	/*! Boolean value indicating if the mutex has been initialized */
+	uint8_t			dirty;
 };
 
 void thread_free(struct thread_handle *pt)
 {
-	struct thread_priv *priv = (struct thread_priv *)pt->priv;
+	struct thread_priv *priv = pt->priv;
 
-	if (pt->priv != NULL)
-	{
+	if (pt->priv != NULL) {
 		thread_join(pt);
 
 		mutex_free(&priv->mutex);
@@ -89,23 +87,17 @@ int thread_init(struct thread_handle *pt)
 	int ret;
 
 	if (pt->priv == NULL)
-	{
 		pt->priv = malloc(sizeof(struct thread_priv));
-	}
 	if (pt->priv == NULL)
-	{
 		return -ENOMEM;
-	}
 
 	memset(pt->priv, 0x0, sizeof(struct thread_priv));
 
-	priv = (struct thread_priv *)pt->priv;
+	priv = pt->priv;
 
 	ret = mutex_init(&priv->mutex);
 	if (ret < 0)
-	{
 		goto thread_init_exit;
-	}
 
 	return 0;
 
@@ -118,25 +110,20 @@ thread_init_exit:
 
 int thread_join(struct thread_handle *pt)
 {
-	struct thread_priv *priv = (struct thread_priv *)pt->priv;
+	struct thread_priv *priv = pt->priv;
 	int ret;
 
 	mutex_lock(&priv->mutex);
 
-	if (!priv->dirty)
-	{
+	if (!priv->dirty) {
 		ret = 0;
-	}
-	else
-	{
+	} else {
 		ret = pthread_join(priv->thread, NULL);
 
 		priv->dirty = 0;
 
 		if (ret == 0)
-		{
-			memset(&priv->thread, 0x0, sizeof(pthread_t));
-		}
+			memset(&priv->thread, 0x0, sizeof(priv->thread));
 	}
 
 	mutex_unlock(&priv->mutex);
@@ -146,23 +133,18 @@ int thread_join(struct thread_handle *pt)
 
 int thread_start(struct thread_handle *pt)
 {
-	struct thread_priv *priv = (struct thread_priv *)pt->priv;
+	struct thread_priv *priv = pt->priv;
 	pthread_attr_t attr;
 	int ret;
 
 	ret = pthread_attr_init(&attr);
 	if (ret != 0)
-	{
 		return ret > 0 ? -ret : ret;
-	}
 
-	if (pt->stack_size > 0)
-	{
+	if (pt->stack_size > 0) {
 		ret = pthread_attr_setstacksize(&attr, pt->stack_size);
 		if (ret != 0)
-		{
 			return ret > 0 ? -ret : ret;
-		}
 	}
 
 	thread_join(pt);

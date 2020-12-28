@@ -44,43 +44,39 @@
  * @brief WSA error conversion implementation
  */
 
-#include "conn_wsa_errno.h"
+#include <errno.h>
 
 #include <winsock2.h>
 
-#include <errno.h>
+#include "conn_wsa_errno.h"
 
-/// WSA error value coversion table
-/// @TODO Can this be const?
-static int wsa_errno[68] =
-{
-	10000,        EPERM,        ENOENT,       ESRCH,
-	EINTR,        EIO,          ENXIO,        E2BIG,
-	ENOEXEC,      EBADF,        ECHILD,       EAGAIN,
-	ENOMEM,       EACCES,       EFAULT,       10015,
-	EBUSY,        EEXIST,       EXDEV,        ENODEV,
-	ENOTDIR,      EISDIR,       10022,        ENFILE,
-	EMFILE,       ENOTTY,       10026,        EFBIG,
-	ENOSPC,       ESPIPE,       EROFS,        EMLINK,
-	10032,        10033,        10034,        EWOULDBLOCK,
-	EINPROGRESS,  EALREADY,     ENOTSOCK,     EDESTADDRREQ,
-	EMSGSIZE,     EPROTOTYPE,   ENOPROTOOPT,  EPROTONOSUPPORT,
-	10044,        EOPNOTSUPP,   10046,        EAFNOSUPPORT,
-	EADDRINUSE,   EADDRNOTAVAIL,ENETDOWN,     ENETUNREACH,
-	ENETRESET,    ECONNABORTED, ECONNRESET,   ENOBUFS,
-	EISCONN,      ENOTCONN,     10058,        10059,
-	ETIMEDOUT,    ECONNREFUSED, ELOOP,        ENAMETOOLONG,
-	10064,        EHOSTUNREACH, ENOTEMPTY,    10067,
+/*! WSA error value coversion table */
+static const int wsa_errno[68] = {
+	10000,	     EPERM,	    ENOENT,	 ESRCH,
+	EINTR,	     EIO,	    ENXIO,	 E2BIG,
+	ENOEXEC,     EBADF,	    ECHILD,	 EAGAIN,
+	ENOMEM,	     EACCES,	    EFAULT,	 10015,
+	EBUSY,	     EEXIST,	    EXDEV,	 ENODEV,
+	ENOTDIR,     EISDIR,	    10022,	 ENFILE,
+	EMFILE,	     ENOTTY,	    10026,	 EFBIG,
+	ENOSPC,	     ESPIPE,	    EROFS,	 EMLINK,
+	10032,	     10033,	    10034,	 EWOULDBLOCK,
+	EINPROGRESS, EALREADY,	    ENOTSOCK,	 EDESTADDRREQ,
+	EMSGSIZE,    EPROTOTYPE,    ENOPROTOOPT, EPROTONOSUPPORT,
+	10044,	     EOPNOTSUPP,    10046,	 EAFNOSUPPORT,
+	EADDRINUSE,  EADDRNOTAVAIL, ENETDOWN,	 ENETUNREACH,
+	ENETRESET,   ECONNABORTED,  ECONNRESET,	 ENOBUFS,
+	EISCONN,     ENOTCONN,	    10058,	 10059,
+	ETIMEDOUT,   ECONNREFUSED,  ELOOP,	 ENAMETOOLONG,
+	10064,	     EHOSTUNREACH,  ENOTEMPTY,	 10067,
 };
 
-int conn_wsa_errno()
+int conn_wsa_errno(void)
 {
 	int ret = WSAGetLastError();
 
 	if (ret >= 10000 && ret <= 10067)
-	{
 		return wsa_errno[ret - 10000];
-	}
 
 	return ret;
 }

@@ -44,10 +44,10 @@
  * @brief Implmentation of the random number generator
  */
 
-#include "rand.h"
-
 #include <stdlib.h>
 #include <time.h>
+
+#include "rand.h"
 
 int rand_init(void)
 {

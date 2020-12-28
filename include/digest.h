@@ -44,8 +44,8 @@
  * @brief Internal API for digest generation
  */
 
-#ifndef _digest_h
-#define _digest_h
+#ifndef DIGEST_H_
+#define DIGEST_H_
 
 #include <stdint.h>
 
@@ -53,17 +53,18 @@
 #  include <unistd.h>
 #endif
 
-/// Length in bytes of all digests
+/*! Length in bytes of all digests */
 #define DIGEST_LEN 16
 
 /*!
  * @brief Calculates the digest of the given data
  *
- * @param[in] data Data whose digest is calculated
+ * @param[in] data The data whose digest is calculated
  * @param[in] len Number of bytes at the location indicated by data
  * @param[out] result Resulting digest value
  */
-void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGEST_LEN]);
+void digest_get(const uint8_t *data, unsigned int len,
+		uint8_t result[DIGEST_LEN]);
 
 /*!
  * @brief Converts a 32-bit value to a base 16 string
@@ -71,7 +72,7 @@ void digest_get(const uint8_t *data, const unsigned int len, uint8_t result[DIGE
  * @param[in] data Numeric value to convert
  * @param[out] result Resulting ASCII characters
  */
-void digest_to_hex32(const uint32_t data, char result[8]);
+void digest_to_hex32(uint32_t data, char result[8]);
 
 /*!
  * @brief Converts the given digest to a null terminated string
@@ -79,7 +80,8 @@ void digest_to_hex32(const uint32_t data, char result[8]);
  * @param[in] md5 Input digest value
  * @param[out] result Resulting string representation of the given digest
  */
-void digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1]);
+void digest_to_str(const uint8_t md5[DIGEST_LEN],
+		   char result[2 * DIGEST_LEN + 1]);
 
 /*!
  * @brief Converts a base 16 string to a 32-bit value
@@ -89,4 +91,4 @@ void digest_to_str(const uint8_t md5[DIGEST_LEN], char result[2 * DIGEST_LEN + 1
  */
 uint32_t hex32_to_digest(const char data[8]);
 
-#endif /* _digest_h */
+#endif /* DIGEST_H_ */

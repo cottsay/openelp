@@ -44,29 +44,27 @@
  * @brief Windows service routines
  */
 
-#include "openelp/openelp.h"
+#include <stdio.h>
 
 #include <windows.h>
 
-#include <stdio.h>
+#include "openelp/openelp.h"
 
-/// Program usage message
-static const char *usage = "Usage: openelp_service.exe [install|uninstall|-d]\n";
+/*! Program usage message */
+static const char usage[] =
+	"Usage: openelp_service.exe [install|uninstall|-d]\n";
 
-/// Handle to the EchoLink proxy for the service
-static struct proxy_handle ph =
-{
-	.priv = NULL,
-};
+/*! Handle to the EchoLink proxy for the service */
+static struct proxy_handle ph = { 0 };
 
-/// Service termination indicator
-static uint8_t sentinel = 0;
+/*! Service termination indicator */
+static uint8_t sentinel;
 
-/// Name and display name of the service
-static char *service_name = "OpenELP";
+/*! Name and display name of the service */
+static char service_name[] = "OpenELP";
 
-/// Status handle for the serice
-static SERVICE_STATUS_HANDLE service_status_handle = NULL;
+/*! Status handle for the serice */
+static SERVICE_STATUS_HANDLE service_status_handle;
 
 /*!
  * @brief Main entry point for the service executable
@@ -76,7 +74,7 @@ static SERVICE_STATUS_HANDLE service_status_handle = NULL;
  *
  * @returns 0 on success, non-zero error code on failure
  */
-int main(int argc, char *argv[]);
+int main(int argc, const char * const argv[]);
 
 /*!
  * @brief Control signal handler for the Windows service
@@ -90,7 +88,7 @@ void WINAPI service_ctrl_handler(DWORD ctrl);
  *
  * @returns 0 on success, Windows error code value on failure
  */
-static int service_install();
+static int service_install(void);
 
 /*!
  * @brief Main entry point for the Windows service
@@ -98,7 +96,7 @@ static int service_install();
  * @param[in] argc Number of arguments in argv
  * @param[in] argv Array of null-terminated argument strings
  */
-void WINAPI service_main(int argc, char *argv[]);
+void WINAPI service_main(int argc, const char * const argv[]);
 
 /*!
  * @brief Report the status of the Windows service
@@ -114,71 +112,70 @@ static void service_report_status(int state, int exit_code, int wait_hint);
  *
  * @returns 0 on success, Windows error code value on failure
  */
-static int service_uninstall();
+static int service_uninstall(void);
 
-int main(int argc, char *argv[])
+int main(int argc, const char * const argv[])
 {
 	int ret;
-	SERVICE_TABLE_ENTRY service_table[] =
-	{
-		{ service_name, (LPSERVICE_MAIN_FUNCTION)service_main },
-		{ NULL, NULL },
+	SERVICE_TABLE_ENTRY service_table[] = {
+		{
+			service_name,
+			(LPSERVICE_MAIN_FUNCTION)service_main,
+		},
+		{
+			NULL,
+			NULL,
+		},
 	};
 
-	if (argc > 1)
-	{
-		if (argc > 2)
-		{
+	if (argc > 1) {
+		if (argc > 2) {
 			printf(usage);
 			return -1;
 		}
 
-		if (strcmp(argv[1], "install") == 0)
-		{
+		if (strcmp(argv[1], "install") == 0) {
 			ret = service_install();
-			if (ret != 0)
-			{
-				fprintf(stderr, "Failed to install service '%s' (%d)\n", service_name, -ret);
+			if (ret != 0) {
+				fprintf(stderr,
+					"Failed to install service '%s' (%d)\n",
+					service_name, -ret);
 				return -2;
 			}
 
-			printf("Successfully installed service '%s'\n", service_name);
+			printf("Successfully installed service '%s'\n",
+			       service_name);
 
 			return 0;
-		}
-		else if (strcmp(argv[1], "uninstall") == 0)
-		{
+		} else if (strcmp(argv[1], "uninstall") == 0) {
 			ret = service_uninstall();
-			if (ret != 0)
-			{
-				fprintf(stderr, "Failed to uninstall service '%s' (%d)\n", service_name, -ret);
+			if (ret != 0) {
+				fprintf(stderr,
+					"Failed to uninstall service '%s' (%d)\n",
+					service_name, -ret);
 				return -2;
 			}
 
-			printf("Successfully removed service '%s'\n", service_name);
+			printf("Successfully removed service '%s'\n",
+			       service_name);
 
 			return 0;
-		}
-		else if (strcmp(argv[1], "--help") == 0)
-		{
+		} else if (strcmp(argv[1], "--help") == 0) {
 			printf(usage);
 			return 0;
 		}
-		else
-		{
-			printf(usage);
-			return -1;
-		}
+
+		printf(usage);
+		return -1;
 	}
 
-	// Start the control dispatcher thread for our service
+	/* Start the control dispatcher thread for our service */
 	return StartServiceCtrlDispatcher(service_table) ? 0 : -1;
 }
 
 void WINAPI service_ctrl_handler(DWORD ctrl)
 {
-	switch (ctrl)
-	{
+	switch (ctrl) {
 	case SERVICE_CONTROL_STOP:
 		proxy_log(&ph, LOG_LEVEL_INFO, "Received shutdown signal.");
 
@@ -196,65 +193,53 @@ void WINAPI service_ctrl_handler(DWORD ctrl)
 	}
 }
 
-static int service_install()
+static int service_install(void)
 {
 	char exe_path[MAX_PATH];
 	int ret;
 	SC_HANDLE scman;
 	SC_HANDLE svc;
-	SERVICE_DESCRIPTION sdesc =
-	{
-		.lpDescription = "Open Source EchoLink Proxy",
+	SERVICE_DESCRIPTION sdesc = {
+		"Open Source EchoLink Proxy",
 	};
 
 	ret = GetModuleFileName(NULL, exe_path, MAX_PATH);
 	if (ret == 0)
-	{
 		return GetLastError();
-	}
 
-	// Get a handle to the SCM database.
+	/* Get a handle to the SCM database */
 	scman = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	if (scman == NULL)
-	{
 		return GetLastError();
-	}
 
-	// Create the service
+	/* Create the service */
 	svc = CreateService(
-		scman,                     // SCM database
-		service_name,              // name of service
-		service_name,              // service name to display
-		SERVICE_CHANGE_CONFIG,     // desired access
-		SERVICE_WIN32_OWN_PROCESS, // service type
-		SERVICE_DEMAND_START,      // start type
-		SERVICE_ERROR_NORMAL,      // error control type
-		exe_path,                  // path to service's binary
-		NULL,                      // no load ordering group
-		NULL,                      // no tag identifier
-		"netman\0",                // dependencies
-		NULL,                      // LocalSystem account
-		NULL);                     // no password
-	if (svc == NULL)
-	{
+		scman,                          /* SCM database */
+		service_name,                   /* name of service */
+		service_name,                   /* service name to display */
+		SERVICE_CHANGE_CONFIG,          /* desired access */
+		SERVICE_WIN32_OWN_PROCESS,      /* service type */
+		SERVICE_DEMAND_START,           /* start type */
+		SERVICE_ERROR_NORMAL,           /* error control type */
+		exe_path,                       /* path to service's binary */
+		NULL,                           /* no load ordering group */
+		NULL,                           /* no tag identifier */
+		"netman\0",                     /* dependencies */
+		NULL,                           /* LocalSystem account */
+		NULL);                          /* no password */
+	if (svc == NULL) {
 		ret = -(long)GetLastError();
 
 		goto service_uninstall_exit;
-	}
-	else
-	{
+	} else {
 		ret = 0;
 	}
 
 	ret = ChangeServiceConfig2(svc, SERVICE_CONFIG_DESCRIPTION, &sdesc);
 	if (ret != 1)
-	{
 		ret = -(long)GetLastError();
-	}
 	else
-	{
 		ret = 0;
-	}
 
 	CloseServiceHandle(svc);
 
@@ -264,96 +249,92 @@ service_uninstall_exit:
 	return ret;
 }
 
-void WINAPI service_main(int argc, char *argv[])
+void WINAPI service_main(int argc, const char * const argv[])
 {
 	char config_path[MAX_PATH];
 	enum LOG_LEVEL default_log_level = LOG_LEVEL_INFO;
 	int ret;
 
-	if (argc > 1)
-	{
-		if (strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "--debug") == 0)
-		{
+	if (argc > 1) {
+		if (strcmp(argv[1], "-d") == 0 ||
+		    strcmp(argv[1], "--debug") == 0)
 			default_log_level = LOG_LEVEL_DEBUG;
-		}
 	}
 
-	memset(&ph, 0x0, sizeof(struct proxy_handle));
+	memset(&ph, 0x0, sizeof(ph));
 
-	service_status_handle = RegisterServiceCtrlHandler(service_name, service_ctrl_handler);
+	service_status_handle = RegisterServiceCtrlHandler(service_name,
+							   service_ctrl_handler);
 	if (service_status_handle == NULL)
-	{
-		//proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to register service ctrl handler\n");
+		/* proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to register service ctrl handler\n"); */
 		return;
-	}
 
 	service_report_status(SERVICE_START_PENDING, NO_ERROR, 1000);
 
-	// Initialize proxy
+	/* Initialize proxy */
 	ret = proxy_init(&ph);
 	if (ret < 0)
-	{
-		//proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to initialize proxy (%d): %s\n", -ret, strerror(-ret));
+		/* proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to initialize proxy (%d): %s\n", -ret, strerror(-ret)); */
 		goto service_main_exit_early;
-	}
 
-	// Set the logging level
+	/* Set the logging level */
 	proxy_log_level(&ph, default_log_level);
 
-	// Open the log early
+	/* Open the log early */
 	ret = proxy_log_select_medium(&ph, LOG_MEDIUM_EVENTLOG, NULL);
 	if (ret < 0)
-	{
-		//proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to open eventlog (%d)\n", -ret);
+		/* proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to open eventlog (%d)\n", -ret); */
 		goto service_main_exit;
-	}
 
-	// Find the config
+	/* Find the config */
 	ret = GetModuleFileName(NULL, config_path, MAX_PATH);
-	if (ret == 0)
-	{
+	if (ret == 0) {
 		ret = -(long)GetLastError();
-		proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to get current executable path (%d)\n", -ret);
+		proxy_log(&ph, LOG_LEVEL_FATAL,
+			  "Failed to get current executable path (%d)\n", -ret);
 		goto service_main_exit;
 	}
 
-	for (ret = (int)strlen(config_path); ret >= 0 && config_path[ret] != '\\'; ret--);
+	ret = (int)strlen(config_path);
+	while (ret >= 0 && config_path[ret] != '\\')
+		ret--;
 
-	if (ret > 0)
-	{
-		for (ret--; ret >= 0 && config_path[ret] != '\\'; ret--);
+	if (ret > 0) {
+		ret--;
+		while (ret >= 0 && config_path[ret] != '\\')
+			ret--;
 	}
 
-	if (ret < 0)
-	{
+	if (ret < 0) {
 		ret = -EINVAL;
 		goto service_main_exit;
-	}
-	else
-	{
+	} else {
 		strcpy(&config_path[ret], "\\ELProxy.conf");
 	}
 
-	// Load the config
+	/* Load the config */
 	ret = proxy_load_conf(&ph, config_path);
-	if (ret < 0)
-	{
-		proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to load config from '%s' (%d): %s\n", config_path, -ret, strerror(-ret));
+	if (ret < 0) {
+		proxy_log(&ph, LOG_LEVEL_FATAL,
+			  "Failed to load config from '%s' (%d): %s\n",
+			  config_path, -ret, strerror(-ret));
 		goto service_main_exit;
 	}
 
-	// Start listening
+	/* Start listening */
 	ret = proxy_open(&ph);
-	if (ret < 0)
-	{
-		proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to open proxy (%d): %s\n", -ret, strerror(-ret));
+	if (ret < 0) {
+		proxy_log(&ph, LOG_LEVEL_FATAL,
+			  "Failed to open proxy (%d): %s\n",
+			  -ret, strerror(-ret));
 		goto service_main_exit;
 	}
 
 	ret = proxy_start(&ph);
-	if (ret < 0)
-	{
-		proxy_log(&ph, LOG_LEVEL_FATAL, "Failed to start proxy (%d): %s\n", -ret, strerror(-ret));
+	if (ret < 0) {
+		proxy_log(&ph, LOG_LEVEL_FATAL,
+			  "Failed to start proxy (%d): %s\n",
+			  -ret, strerror(-ret));
 		goto service_main_exit;
 	}
 
@@ -361,20 +342,20 @@ void WINAPI service_main(int argc, char *argv[])
 
 	service_report_status(SERVICE_RUNNING, NO_ERROR, 0);
 
-	// Main dispatch loop
-	while (ret == 0 && sentinel == 0)
-	{
-		proxy_log(&ph, LOG_LEVEL_DEBUG, "Starting a processing run...\n");
+	/* Main dispatch loop */
+	while (ret == 0 && sentinel == 0) {
+		proxy_log(&ph, LOG_LEVEL_DEBUG,
+			  "Starting a processing run...\n");
 		ret = proxy_process(&ph);
-		if (ret < 0)
-		{
-			switch (ret)
-			{
+		if (ret < 0) {
+			switch (ret) {
 			case -EINTR:
 				ret = 0;
 				break;
 			default:
-				proxy_log(&ph, LOG_LEVEL_FATAL, "Message processing failure (%d): %s\n", -ret, strerror(-ret));
+				proxy_log(&ph, LOG_LEVEL_FATAL,
+					  "Message processing failure (%d): %s\n",
+					  -ret, strerror(-ret));
 				break;
 			}
 		}
@@ -393,40 +374,40 @@ static void service_report_status(int state, int exit_code, int wait_hint)
 {
 	static unsigned long check_point = 1;
 
-	SERVICE_STATUS status =
-	{
-		.dwServiceType = SERVICE_WIN32_OWN_PROCESS,
-		.dwCurrentState = state,
-		.dwWin32ExitCode = exit_code == 0 ? 0 : ERROR_SERVICE_SPECIFIC_ERROR,
-		.dwServiceSpecificExitCode = exit_code,
-		.dwWaitHint = wait_hint,
-		.dwControlsAccepted = state == SERVICE_START_PENDING ? 0 : SERVICE_ACCEPT_STOP,
-		.dwCheckPoint = ((state == SERVICE_RUNNING) || (state == SERVICE_STOPPED)) ? 0 : check_point++,
-	};
+	SERVICE_STATUS status = { 0 };
+
+	status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+	status.dwCurrentState = state;
+	status.dwWin32ExitCode = exit_code == 0 ?
+				 0 : ERROR_SERVICE_SPECIFIC_ERROR;
+	status.dwServiceSpecificExitCode = exit_code;
+	status.dwWaitHint = wait_hint;
+	status.dwControlsAccepted = state == SERVICE_START_PENDING ?
+				    0 : SERVICE_ACCEPT_STOP;
+	status.dwCheckPoint = ((state == SERVICE_RUNNING) ||
+			       (state == SERVICE_STOPPED)) ?
+			      0 : check_point++;
 
 	SetServiceStatus(service_status_handle, &status);
 }
 
-static int service_uninstall()
+static int service_uninstall(void)
 {
 	int ret;
 	SC_HANDLE scman;
 	SC_HANDLE svc;
 
-	// Get a handle to the SCM database.
+	/* Get a handle to the SCM database. */
 	scman = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	if (scman == NULL)
-	{
 		return GetLastError();
-	}
 
-	// Create the service
+	/* Create the service */
 	svc = OpenService(
-		scman,              // SCM database
-		service_name,       // name of service
-		DELETE);            // need delete access
-	if (svc == NULL)
-	{
+		scman,                  /* SCM database */
+		service_name,           /* name of service */
+		DELETE);                /* need delete access */
+	if (svc == NULL) {
 		ret = GetLastError();
 
 		goto service_uninstall_exit;
@@ -434,13 +415,9 @@ static int service_uninstall()
 
 	ret = DeleteService(svc);
 	if (ret == 0)
-	{
 		ret = -(long)GetLastError();
-	}
 	else
-	{
 		ret = 0;
-	}
 
 	CloseServiceHandle(svc);
 
