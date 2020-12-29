@@ -7,6 +7,7 @@ openelpd \- an open source EchoLink proxy daemon
 [\fB\-F\fR]
 [\fB\-L\fR <log file>]
 [\fB\-S\fR]
+[\fB\-V\fR]
 [configuration file]
 .SH DESCRIPTION
 \fBEchoLink\fR is a software system for connecting licensed radio amateurs to communicate over the internet using Voice over IP (VoIP). EchoLink clients require that UDP ports 5198 and 5199 be "forwarded" to the machine running the client. When this is not allowed or otherwise not possible, a proxy is used to listen for data on these ports and forward this data to a client over a TCP stream.
@@ -25,6 +26,9 @@ After initial startup is complete, switch the logging utility to output all info
 .TP
 .BR \-S
 After initial startup is complete, switch the logging utility to output all information to syslog. This flag is incompatible with \fB\-L\fR. Default behaviour is not to use syslog, and route all information to STDOUT.
+.TP
+.BR \-V
+Print the version of the daemon executable and exit.
 .TP
 If the configuration file path is not specified, \fBopenelpd\fR will first attempt to open the file named ELProxy.conf in the current working directory. On systems where a global configuration file path hint was specified at compile time, \fBopenelpd\fR will use that configuration path as a last resort.
 .SH BUGS
