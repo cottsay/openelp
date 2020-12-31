@@ -448,6 +448,47 @@ conn_connect_free_early:
 	return ret;
 }
 
+void conn_port_to_str(uint16_t port, char result[6])
+{
+	uint16_t port_tmp = port;
+	uint8_t n = 0;
+
+	do {
+		n++;
+		port_tmp /= 10;
+	} while (port_tmp != 0);
+
+	port_tmp = port;
+
+	switch (n) {
+	case 5:
+		*result = (char)(48 + port_tmp / 10000);
+		port_tmp %= 10000;
+		result++;
+		/* fall through */
+	case 4:
+		*result = (char)(48 + port_tmp / 1000);
+		port_tmp %= 1000;
+		result++;
+		/* fall through */
+	case 3:
+		*result = (char)(48 + port_tmp / 100);
+		port_tmp %= 100;
+		result++;
+		/* fall through */
+	case 2:
+		*result = (char)(48 + port_tmp / 10);
+		port_tmp %= 10;
+		result++;
+		/* fall through */
+	case 1:
+		*result = (char)(48 + port_tmp);
+		result++;
+	}
+
+	*result = '\0';
+}
+
 int conn_recv(struct conn_handle *conn, uint8_t *buff, size_t buff_len)
 {
 	struct conn_priv *priv = conn->priv;
@@ -725,7 +766,7 @@ void conn_shutdown(struct conn_handle *conn)
 	mutex_unlock_shared(&priv->mutex);
 }
 
-void conn_get_remote_addr(const struct conn_handle *conn, char dest[46])
+void conn_get_remote_addr(const struct conn_handle *conn, char dest[54])
 {
 	const struct conn_priv *priv = conn->priv;
 	const struct sockaddr_in *addr = (const struct sockaddr_in *)&priv->remote_addr;
@@ -734,9 +775,18 @@ void conn_get_remote_addr(const struct conn_handle *conn, char dest[46])
 	switch (priv->remote_addr.ss_family) {
 	case AF_INET:
 		inet_ntop(addr->sin_family, &addr->sin_addr.s_addr, dest, 46);
+		dest += strlen(dest);
+		dest[0] = ':';
+		conn_port_to_str(addr->sin_port, dest + 1);
 		break;
 	case AF_INET6:
-		inet_ntop(addr6->sin6_family, &addr6->sin6_addr.s6_addr, dest, 46);
+		dest[0] = '[';
+		inet_ntop(addr6->sin6_family, &addr6->sin6_addr.s6_addr,
+			  dest + 1, 46);
+		dest += strlen(dest);
+		dest[0] = ']';
+		dest[1] = ':';
+		conn_port_to_str(addr6->sin6_port, dest + 2);
 		break;
 	default:
 		strcpy(dest, "(unknown)");

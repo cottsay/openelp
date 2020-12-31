@@ -155,6 +155,14 @@ int conn_in_use(struct conn_handle *conn);
 int conn_listen(struct conn_handle *conn);
 
 /*!
+ * @brief Convert a port number to an ASCII string
+ *
+ * @param[in] port The port number to convert
+ * @param[out] result Resulting ASCII string
+ */
+void conn_port_to_str(uint16_t port, char result[6]);
+
+/*!
  * @brief Copies data which has been transferred to the connection
  *
  * @param[in] conn Target network connection instance
@@ -217,6 +225,6 @@ void conn_shutdown(struct conn_handle *conn);
  * @param[in] conn Target network connection instance
  * @param[out] dest Destination ASCII string
  */
-void conn_get_remote_addr(const struct conn_handle *conn, char dest[46]);
+void conn_get_remote_addr(const struct conn_handle *conn, char dest[54]);
 
 #endif /* CONN_H_ */

@@ -190,7 +190,7 @@ int proxy_load_conf(struct proxy_handle *ph, const char *path)
 	if (ret < 0)
 		return ret;
 
-	port_to_str(ph->conf.port, priv->port_str);
+	conn_port_to_str(ph->conf.port, priv->port_str);
 
 	if (ph->conf.bind_addr_ext_add != NULL) {
 		if (ph->conf.bind_addr_ext == NULL ||
@@ -546,7 +546,7 @@ int proxy_process(struct proxy_handle *ph)
 	struct conn_handle *conn = NULL;
 	int ret = -EBUSY;
 	int i;
-	char remote_addr[40] = { 0 };
+	char remote_addr[54] = { 0 };
 
 	conn = calloc(1, sizeof(*conn));
 	if (conn == NULL)

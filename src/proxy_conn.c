@@ -435,7 +435,7 @@ static void *client_manager(void *ctx)
 	struct proxy_conn_priv *priv = pc->priv;
 	int ret;
 	uint8_t buff[CONN_BUFF_LEN];
-	char remote_addr[40];
+	char remote_addr[54];
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
 		  "Proxy connection is ready on interface '%s'\n",
