@@ -103,13 +103,15 @@ void regex_free(struct regex_handle *re)
 
 int regex_init(struct regex_handle *re)
 {
-	if (re->priv == NULL)
-		re->priv = malloc(sizeof(struct regex_priv));
+	struct regex_priv *priv = re->priv;
 
-	if (re->priv == NULL)
-		return -ENOMEM;
+	if (priv == NULL) {
+		priv = calloc(1, sizeof(*priv));
+		if (priv == NULL)
+			return -ENOMEM;
 
-	memset(re->priv, 0x0, sizeof(struct regex_priv));
+		re->priv = priv;
+	}
 
 	return 0;
 }

@@ -48,6 +48,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "openelp/openelp.h"
@@ -133,15 +134,15 @@ void log_ident(struct log_handle *log)
 
 int log_init(struct log_handle *log)
 {
-	struct log_priv *priv;
+	struct log_priv *priv = log->priv;
 
-	if (log->priv == NULL)
-		log->priv = malloc(sizeof(struct log_priv));
+	if (priv == NULL) {
+		priv = calloc(1, sizeof(*priv));
+		if (priv == NULL)
+			return -ENOMEM;
 
-	if (log->priv == NULL)
-		return -ENOMEM;
-
-	priv = log->priv;
+		log->priv = priv;
+	}
 
 	log->medium = LOG_MEDIUM_NONE;
 	log->level = LOG_LEVEL_INFO;

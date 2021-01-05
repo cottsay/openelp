@@ -101,18 +101,16 @@ void thread_free(struct thread_handle *pt)
 
 int thread_init(struct thread_handle *pt)
 {
-	struct thread_priv *priv;
+	struct thread_priv *priv = pt->priv;
 	int ret;
 
-	if (pt->priv == NULL)
-		pt->priv = malloc(sizeof(struct thread_priv));
+	if (priv == NULL) {
+		priv = calloc(1, sizeof(*priv));
+		if (priv == NULL)
+			return -ENOMEM;
 
-	if (pt->priv == NULL)
-		return -ENOMEM;
-
-	memset(pt->priv, 0x0, sizeof(struct thread_priv));
-
-	priv = pt->priv;
+		pt->priv = priv;
+	}
 
 	ret = mutex_init(&priv->mutex);
 	if (ret < 0)

@@ -213,17 +213,16 @@ void proxy_ident(struct proxy_handle *ph)
 
 int proxy_init(struct proxy_handle *ph)
 {
-	struct proxy_priv *priv;
+	struct proxy_priv *priv = ph->priv;
 	int ret;
 
-	if (ph->priv == NULL)
-		ph->priv = malloc(sizeof(struct proxy_priv));
+	if (priv == NULL) {
+		priv = calloc(1, sizeof(*priv));
+		if (priv == NULL)
+			return -ENOMEM;
 
-	if (ph->priv == NULL)
-		return -ENOMEM;
-
-	memset(ph->priv, 0x0, sizeof(struct proxy_priv));
-	priv = ph->priv;
+		ph->priv = priv;
+	}
 
 	/* Initialize RNG */
 	ret = rand_init();
@@ -255,9 +254,6 @@ int proxy_init(struct proxy_handle *ph)
 	ret = mutex_init(&priv->usable_clients_mutex);
 	if (ret < 0)
 		goto proxy_init_exit;
-
-	priv->num_clients = 0;
-	priv->usable_clients = 0;
 
 	return 0;
 
@@ -315,12 +311,9 @@ int proxy_open(struct proxy_handle *ph)
 
 	priv->num_clients = 1 + ph->conf.bind_addr_ext_add_len;
 
-	priv->clients = malloc(sizeof(*priv->clients) * priv->num_clients);
+	priv->clients = calloc(priv->num_clients, sizeof(*priv->clients));
 	if (priv->clients == NULL)
 		return -ENOMEM;
-
-	memset(priv->clients, 0x0,
-	       sizeof(*priv->clients) * priv->num_clients);
 
 	ret = log_open(&priv->log);
 	if (ret < 0)
@@ -328,15 +321,12 @@ int proxy_open(struct proxy_handle *ph)
 
 	if (ph->conf.calls_allowed != NULL) {
 		if (priv->re_calls_allowed == NULL) {
-			priv->re_calls_allowed = malloc(
+			priv->re_calls_allowed = calloc(1,
 				sizeof(*priv->re_calls_allowed));
 			if (priv->re_calls_allowed == NULL) {
 				ret = -ENOMEM;
 				goto proxy_open_exit;
 			}
-
-			memset(priv->re_calls_allowed, 0x0,
-			       sizeof(*priv->re_calls_allowed));
 
 			ret = regex_init(priv->re_calls_allowed);
 			if (ret < 0) {
@@ -363,15 +353,12 @@ int proxy_open(struct proxy_handle *ph)
 
 	if (ph->conf.calls_denied != NULL) {
 		if (priv->re_calls_denied == NULL) {
-			priv->re_calls_denied = malloc(
+			priv->re_calls_denied = calloc(1,
 				sizeof(*priv->re_calls_denied));
 			if (priv->re_calls_denied == NULL) {
 				ret = -ENOMEM;
 				goto proxy_open_exit;
 			}
-
-			memset(priv->re_calls_denied, 0x0,
-			       sizeof(*priv->re_calls_denied));
 
 			ret = regex_init(priv->re_calls_denied);
 			if (ret < 0) {
@@ -561,11 +548,9 @@ int proxy_process(struct proxy_handle *ph)
 	int i;
 	char remote_addr[40] = { 0 };
 
-	conn = malloc(sizeof(*conn));
+	conn = calloc(1, sizeof(*conn));
 	if (conn == NULL)
 		return -ENOMEM;
-
-	memset(conn, 0x0, sizeof(*conn));
 
 	ret = conn_init(conn);
 	if (ret < 0) {

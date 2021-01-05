@@ -381,15 +381,11 @@ static int conf_parse_pair(const char *key, size_t key_len,
 
 			conf->bind_addr_ext_add_len++;
 
-			conf->bind_addr_ext_add = malloc(
-				conf->bind_addr_ext_add_len *
+			conf->bind_addr_ext_add = calloc(
+				conf->bind_addr_ext_add_len,
 				sizeof(*conf->bind_addr_ext_add));
 			if (conf->bind_addr_ext_add == NULL)
 				return -ENOMEM;
-
-			memset(conf->bind_addr_ext_add, 0x0,
-			       conf->bind_addr_ext_add_len *
-			       sizeof(*conf->bind_addr_ext_add));
 
 			for (i = 0, j = 0; i < conf->bind_addr_ext_add_len; i++) {
 				size_t k = j;

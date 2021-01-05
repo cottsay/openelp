@@ -1208,42 +1208,37 @@ void proxy_conn_free(struct proxy_conn_handle *pc)
 
 int proxy_conn_init(struct proxy_conn_handle *pc)
 {
-	struct proxy_conn_priv *priv;
+	struct proxy_conn_priv *priv = pc->priv;
 	int ret;
 
-	if (pc->priv == NULL)
-		pc->priv = malloc(sizeof(struct proxy_conn_priv));
+	if (priv == NULL) {
+		priv = calloc(1, sizeof(*priv));
+		if (priv == NULL)
+			return -ENOMEM;
 
-	if (pc->priv == NULL)
-		return -ENOMEM;
-
-	memset(pc->priv, 0x0, sizeof(struct proxy_conn_priv));
-
-	priv = pc->priv;
-
-	priv->conn_client = NULL;
-
-	ret = conn_init(&priv->conn_control);
-	if (ret != 0)
-		goto proxy_conn_init_exit;
-
-	ret = conn_init(&priv->conn_data);
-	if (ret != 0)
-		goto proxy_conn_init_exit;
-
-	ret = conn_init(&priv->conn_tcp);
-	if (ret != 0)
-		goto proxy_conn_init_exit;
+		pc->priv = priv;
+	}
 
 	priv->conn_control.source_addr = pc->source_addr;
 	priv->conn_control.source_port = "5199";
 	priv->conn_control.type = CONN_TYPE_UDP;
+	ret = conn_init(&priv->conn_control);
+	if (ret != 0)
+		goto proxy_conn_init_exit;
+
 	priv->conn_data.source_addr = pc->source_addr;
 	priv->conn_data.source_port = "5198";
 	priv->conn_data.type = CONN_TYPE_UDP;
+	ret = conn_init(&priv->conn_data);
+	if (ret != 0)
+		goto proxy_conn_init_exit;
+
 	priv->conn_tcp.source_addr = pc->source_addr;
 	priv->conn_tcp.source_port = NULL;
 	priv->conn_tcp.type = CONN_TYPE_TCP;
+	ret = conn_init(&priv->conn_tcp);
+	if (ret != 0)
+		goto proxy_conn_init_exit;
 
 	ret = condvar_init(&priv->condvar_client);
 	if (ret != 0)
@@ -1257,36 +1252,33 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
+	priv->thread_client.func_ctx = pc;
+	priv->thread_client.func_ptr = client_manager;
+	priv->thread_client.stack_size = 1024 * 1024;
 	ret = thread_init(&priv->thread_client);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
+	priv->thread_control.func_ctx = pc;
+	priv->thread_control.func_ptr = forwarder_control;
+	priv->thread_control.stack_size = 1024 * 1024;
 	ret = thread_init(&priv->thread_control);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
+	priv->thread_data.func_ctx = pc;
+	priv->thread_data.func_ptr = forwarder_data;
+	priv->thread_data.stack_size = 1024 * 1024;
 	ret = thread_init(&priv->thread_data);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
+	priv->thread_tcp.func_ctx = pc;
+	priv->thread_tcp.func_ptr = forwarder_tcp;
+	priv->thread_tcp.stack_size = 1024 * 1024;
 	ret = thread_init(&priv->thread_tcp);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
-
-	priv->thread_client.func_ctx = pc;
-	priv->thread_control.func_ctx = pc;
-	priv->thread_data.func_ctx = pc;
-	priv->thread_tcp.func_ctx = pc;
-
-	priv->thread_client.func_ptr = client_manager;
-	priv->thread_control.func_ptr = forwarder_control;
-	priv->thread_data.func_ptr = forwarder_data;
-	priv->thread_tcp.func_ptr = forwarder_tcp;
-
-	priv->thread_client.stack_size = 1024 * 1024;
-	priv->thread_control.stack_size = 1024 * 1024;
-	priv->thread_data.stack_size = 1024 * 1024;
-	priv->thread_tcp.stack_size = 1024 * 1024;
 
 	return 0;
 

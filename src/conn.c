@@ -134,18 +134,16 @@ struct conn_priv {
 
 int conn_init(struct conn_handle *conn)
 {
-	struct conn_priv *priv;
+	struct conn_priv *priv = conn->priv;
 	int ret;
 
-	if (conn->priv == NULL)
-		conn->priv = malloc(sizeof(struct conn_priv));
+	if (priv == NULL) {
+		priv = calloc(1, sizeof(*priv));
+		if (priv == NULL)
+			return -ENOMEM;
 
-	if (conn->priv == NULL)
-		return -ENOMEM;
-
-	memset(conn->priv, 0x0, sizeof(struct conn_priv));
-
-	priv = conn->priv;
+		conn->priv = priv;
+	}
 
 #ifdef _WIN32
 	ret = WSAStartup(MAKEWORD(2, 2), &priv->wsadat);
@@ -190,7 +188,6 @@ void conn_free(struct conn_handle *conn)
 		mutex_free(&priv->mutex);
 
 		free(conn->priv);
-
 		conn->priv = NULL;
 	}
 }
