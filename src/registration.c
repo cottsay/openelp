@@ -54,7 +54,7 @@
 #include "conn.h"
 #include "mutex.h"
 #include "registration.h"
-#include "thread.h"
+#include "worker.h"
 
 #define OCH_STR1(x) #x
 #define OCH_STR2(x) OCH_STR1(x)
@@ -63,15 +63,10 @@
 #define UPDATE_INTERVAL 600000
 
 enum REGISTRATION_STATUS {
-	REGISTRATION_STATUS_READY = 0,
+	REGISTRATION_STATUS_UNKNOWN = 0,
+	REGISTRATION_STATUS_READY,
 	REGISTRATION_STATUS_BUSY,
 	REGISTRATION_STATUS_OFF
-};
-
-enum REGISTRATION_FLAGS {
-	REGISTRATION_FLAGS_NONE = 0,
-	REGISTRATION_FLAG_SENTINEL = (1 << 0),
-	REGISTRATION_FLAG_UPDATE = (1 << 1)
 };
 
 struct registration_service_priv {
@@ -80,14 +75,12 @@ struct registration_service_priv {
 	char *reg_suffix;
 	char public;
 
-	struct condvar_handle condvar;
 	struct mutex_handle mutex;
-	struct thread_handle thread;
+	struct worker_handle worker;
 
 	size_t slots_total;
 	size_t slots_used;
 	enum REGISTRATION_STATUS status;
-	enum REGISTRATION_FLAGS flags;
 };
 
 static const char http_message[] =
@@ -108,12 +101,13 @@ static const char digest_salt[] = "#5A!zu";
 static const char protocol_version[] = "1.2.3o";
 
 static const char * const status_phrase[] = {
+	NULL,
 	"Ready",
 	"Busy",
 	"Off",
 };
 
-static void *registration_thread(void *ctx);
+static void registration_func(struct worker_handle *wh);
 
 static int send_report(struct registration_service_handle *rs,
 		       enum REGISTRATION_STATUS status, size_t slots_used,
@@ -126,11 +120,15 @@ static int send_report(struct registration_service_handle *rs,
 	int body_length = 0;
 	char message_header[sizeof(http_message) + 14];
 	char *message_body = NULL;
+	const char *status_str = status_phrase[status];
+
+	if (status_str == NULL)
+		return -EINVAL;
 
 	memset(&conn, 0x0, sizeof(conn));
 
 	/* printf("Updating registration (%s %s, %lu/%lu)\n",
-	 *	 priv->reg_name, status_phrase[status],
+	 *	 priv->reg_name, status_str,
 	 *	 (unsigned long)slots_used, (unsigned long)slots_total);
 	 */
 
@@ -147,7 +145,7 @@ static int send_report(struct registration_service_handle *rs,
 		message_body,
 		"name=%s&comment=%s [%lu/%lu]&public=%c&status=%s%s",
 		priv->reg_name, priv->reg_comment, (unsigned long)slots_used,
-		(unsigned long)slots_total, priv->public, status_phrase[status],
+		(unsigned long)slots_total, priv->public, status_str,
 		priv->reg_suffix);
 	if (body_length <= 0) {
 		ret = -EINVAL; /*! @TODO */
@@ -200,9 +198,8 @@ void registration_service_free(struct registration_service_handle *rs)
 
 		registration_service_stop(rs);
 
-		thread_free(&priv->thread);
+		worker_free(&priv->worker);
 		mutex_free(&priv->mutex);
-		condvar_free(&priv->condvar);
 
 		free((void *)priv->reg_suffix);
 
@@ -224,27 +221,26 @@ int registration_service_init(struct registration_service_handle *rs)
 		rs->priv = priv;
 	}
 
-	ret = condvar_init(&priv->condvar);
-	if (ret != 0)
-		goto registration_service_init_exit;
-
 	ret = mutex_init(&priv->mutex);
 	if (ret != 0)
 		goto registration_service_init_exit;
 
-	priv->thread.func_ctx = rs;
-	priv->thread.func_ptr = registration_thread;
-	priv->thread.stack_size = 1024 * 1024;
-	ret = thread_init(&priv->thread);
+	priv->worker.func_ctx = rs;
+	priv->worker.func_ptr = registration_func;
+	priv->worker.periodic_wake = UPDATE_INTERVAL;
+	priv->worker.stack_size = 1024 * 1024;
+	ret = worker_init(&priv->worker);
 	if (ret != 0)
 		goto registration_service_init_exit;
+
+	if (priv->status == REGISTRATION_STATUS_OFF)
+		priv->status = REGISTRATION_STATUS_UNKNOWN;
 
 	return 0;
 
 registration_service_init_exit:
-	thread_free(&priv->thread);
+	worker_free(&priv->worker);
 	mutex_free(&priv->mutex);
-	condvar_free(&priv->condvar);
 
 	free(rs->priv);
 	rs->priv = NULL;
@@ -280,8 +276,6 @@ int registration_service_start(struct registration_service_handle *rs,
 		goto registration_service_start_end;
 	}
 
-	priv->flags &= ~REGISTRATION_FLAG_SENTINEL;
-
 	ret = sprintf(reg_suffix, "%s%s%s", priv->reg_name, public_addr,
 		      digest_salt);
 	if (ret < 0)
@@ -303,7 +297,16 @@ int registration_service_start(struct registration_service_handle *rs,
 	priv->reg_suffix = reg_suffix;
 	reg_suffix = NULL;
 
-	ret = thread_start(&priv->thread);
+	ret = worker_start(&priv->worker);
+	if (ret < 0)
+		goto registration_service_start_end;
+
+	ret = worker_wake(&priv->worker);
+	if (ret < 0)
+		goto registration_service_start_end;
+
+	if (priv->status == REGISTRATION_STATUS_OFF)
+		priv->status = REGISTRATION_STATUS_UNKNOWN;
 
 registration_service_start_end:
 	mutex_unlock(&priv->mutex);
@@ -318,12 +321,11 @@ int registration_service_stop(struct registration_service_handle *rs)
 	struct registration_service_priv *priv = rs->priv;
 
 	mutex_lock(&priv->mutex);
-	priv->flags |= REGISTRATION_FLAG_SENTINEL | REGISTRATION_FLAG_UPDATE;
 	priv->status = REGISTRATION_STATUS_OFF;
-	condvar_wake_all(&priv->condvar);
+	worker_wake(&priv->worker);
 	mutex_unlock(&priv->mutex);
 
-	return thread_join(&priv->thread);
+	return worker_join(&priv->worker);
 }
 
 void registration_service_update(struct registration_service_handle *rs,
@@ -332,22 +334,20 @@ void registration_service_update(struct registration_service_handle *rs,
 	struct registration_service_priv *priv = rs->priv;
 
 	mutex_lock(&priv->mutex);
-	if (!(priv->flags & REGISTRATION_FLAG_SENTINEL)) {
+	if (priv->status < REGISTRATION_STATUS_OFF) {
 		priv->status = slots_used >= slots_total ?
 			       REGISTRATION_STATUS_BUSY :
 			       REGISTRATION_STATUS_READY;
 		priv->slots_used = slots_used;
 		priv->slots_total = slots_total;
-		priv->flags |= REGISTRATION_FLAG_UPDATE;
-		condvar_wake_all(&priv->condvar);
+		worker_wake(&priv->worker);
 	}
 	mutex_unlock(&priv->mutex);
 }
 
-static void *registration_thread(void *ctx)
+static void registration_func(struct worker_handle *wh)
 {
-	struct thread_handle *th = ctx;
-	struct registration_service_handle *rs = th->func_ctx;
+	struct registration_service_handle *rs = wh->func_ctx;
 	struct registration_service_priv *priv = rs->priv;
 
 	int ret;
@@ -357,34 +357,19 @@ static void *registration_thread(void *ctx)
 
 	mutex_lock(&priv->mutex);
 
-	while (1) {
-		slots_total = priv->slots_total;
-		slots_used = priv->slots_used;
-		status = priv->status;
-		priv->flags &= ~REGISTRATION_FLAG_UPDATE;
-
-		mutex_unlock(&priv->mutex);
-		ret = send_report(rs, status, slots_used, slots_total);
-		if (ret < 0) {
-			/* printf("Proxy registration failed (%d): %s\n",
-			 *      -ret, strerror(-ret));
-			 */
-		}
-		mutex_lock(&priv->mutex);
-
-		if (priv->flags & REGISTRATION_FLAG_UPDATE)
-			continue;
-
-		if (priv->flags & REGISTRATION_FLAG_SENTINEL)
-			break;
-
-		condvar_wait_time(&priv->condvar, &priv->mutex,
-				  UPDATE_INTERVAL);
-	}
-
-	priv->flags = REGISTRATION_FLAGS_NONE;
+	slots_total = priv->slots_total;
+	slots_used = priv->slots_used;
+	status = priv->status;
 
 	mutex_unlock(&priv->mutex);
 
-	return NULL;
+	if (status <= REGISTRATION_STATUS_UNKNOWN)
+		return;
+
+	ret = send_report(rs, status, slots_used, slots_total);
+	if (ret < 0) {
+		/* printf("Proxy registration failed (%d): %s\n",
+		 *	  -ret, strerror(-ret));
+		 */
+	}
 }
