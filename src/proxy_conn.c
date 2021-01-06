@@ -56,6 +56,7 @@
 #include "proxy_conn.h"
 #include "rand.h"
 #include "thread.h"
+#include "worker.h"
 
 /*!
  * @brief Maximum amount of data to process in one message
@@ -183,9 +184,6 @@ struct proxy_conn_priv {
 	/*! TCP connection to the client */
 	struct conn_handle *conn_client;
 
-	/*! Condition variable for waking proxy_conn_priv::thread_client */
-	struct condvar_handle condvar_client;
-
 	/*! UDP connection for control information */
 	struct conn_handle conn_control;
 
@@ -195,14 +193,11 @@ struct proxy_conn_priv {
 	/*! TCP connection for directory information */
 	struct conn_handle conn_tcp;
 
+	/*! Mutex for protecting the proxy_conn_priv::sentinel */
+	struct mutex_handle mutex_client;
+
 	/*! Mutex for protecting transmissions on proxy_conn_priv::conn_client */
 	struct mutex_handle mutex_client_send;
-
-	/*! Mutex for protecting the proxy_conn_priv::sentinel */
-	struct mutex_handle mutex_sentinel;
-
-	/*! Thread for handling data sent from the client */
-	struct thread_handle thread_client;
 
 	/*! Thread for handling data sent to proxy_conn_priv::conn_control */
 	struct thread_handle thread_control;
@@ -213,11 +208,11 @@ struct proxy_conn_priv {
 	/*! Thread for handling data sent to proxy_conn_priv::conn_tcp */
 	struct thread_handle thread_tcp;
 
+	/*! Worker for handling data sent from the client */
+	struct worker_handle worker_client;
+
 	/*! Last callsign that this proxy connection was connected to */
 	char callsign[12];
-
-	/*! Termination indicator for proxy_conn_priv::thread_client */
-	uint8_t sentinel;
 };
 
 /*!
@@ -232,11 +227,9 @@ static int client_authorize(struct proxy_conn_handle *pc);
 /*!
  * @brief Worker thread for managing the connection to the client
  *
- * @param[in,out] ctx Worker thread context
- *
- * @returns Always NULL
+ * @param[in,out] wh Worker thread context
  */
-static void *client_manager(void *ctx);
+static void client_manager(struct worker_handle *wh);
 
 /*!
  * @brief Worker thread for forwarding control information
@@ -428,191 +421,141 @@ static int client_authorize(struct proxy_conn_handle *pc)
 	return 0;
 }
 
-static void *client_manager(void *ctx)
+static void client_manager(struct worker_handle *wh)
 {
-	struct thread_handle *th = ctx;
-	struct proxy_conn_handle *pc = th->func_ctx;
+	struct proxy_conn_handle *pc = wh->func_ctx;
 	struct proxy_conn_priv *priv = pc->priv;
 	int ret;
 	uint8_t buff[CONN_BUFF_LEN];
 	char remote_addr[54];
 
+	mutex_lock_shared(&priv->mutex_client);
+
+	if (priv->conn_client == NULL) {
+		proxy_log(pc->ph, LOG_LEVEL_ERROR,
+			  "New connection was signaled, but no connection was given\n");
+
+		mutex_unlock_shared(&priv->mutex_client);
+
+		return;
+	}
+
+	mutex_unlock_shared(&priv->mutex_client);
+
+	conn_get_remote_addr(priv->conn_client, remote_addr);
+
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Proxy connection is ready on interface '%s'\n",
-		  pc->source_addr == NULL ? "0.0.0.0" : pc->source_addr);
+		  "New connection - beginning authorization procedure\n");
 
-	while (1) {
-		mutex_lock(&priv->mutex_sentinel);
-
-		if (priv->conn_client != NULL) {
-			conn_close(priv->conn_client);
-			conn_free(priv->conn_client);
-			free(priv->conn_client);
-			priv->conn_client = NULL;
-		}
-
-		if (priv->sentinel != 0) {
-			mutex_unlock(&priv->mutex_sentinel);
-
+	ret = client_authorize(pc);
+	if (ret < 0) {
+		switch (ret) {
+		case -ECONNRESET:
+		case -EINTR:
+		case -ENOTCONN:
+		case -EPIPE:
+			proxy_log(pc->ph, LOG_LEVEL_WARN,
+				  "Connection to client was lost before authorization could complete\n");
 			break;
-		}
-
-		condvar_wait(&priv->condvar_client, &priv->mutex_sentinel);
-
-		if (priv->sentinel != 0) {
-			mutex_unlock(&priv->mutex_sentinel);
-
-			break;
-		} else if (priv->conn_client == NULL) {
+		default:
 			proxy_log(pc->ph, LOG_LEVEL_ERROR,
-				  "New connection was signaled, but no connection was given\n");
-
-			mutex_unlock(&priv->mutex_sentinel);
-
-			continue;
+				  "Authorization failed for client '%s' (%d): %s\n",
+				  remote_addr, -ret, strerror(-ret));
 		}
 
-		mutex_unlock(&priv->mutex_sentinel);
+		mutex_lock(&priv->mutex_client);
+		conn_free(priv->conn_client);
+		free(priv->conn_client);
+		priv->conn_client = NULL;
+		mutex_unlock(&priv->mutex_client);
 
-		conn_get_remote_addr(priv->conn_client, remote_addr);
+		return;
+	}
 
-		proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-			  "New connection - beginning authorization procedure\n");
+	proxy_update_registration(pc->ph);
 
-		ret = client_authorize(pc);
+	ret = conn_listen(&priv->conn_control);
+	if (ret < 0) {
+		proxy_log(pc->ph, LOG_LEVEL_ERROR,
+			  "Failed to open UDP control port (5199). Dropping...\n");
+		goto client_manager_exit;
+	}
+
+	ret = conn_listen(&priv->conn_data);
+	if (ret < 0) {
+		proxy_log(pc->ph, LOG_LEVEL_ERROR,
+			  "Failed to open UDP data port (5198). Dropping...\n");
+		goto client_manager_exit;
+	}
+
+	ret = thread_start(&priv->thread_control);
+	if (ret < 0) {
+		proxy_log(pc->ph, LOG_LEVEL_ERROR,
+			  "Failed to start UDP control forwarder. Dropping...\n");
+		goto client_manager_exit;
+	}
+
+	ret = thread_start(&priv->thread_data);
+	if (ret < 0) {
+		proxy_log(pc->ph, LOG_LEVEL_ERROR,
+			  "Failed to start UDP data forwarder. Dropping...\n");
+		goto client_manager_exit;
+	}
+
+	proxy_log(pc->ph, LOG_LEVEL_INFO,
+		  "Connected to client '%s', using external interface '%s'.\n",
+		  priv->callsign, pc->source_addr == NULL ? "0.0.0.0" :
+		  pc->source_addr);
+
+	/* DO STUFF */
+	while (1) {
+		ret = conn_recv(priv->conn_client, buff, sizeof(struct proxy_msg));
 		if (ret < 0) {
 			switch (ret) {
 			case -ECONNRESET:
 			case -EINTR:
 			case -ENOTCONN:
 			case -EPIPE:
-				proxy_log(pc->ph, LOG_LEVEL_WARN,
-					  "Connection to client was lost before authorization could complete\n");
 				break;
 			default:
 				proxy_log(pc->ph, LOG_LEVEL_ERROR,
-					  "Authorization failed for client '%s' (%d): %s\n",
-					  remote_addr, -ret, strerror(-ret));
-			}
-
-			conn_drop(priv->conn_client);
-
-			continue;
-		}
-
-		ret = conn_listen(&priv->conn_control);
-		if (ret < 0) {
-			proxy_log(pc->ph, LOG_LEVEL_ERROR,
-				  "Failed to open UDP control port (5199). Dropping...\n");
-
-			conn_drop(priv->conn_client);
-
-			continue;
-		}
-
-		ret = conn_listen(&priv->conn_data);
-		if (ret < 0) {
-			proxy_log(pc->ph, LOG_LEVEL_ERROR,
-				  "Failed to open UDP data port (5198). Dropping...\n");
-
-			conn_close(&priv->conn_control);
-
-			conn_drop(priv->conn_client);
-
-			continue;
-		}
-
-		ret = thread_start(&priv->thread_control);
-		if (ret < 0) {
-			proxy_log(pc->ph, LOG_LEVEL_ERROR,
-				  "Failed to start UDP control forwarder. Dropping...\n");
-
-			conn_close(&priv->conn_control);
-			conn_close(&priv->conn_data);
-
-			conn_drop(priv->conn_client);
-
-			continue;
-		}
-
-		ret = thread_start(&priv->thread_data);
-		if (ret < 0) {
-			proxy_log(pc->ph, LOG_LEVEL_ERROR,
-				  "Failed to start UDP data forwarder. Dropping...\n");
-
-			conn_close(&priv->conn_control);
-			conn_close(&priv->conn_data);
-
-			thread_join(&priv->thread_control);
-
-			conn_drop(priv->conn_client);
-
-			continue;
-		}
-
-		proxy_log(pc->ph, LOG_LEVEL_INFO,
-			  "Connected to client '%s', using external interface '%s'.\n",
-			  priv->callsign, pc->source_addr == NULL ? "0.0.0.0" :
-			  pc->source_addr);
-
-		proxy_update_registration(pc->ph);
-
-		/* DO STUFF */
-		while (1) {
-			ret = conn_recv(priv->conn_client, buff, sizeof(struct proxy_msg));
-			if (ret < 0) {
-				switch (ret) {
-				case -ECONNRESET:
-				case -EINTR:
-				case -ENOTCONN:
-				case -EPIPE:
-					break;
-				default:
-					proxy_log(pc->ph, LOG_LEVEL_ERROR,
-						  "Failed to receive data from client '%s' (%d): %s\n",
-						  priv->callsign, -ret, strerror(-ret));
-					break;
-				}
-
+					  "Failed to receive data from client '%s' (%d): %s\n",
+					  priv->callsign, -ret, strerror(-ret));
 				break;
 			}
 
-			ret = process_message(pc, (struct proxy_msg *)buff);
-			if (ret < 0)
-				break;
+			break;
 		}
 
-		proxy_log(pc->ph, LOG_LEVEL_INFO,
-			  "Disconnected from client '%s'.\n", priv->callsign);
-
-		conn_close(&priv->conn_control);
-		conn_close(&priv->conn_data);
-		conn_close(&priv->conn_tcp);
-
-		thread_join(&priv->thread_data);
-		thread_join(&priv->thread_control);
-		thread_join(&priv->thread_tcp);
-
-		conn_drop(priv->conn_client);
-
-		proxy_update_registration(pc->ph);
+		ret = process_message(pc, (struct proxy_msg *)buff);
+		if (ret < 0) {
+			conn_drop(priv->conn_client);
+			break;
+		}
 	}
 
-	mutex_lock(&priv->mutex_sentinel);
+	proxy_log(pc->ph, LOG_LEVEL_INFO,
+		  "Disconnected from client '%s'.\n", priv->callsign);
 
-	if (priv->conn_client != NULL) {
-		conn_close(priv->conn_client);
-		conn_free(priv->conn_client);
-		free(priv->conn_client);
-		priv->conn_client = NULL;
-	}
+client_manager_exit:
+	conn_close(&priv->conn_control);
+	conn_close(&priv->conn_data);
+	conn_close(&priv->conn_tcp);
 
-	mutex_unlock(&priv->mutex_sentinel);
+	thread_join(&priv->thread_data);
+	thread_join(&priv->thread_control);
+	thread_join(&priv->thread_tcp);
+
+	mutex_lock(&priv->mutex_client);
+	conn_free(priv->conn_client);
+	free(priv->conn_client);
+	priv->conn_client = NULL;
+	mutex_unlock(&priv->mutex_client);
+
+	proxy_update_registration(pc->ph);
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Client manager thread is returning cleanly.\n");
-
-	return NULL;
+		  "Client manager is returning cleanly.\n");
 }
 
 static void *forwarder_control(void *ctx)
@@ -1149,18 +1092,18 @@ int proxy_conn_accept(struct proxy_conn_handle *pc,
 	struct proxy_conn_priv *priv = pc->priv;
 	int ret = 0;
 
-	mutex_lock(&priv->mutex_sentinel);
+	mutex_lock(&priv->mutex_client);
 
-	if (priv->sentinel != 0 || priv->conn_client != NULL) {
+	if (priv->conn_client != NULL) {
 		ret = -EBUSY;
 		goto proxy_conn_accept_exit;
 	}
 
 	priv->conn_client = conn_client;
-	condvar_wake_one(&priv->condvar_client);
+	worker_wake(&priv->worker_client);
 
 proxy_conn_accept_exit:
-	mutex_unlock(&priv->mutex_sentinel);
+	mutex_unlock(&priv->mutex_client);
 
 	return ret;
 }
@@ -1169,12 +1112,12 @@ void proxy_conn_drop(struct proxy_conn_handle *pc)
 {
 	struct proxy_conn_priv *priv = pc->priv;
 
-	mutex_lock(&priv->mutex_sentinel);
+	mutex_lock_shared(&priv->mutex_client);
 
 	if (priv->conn_client != NULL)
 		conn_drop(priv->conn_client);
 
-	mutex_unlock(&priv->mutex_sentinel);
+	mutex_unlock_shared(&priv->mutex_client);
 }
 
 void proxy_conn_free(struct proxy_conn_handle *pc)
@@ -1184,22 +1127,23 @@ void proxy_conn_free(struct proxy_conn_handle *pc)
 
 		proxy_conn_stop(pc);
 
+		worker_free(&priv->worker_client);
+
 		thread_free(&priv->thread_tcp);
 		thread_free(&priv->thread_data);
 		thread_free(&priv->thread_control);
-		thread_free(&priv->thread_client);
 
-		mutex_free(&priv->mutex_sentinel);
+		mutex_free(&priv->mutex_client);
 		mutex_free(&priv->mutex_client_send);
-
-		condvar_free(&priv->condvar_client);
 
 		conn_free(&priv->conn_tcp);
 		conn_free(&priv->conn_data);
 		conn_free(&priv->conn_control);
 
-		if (priv->conn_client != NULL)
+		if (priv->conn_client != NULL) {
 			conn_free(priv->conn_client);
+			free(priv->conn_client);
+		}
 
 		free(pc->priv);
 		pc->priv = NULL;
@@ -1240,22 +1184,11 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
-	ret = condvar_init(&priv->condvar_client);
-	if (ret != 0)
-		goto proxy_conn_init_exit;
-
 	ret = mutex_init(&priv->mutex_client_send);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
-	ret = mutex_init(&priv->mutex_sentinel);
-	if (ret != 0)
-		goto proxy_conn_init_exit;
-
-	priv->thread_client.func_ctx = pc;
-	priv->thread_client.func_ptr = client_manager;
-	priv->thread_client.stack_size = 1024 * 1024;
-	ret = thread_init(&priv->thread_client);
+	ret = mutex_init(&priv->mutex_client);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
@@ -1280,18 +1213,24 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
+	priv->worker_client.func_ctx = pc;
+	priv->worker_client.func_ptr = client_manager;
+	priv->worker_client.stack_size = 1024 * 1024;
+	ret = worker_init(&priv->worker_client);
+	if (ret != 0)
+		goto proxy_conn_init_exit;
+
 	return 0;
 
 proxy_conn_init_exit:
+	worker_free(&priv->worker_client);
+
 	thread_free(&priv->thread_tcp);
 	thread_free(&priv->thread_data);
 	thread_free(&priv->thread_control);
-	thread_free(&priv->thread_client);
 
-	mutex_free(&priv->mutex_sentinel);
+	mutex_free(&priv->mutex_client);
 	mutex_free(&priv->mutex_client_send);
-
-	condvar_free(&priv->condvar_client);
 
 	conn_free(&priv->conn_tcp);
 	conn_free(&priv->conn_data);
@@ -1308,12 +1247,12 @@ int proxy_conn_in_use(struct proxy_conn_handle *pc)
 	struct proxy_conn_priv *priv = pc->priv;
 	int ret = 0;
 
-	mutex_lock_shared(&priv->mutex_sentinel);
+	mutex_lock_shared(&priv->mutex_client);
 
 	if (priv->conn_client != NULL)
-		ret = conn_in_use(priv->conn_client);
+		ret = 1;
 
-	mutex_unlock_shared(&priv->mutex_sentinel);
+	mutex_unlock_shared(&priv->mutex_client);
 
 	return ret;
 }
@@ -1321,14 +1260,19 @@ int proxy_conn_in_use(struct proxy_conn_handle *pc)
 int proxy_conn_start(struct proxy_conn_handle *pc)
 {
 	struct proxy_conn_priv *priv = pc->priv;
-	int ret = 0;
+	int ret;
 
-	mutex_lock_shared(&priv->mutex_sentinel);
+	mutex_lock_shared(&priv->mutex_client);
 
-	if (priv->conn_client == NULL)
-		ret = thread_start(&priv->thread_client);
+	ret = worker_start(&priv->worker_client);
+	if (ret < 0)
+		goto proxy_conn_start_exit;
 
-	mutex_unlock_shared(&priv->mutex_sentinel);
+	if (priv->conn_client != NULL && worker_is_idle(&priv->worker_client))
+		worker_wake(&priv->worker_client);
+
+proxy_conn_start_exit:
+	mutex_unlock_shared(&priv->mutex_client);
 
 	return ret;
 }
@@ -1336,29 +1280,8 @@ int proxy_conn_start(struct proxy_conn_handle *pc)
 int proxy_conn_stop(struct proxy_conn_handle *pc)
 {
 	struct proxy_conn_priv *priv = pc->priv;
-	int ret = 0;
 
 	proxy_conn_drop(pc);
 
-	mutex_lock(&priv->mutex_sentinel);
-	priv->sentinel = 1;
-	condvar_wake_all(&priv->condvar_client);
-	mutex_unlock(&priv->mutex_sentinel);
-
-	ret = thread_join(&priv->thread_client);
-
-	mutex_lock(&priv->mutex_sentinel);
-
-	if (priv->conn_client != NULL) {
-		proxy_log(pc->ph, LOG_LEVEL_ERROR,
-			  "Proxy connection client thread didn't clean up the conn_client!\n");
-		conn_close(priv->conn_client);
-		conn_free(priv->conn_client);
-		free(priv->conn_client);
-		priv->conn_client = NULL;
-	}
-
-	mutex_unlock(&priv->mutex_sentinel);
-
-	return ret;
+	return worker_join(&priv->worker_client);
 }
