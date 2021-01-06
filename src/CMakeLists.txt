@@ -42,6 +42,7 @@ add_library(openelp_objects OBJECT
   ${OPENELP_SOURCE_DIR}/rand.c
   ${OPENELP_SOURCE_DIR}/regex.c
   ${OPENELP_SOURCE_DIR}/registration.c
+  ${OPENELP_SOURCE_DIR}/worker.c
   ${OPENELP_MD5_FILES}
   ${OPENELP_PLATFORM_FILES}
   )
