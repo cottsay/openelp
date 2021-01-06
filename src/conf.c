@@ -52,9 +52,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/// Maximum size for a single line in a configuration file
-#define CONF_LINE_SIZE 512
-
 /*!
  * @brief Parse a single null- or newline-terminated line into the configuration
  *

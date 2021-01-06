@@ -217,11 +217,17 @@ else()
   add_compile_options(
     -Wall
     -Wextra
+    -Wunused-macros
+    -Wunreachable-code
     )
   include(CheckCCompilerFlag)
   check_c_compiler_flag(-Wpedantic HAVE_W_PEDANTIC)
   if(HAVE_W_PEDANTIC)
     add_compile_options(-Wpedantic)
+  endif()
+  check_c_compiler_flag(-Wint-conversion HAVE_W_INT_CONVERSION)
+  if(HAVE_W_INT_CONVERSION)
+    add_compile_options(-Wint-conversion)
   endif()
 endif()
 

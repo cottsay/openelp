@@ -126,27 +126,27 @@ static inline void port_to_str(const uint16_t port, char result[6])
 	switch (n)
 	{
 	case 5:
-		*result = 48 + port_tmp / 10000;
+		*result = (char)(48 + port_tmp / 10000);
 		port_tmp %= 10000;
 		result++;
 		// fall through
 	case 4:
-		*result = 48 + port_tmp / 1000;
+		*result = (char)(48 + port_tmp / 1000);
 		port_tmp %= 1000;
 		result++;
 		// fall through
 	case 3:
-		*result = 48 + port_tmp / 100;
+		*result = (char)(48 + port_tmp / 100);
 		port_tmp %= 100;
 		result++;
 		// fall through
 	case 2:
-		*result = 48 + port_tmp / 10;
+		*result = (char)(48 + port_tmp / 10);
 		port_tmp %= 10;
 		result++;
 		// fall through
 	case 1:
-		*result = 48 + port_tmp;
+		*result = (char)(48 + port_tmp);
 		result++;
 	}
 
