@@ -178,6 +178,7 @@ static BOOL WINAPI graceful_shutdown(DWORD ctrl_type)
 	return FALSE;
 }
 #else
+/*! @TODO Make this async-signal-safe */
 static void graceful_shutdown(int signum, siginfo_t *info, void *ptr)
 {
 	proxy_log(&ph, LOG_LEVEL_INFO, "Caught signal\n");
@@ -286,6 +287,8 @@ int main(int argc, const char * const argv[])
 
 		if (pid > 0)
 			exit(0);
+
+		/*! @TODO Double-fork */
 
 		if (opts.log_path) {
 			ret = proxy_log_select_medium(&ph, LOG_MEDIUM_FILE,

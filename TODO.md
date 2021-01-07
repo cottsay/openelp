@@ -7,6 +7,8 @@ Features
 * Publish to statsd
 * Provide fail2ban filter
 * Support pause/continue in Windows service
+* Support socket activation in systemd
+* Support CIDR notation for AdditionalExternalBindAddresses
 
 Optimizations
 -------------
