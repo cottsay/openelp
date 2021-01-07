@@ -199,14 +199,14 @@ struct proxy_conn_priv {
 	/*! Mutex for protecting transmissions on proxy_conn_priv::conn_client */
 	struct mutex_handle mutex_client_send;
 
-	/*! Thread for handling data sent to proxy_conn_priv::conn_control */
-	struct thread_handle thread_control;
+	/*! Worker for handling data sent to proxy_conn_priv::conn_control */
+	struct worker_handle worker_control;
 
-	/*! Thread for handling data sent to proxy_conn_priv::conn_data */
-	struct thread_handle thread_data;
+	/*! Worker for handling data sent to proxy_conn_priv::conn_data */
+	struct worker_handle worker_data;
 
-	/*! Thread for handling data sent to proxy_conn_priv::conn_tcp */
-	struct thread_handle thread_tcp;
+	/*! Worker for handling data sent to proxy_conn_priv::conn_tcp */
+	struct worker_handle worker_tcp;
 
 	/*! Worker for handling data sent from the client */
 	struct worker_handle worker_client;
@@ -234,29 +234,23 @@ static void client_manager(struct worker_handle *wh);
 /*!
  * @brief Worker thread for forwarding control information
  *
- * @param[in,out] ctx Worker thread context
- *
- * @returns Always NULL
+ * @param[in,out] wh Worker thread context
  */
-static void *forwarder_control(void *ctx);
+static void forwarder_control(struct worker_handle *wh);
 
 /*!
  * @brief Worker thread for forwarding UDP data
  *
- * @param[in,out] ctx Worker thread context
- *
- * @returns Always NULL
+ * @param[in,out] wh Worker thread context
  */
-static void *forwarder_data(void *ctx);
+static void forwarder_data(struct worker_handle *wh);
 
 /*!
  * @brief Worker thread for forwarding TCP data
  *
- * @param[in,out] ctx Worker thread context
- *
- * @returns Always NULL
+ * @param[in,out] wh Worker thread context
  */
-static void *forwarder_tcp(void *ctx);
+static void forwarder_tcp(struct worker_handle *wh);
 
 /*!
  * @brief Process an incoming ::PROXY_MSG_TYPE_UDP_CONTROL message from the
@@ -488,17 +482,17 @@ static void client_manager(struct worker_handle *wh)
 		goto client_manager_exit;
 	}
 
-	ret = thread_start(&priv->thread_control);
+	ret = worker_wake(&priv->worker_control);
 	if (ret < 0) {
 		proxy_log(pc->ph, LOG_LEVEL_ERROR,
-			  "Failed to start UDP control forwarder. Dropping...\n");
+			  "Failed to signal UDP control forwarder. Dropping...\n");
 		goto client_manager_exit;
 	}
 
-	ret = thread_start(&priv->thread_data);
+	ret = worker_wake(&priv->worker_data);
 	if (ret < 0) {
 		proxy_log(pc->ph, LOG_LEVEL_ERROR,
-			  "Failed to start UDP data forwarder. Dropping...\n");
+			  "Failed to signal UDP data forwarder. Dropping...\n");
 		goto client_manager_exit;
 	}
 
@@ -542,9 +536,9 @@ client_manager_exit:
 	conn_close(&priv->conn_data);
 	conn_close(&priv->conn_tcp);
 
-	thread_join(&priv->thread_data);
-	thread_join(&priv->thread_control);
-	thread_join(&priv->thread_tcp);
+	worker_wait_idle(&priv->worker_tcp);
+	worker_wait_idle(&priv->worker_data);
+	worker_wait_idle(&priv->worker_control);
 
 	mutex_lock(&priv->mutex_client);
 	conn_free(priv->conn_client);
@@ -558,10 +552,9 @@ client_manager_exit:
 		  "Client manager is returning cleanly.\n");
 }
 
-static void *forwarder_control(void *ctx)
+static void forwarder_control(struct worker_handle *wh)
 {
-	struct thread_handle *th = ctx;
-	struct proxy_conn_handle *pc = th->func_ctx;
+	struct proxy_conn_handle *pc = wh->func_ctx;
 	struct proxy_conn_priv *priv = pc->priv;
 
 	uint32_t addr;
@@ -612,7 +605,7 @@ static void *forwarder_control(void *ctx)
 					break;
 				}
 
-				return NULL;
+				return;
 			}
 		} else if (ret == 0) {
 			ret = -EPIPE;
@@ -639,16 +632,13 @@ static void *forwarder_control(void *ctx)
 	conn_close(&priv->conn_control);
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Client '%s' UDP Control thread is returning cleanly\n",
+		  "Client '%s' UDP Control worker is returning cleanly\n",
 		  priv->callsign);
-
-	return NULL;
 }
 
-static void *forwarder_data(void *ctx)
+static void forwarder_data(struct worker_handle *wh)
 {
-	struct thread_handle *th = ctx;
-	struct proxy_conn_handle *pc = th->func_ctx;
+	struct proxy_conn_handle *pc = wh->func_ctx;
 	struct proxy_conn_priv *priv = pc->priv;
 
 	uint32_t addr;
@@ -699,7 +689,7 @@ static void *forwarder_data(void *ctx)
 					break;
 				}
 
-				return NULL;
+				return;
 			}
 		} else if (ret == 0) {
 			ret = -EPIPE;
@@ -726,16 +716,13 @@ static void *forwarder_data(void *ctx)
 	conn_close(&priv->conn_data);
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Client '%s' UDP Data thread is returning cleanly\n",
+		  "Client '%s' UDP Data worker is returning cleanly\n",
 		  priv->callsign);
-
-	return NULL;
 }
 
-static void *forwarder_tcp(void *ctx)
+static void forwarder_tcp(struct worker_handle *wh)
 {
-	struct thread_handle *th = ctx;
-	struct proxy_conn_handle *pc = th->func_ctx;
+	struct proxy_conn_handle *pc = wh->func_ctx;
 	struct proxy_conn_priv *priv = pc->priv;
 
 	uint8_t buf[CONN_BUFF_LEN] = { 0 };
@@ -784,7 +771,7 @@ static void *forwarder_tcp(void *ctx)
 					break;
 				}
 
-				return NULL;
+				return;
 			}
 		} else if (ret == 0) {
 			ret = -EPIPE;
@@ -809,10 +796,8 @@ static void *forwarder_tcp(void *ctx)
 	send_tcp_close(pc);
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Client '%s' TCP thread is returning cleanly\n",
+		  "Client '%s' TCP worker is returning cleanly\n",
 		  priv->callsign);
-
-	return NULL;
 }
 
 static int process_control_data_message(struct proxy_conn_handle *pc,
@@ -1008,8 +993,8 @@ static int process_tcp_open_message(struct proxy_conn_handle *pc,
 			  "Failed to open TCP connection for client '%s' (%d): %s\n",
 			  priv->callsign, -ret, strerror(-ret));
 	} else {
-		/* Connection succeeded - start the thread */
-		ret = thread_start(&priv->thread_tcp);
+		/* Connection succeeded - signal the thread */
+		ret = worker_wake(&priv->worker_tcp);
 		if (ret < 0)
 			conn_close(&priv->conn_tcp);
 	}
@@ -1128,10 +1113,9 @@ void proxy_conn_free(struct proxy_conn_handle *pc)
 		proxy_conn_stop(pc);
 
 		worker_free(&priv->worker_client);
-
-		thread_free(&priv->thread_tcp);
-		thread_free(&priv->thread_data);
-		thread_free(&priv->thread_control);
+		worker_free(&priv->worker_tcp);
+		worker_free(&priv->worker_data);
+		worker_free(&priv->worker_control);
 
 		mutex_free(&priv->mutex_client);
 		mutex_free(&priv->mutex_client_send);
@@ -1192,24 +1176,24 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
-	priv->thread_control.func_ctx = pc;
-	priv->thread_control.func_ptr = forwarder_control;
-	priv->thread_control.stack_size = 1024 * 1024;
-	ret = thread_init(&priv->thread_control);
+	priv->worker_control.func_ctx = pc;
+	priv->worker_control.func_ptr = forwarder_control;
+	priv->worker_control.stack_size = 1024 * 1024;
+	ret = worker_init(&priv->worker_control);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
-	priv->thread_data.func_ctx = pc;
-	priv->thread_data.func_ptr = forwarder_data;
-	priv->thread_data.stack_size = 1024 * 1024;
-	ret = thread_init(&priv->thread_data);
+	priv->worker_data.func_ctx = pc;
+	priv->worker_data.func_ptr = forwarder_data;
+	priv->worker_data.stack_size = 1024 * 1024;
+	ret = worker_init(&priv->worker_data);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
-	priv->thread_tcp.func_ctx = pc;
-	priv->thread_tcp.func_ptr = forwarder_tcp;
-	priv->thread_tcp.stack_size = 1024 * 1024;
-	ret = thread_init(&priv->thread_tcp);
+	priv->worker_tcp.func_ctx = pc;
+	priv->worker_tcp.func_ptr = forwarder_tcp;
+	priv->worker_tcp.stack_size = 1024 * 1024;
+	ret = worker_init(&priv->worker_tcp);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
@@ -1224,10 +1208,9 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 
 proxy_conn_init_exit:
 	worker_free(&priv->worker_client);
-
-	thread_free(&priv->thread_tcp);
-	thread_free(&priv->thread_data);
-	thread_free(&priv->thread_control);
+	worker_free(&priv->worker_tcp);
+	worker_free(&priv->worker_data);
+	worker_free(&priv->worker_control);
 
 	mutex_free(&priv->mutex_client);
 	mutex_free(&priv->mutex_client_send);
@@ -1264,6 +1247,18 @@ int proxy_conn_start(struct proxy_conn_handle *pc)
 
 	mutex_lock_shared(&priv->mutex_client);
 
+	ret = worker_start(&priv->worker_control);
+	if (ret < 0)
+		goto proxy_conn_start_exit;
+
+	ret = worker_start(&priv->worker_data);
+	if (ret < 0)
+		goto proxy_conn_start_exit;
+
+	ret = worker_start(&priv->worker_tcp);
+	if (ret < 0)
+		goto proxy_conn_start_exit;
+
 	ret = worker_start(&priv->worker_client);
 	if (ret < 0)
 		goto proxy_conn_start_exit;
@@ -1280,8 +1275,26 @@ proxy_conn_start_exit:
 int proxy_conn_stop(struct proxy_conn_handle *pc)
 {
 	struct proxy_conn_priv *priv = pc->priv;
+	int ret;
+	int final_ret = 0;
 
 	proxy_conn_drop(pc);
 
-	return worker_join(&priv->worker_client);
+	ret = worker_join(&priv->worker_client);
+	if (ret < 0)
+		final_ret = ret;
+
+	ret = worker_join(&priv->worker_tcp);
+	if (ret < 0)
+		final_ret = ret;
+
+	ret = worker_join(&priv->worker_data);
+	if (ret < 0)
+		final_ret = ret;
+
+	ret = worker_join(&priv->worker_control);
+	if (ret < 0)
+		final_ret = ret;
+
+	return final_ret;
 }
