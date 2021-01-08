@@ -68,22 +68,35 @@ struct proxy_conn_handle {
 };
 
 /*!
- * @brief Transfer ownership of the given connection to the proxy_conn
+ * @brief Claims a proxy connection for use by the given client
  *
  * @param[in,out] pc Target proxy client connection instance
  * @param[in] conn_client Connection to a client
+ * @param[in] callsign The authentication callsign given by the client
  *
  * @returns 0 on success, negative ERRNO value on failure
+ *
+ * Note that ownership of \p conn_client remains with the caller, but
+ * \p conn_client must remain valid until the proxy client has finished
+ * with it. Calling \p proxy_conn_finish should ensure this.
  */
 int proxy_conn_accept(struct proxy_conn_handle *pc,
-		      struct conn_handle *conn_client);
+		      struct conn_handle *conn_client,
+		      const char *callsign);
 
 /*!
- * @brief Disconnects the connecte client and returns the connection to idle
+ * @brief Begins an orderly shutdown of all active connections
  *
  * @param[in,out] pc Target proxy client connection instance
  */
 void proxy_conn_drop(struct proxy_conn_handle *pc);
+
+/*!
+ * @brief Waits for the proxy_conn to close connections and become idle
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ */
+void proxy_conn_finish(struct proxy_conn_handle *pc);
 
 /*!
  * @brief Frees data allocated by ::proxy_conn_init
@@ -109,6 +122,15 @@ int proxy_conn_init(struct proxy_conn_handle *pc);
  * @returns 1 if in use, 0 if idle
  */
 int proxy_conn_in_use(struct proxy_conn_handle *pc);
+
+/*!
+ * @brief Blocking call to process new messages
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+int proxy_conn_process(struct proxy_conn_handle *pc);
 
 /*!
  * @brief Starts the client thread and prepares to accept connections

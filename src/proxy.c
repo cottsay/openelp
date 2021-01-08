@@ -59,10 +59,31 @@
 #include "rand.h"
 #include "regex.h"
 #include "registration.h"
+#include "worker.h"
 
 #if PROXY_PASS_RES_LEN != DIGEST_LEN
 #error Password Response Length Mismatch
 #endif
+
+/*!
+ * @brief Owns and processes connections to clients
+ */
+struct proxy_worker {
+	/*! Reference to the parent proxy instance handle */
+	struct proxy_handle *ph;
+
+	/*! Connection to the currently active client */
+	struct conn_handle *conn_client;
+
+	/*! Mutex for protecting ::conn_client */
+	struct mutex_handle mutex;
+
+	/*! Worker for authenticating and processing messages */
+	struct worker_handle worker;
+
+	/*! Last callsign that this worker was connected to */
+	char callsign[12];
+};
 
 /*!
  * @brief Private data for an instance of an EchoLink proxy
@@ -70,6 +91,9 @@
 struct proxy_priv {
 	/*! Array which holds all of the proxy client connection handles */
 	struct proxy_conn_handle *clients;
+
+	/*! Array which holds all of the client connection worker handles */
+	struct proxy_worker *client_workers;
 
 	/*! Regular expression for matching allowed callsigns */
 	struct regex_handle *re_calls_allowed;
@@ -100,52 +124,276 @@ struct proxy_priv {
 };
 
 /*!
- * @brief Convert a port number to an ASCII string
+ * @brief Transfer ownership of a connection to the worker
  *
- * @param[in] port The port number to convert
- * @param[out] result Resulting ASCII string
+ * @param[in,out] pw Target proxy client worker instance
+ * @param[in] conn_client Connection to a client
+ *
+ * @returns 0 on success, negative ERRNO value on failure
  */
-static inline void port_to_str(uint16_t port, char result[6]);
+static int proxy_worker_accept(struct proxy_worker *pw,
+			       struct conn_handle *conn_client);
 
-static inline void port_to_str(uint16_t port, char result[6])
+/*!
+ * @brief Authorize an incoming client for use of this proxy
+ *
+ * @param[in,out] pw Target proxy client worker instance
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+static int proxy_worker_authorize(struct proxy_worker *pw);
+
+/*!
+ * @brief Frees data allocated by ::proxy_worker_init
+ *
+ * @param[in,out] pw Target proxy client worker instance
+ */
+static void proxy_worker_free(struct proxy_worker *pw);
+
+/*!
+ * @brief Worker function for processing a client
+ *
+ * @param[in,out] wh Worker thread context
+ */
+static void proxy_worker_func(struct worker_handle *wh);
+
+/*!
+ * @brief Initializes the members of a ::proxy_worker
+ *
+ * @param[in,out] pw Target proxy client worker instance
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+static int proxy_worker_init(struct proxy_worker *pw);
+
+static int proxy_worker_accept(struct proxy_worker *pw,
+			       struct conn_handle *conn_client)
 {
-	uint16_t port_tmp = port;
-	uint8_t n = 0;
+	int ret;
 
-	do {
-		n++;
-		port_tmp /= 10;
-	} while (port_tmp != 0);
+	mutex_lock(&pw->mutex);
 
-	port_tmp = port;
-
-	switch (n) {
-	case 5:
-		*result = (char)(48 + port_tmp / 10000);
-		port_tmp %= 10000;
-		result++;
-		/* fall through */
-	case 4:
-		*result = (char)(48 + port_tmp / 1000);
-		port_tmp %= 1000;
-		result++;
-		/* fall through */
-	case 3:
-		*result = (char)(48 + port_tmp / 100);
-		port_tmp %= 100;
-		result++;
-		/* fall through */
-	case 2:
-		*result = (char)(48 + port_tmp / 10);
-		port_tmp %= 10;
-		result++;
-		/* fall through */
-	case 1:
-		*result = (char)(48 + port_tmp);
-		result++;
+	if (pw->conn_client != NULL) {
+		ret = -EBUSY;
+		goto proxy_worker_accept_exit;
 	}
 
-	*result = '\0';
+	pw->conn_client = conn_client;
+	ret = worker_wake(&pw->worker);
+	if (ret < 0)
+		pw->conn_client = NULL;
+
+proxy_worker_accept_exit:
+	mutex_unlock(&pw->mutex);
+
+	return ret;
+}
+
+static int proxy_worker_authorize(struct proxy_worker *pw)
+{
+	uint8_t buff[28];
+	size_t idx, j;
+	uint32_t nonce;
+	char nonce_str[9];
+	uint8_t response[PROXY_PASS_RES_LEN];
+	int ret;
+
+	static const uint8_t msg_bad_pw[] = {
+		0x07, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+	};
+	static const uint8_t msg_bad_auth[] = {
+		0x07, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
+	};
+
+
+	ret = get_nonce(&nonce);
+	if (ret < 0)
+		return ret;
+
+	digest_to_hex32(nonce, nonce_str);
+
+	/* Generate the expected auth response */
+	ret = get_password_response(nonce, pw->ph->conf.password, response);
+	if (ret < 0)
+		return ret;
+
+	/* Send the nonce */
+	ret = conn_send(pw->conn_client, (uint8_t *)nonce_str, 8);
+	if (ret < 0)
+		return ret;
+
+	/* We can expect to receive a newline-terminated callsign and a 16-byte
+	 * password response.
+	 * Since this is variable-length, initially look only for 16 bytes. The
+	 * callsign will be part of that, and we can figure out how much we're
+	 * missing.
+	 */
+	ret = conn_recv(pw->conn_client, buff, 16);
+	if (ret < 0)
+		return ret;
+
+	idx = 0;
+	while (idx < 11 && buff[idx] != '\n')
+		idx++;
+
+	if (idx >= 11)
+		return -EINVAL;
+
+	/* Make the callsign null-terminated */
+	buff[idx] = '\0';
+	strcpy(pw->callsign, (char *)buff);
+
+	ret = conn_recv(pw->conn_client, &buff[16], idx + 1);
+	if (ret < 0)
+		return ret;
+
+	for (idx += 1, j = 0; j < PROXY_PASS_RES_LEN; idx++, j++) {
+		if (response[j] != buff[idx]) {
+			proxy_log(pw->ph, LOG_LEVEL_INFO,
+				  "Client '%s' supplied an incorrect password. Dropping...\n",
+				  pw->callsign);
+
+			ret = conn_send(pw->conn_client, msg_bad_pw, sizeof(msg_bad_pw));
+
+			return ret < 0 ? ret : -EACCES;
+		}
+	}
+
+	ret = proxy_authorize_callsign(pw->ph, pw->callsign);
+	if (ret != 1) {
+		proxy_log(pw->ph, LOG_LEVEL_INFO,
+			  "Client '%s' is not authorized to use this proxy. Dropping...\n",
+			  pw->callsign);
+
+		ret = conn_send(pw->conn_client, msg_bad_auth, sizeof(msg_bad_pw));
+
+		return ret < 0 ? ret : -EACCES;
+	}
+
+	return 0;
+}
+
+static void proxy_worker_free(struct proxy_worker *pw)
+{
+	worker_free(&pw->worker);
+	mutex_free(&pw->mutex);
+}
+
+static void proxy_worker_func(struct worker_handle *wh)
+{
+	struct proxy_worker *pw = wh->func_ctx;
+	struct proxy_priv *priv = pw->ph->priv;
+	struct proxy_conn_handle *pc;
+	int i;
+	int ret;
+	char remote_addr[54];
+
+	mutex_lock_shared(&pw->mutex);
+
+	if (pw->conn_client == NULL) {
+		proxy_log(pw->ph, LOG_LEVEL_ERROR,
+			  "New connection was signaled, but no connection was given\n");
+
+		mutex_unlock_shared(&pw->mutex);
+
+		return;
+	}
+
+	mutex_unlock_shared(&pw->mutex);
+
+	conn_get_remote_addr(pw->conn_client, remote_addr);
+
+	proxy_log(pw->ph, LOG_LEVEL_DEBUG,
+		  "New connection - beginning authorization procedure\n");
+
+	ret = proxy_worker_authorize(pw);
+	if (ret < 0) {
+		switch (ret) {
+		case -ECONNRESET:
+		case -EINTR:
+		case -ENOTCONN:
+		case -EPIPE:
+			proxy_log(pw->ph, LOG_LEVEL_WARN,
+				  "Connection to client was lost before authorization could complete\n");
+			break;
+		default:
+			proxy_log(pw->ph, LOG_LEVEL_ERROR,
+				  "Authorization failed for client '%s' (%d): %s\n",
+				  remote_addr, -ret, strerror(-ret));
+		}
+
+		mutex_lock(&pw->mutex);
+		conn_free(pw->conn_client);
+		free(pw->conn_client);
+		pw->conn_client = NULL;
+		mutex_unlock(&pw->mutex);
+
+		return;
+	}
+
+	proxy_update_registration(pw->ph);
+
+	mutex_lock_shared(&priv->usable_clients_mutex);
+	for (i = 0; i < priv->usable_clients; i++) {
+		ret = proxy_conn_accept(&priv->clients[i], pw->conn_client,
+					pw->callsign);
+		if (ret != -EBUSY)
+			break;
+	}
+	mutex_unlock_shared(&priv->usable_clients_mutex);
+
+	if (ret < 0) {
+		if (ret == -EBUSY)
+			proxy_log(pw->ph, LOG_LEVEL_ERROR,
+				  "State error: no available slots.\n");
+		goto proxy_worker_func_exit;
+	}
+
+	pc = &priv->clients[i];
+
+	do {
+		ret = proxy_conn_process(pc);
+	} while (ret >= 0);
+
+	proxy_log(pw->ph, LOG_LEVEL_INFO,
+		  "Disconnected from client '%s'.\n", pw->callsign);
+
+	proxy_conn_finish(pc);
+
+proxy_worker_func_exit:
+	mutex_lock(&pw->mutex);
+	conn_free(pw->conn_client);
+	free(pw->conn_client);
+	pw->conn_client = NULL;
+	mutex_unlock(&pw->mutex);
+
+	proxy_update_registration(pw->ph);
+
+	proxy_log(pw->ph, LOG_LEVEL_DEBUG,
+		  "Client worker is returning cleanly.\n");
+}
+
+static int proxy_worker_init(struct proxy_worker *pw)
+{
+	int ret;
+
+	ret = mutex_init(&pw->mutex);
+	if (ret < 0)
+		return ret;
+
+	pw->worker.func_ctx = pw;
+	pw->worker.func_ptr = proxy_worker_func;
+	pw->worker.stack_size = 1024 * 1024;
+	ret = worker_init(&pw->worker);
+	if (ret < 0)
+		goto proxy_worker_init_exit;
+
+	return 0;
+
+proxy_worker_init_exit:
+	mutex_free(&pw->mutex);
+
+	return ret;
 }
 
 int proxy_authorize_callsign(struct proxy_handle *ph,
@@ -315,6 +563,13 @@ int proxy_open(struct proxy_handle *ph)
 	if (priv->clients == NULL)
 		return -ENOMEM;
 
+	priv->client_workers = calloc(priv->num_clients,
+				      sizeof(struct proxy_worker));
+	if (priv->client_workers == NULL) {
+		ret = -ENOMEM;
+		goto proxy_open_exit;
+	}
+
 	ret = log_open(&priv->log);
 	if (ret < 0)
 		goto proxy_open_exit;
@@ -403,6 +658,21 @@ int proxy_open(struct proxy_handle *ph)
 		}
 	}
 
+	for (i = 0; i < priv->num_clients; i++) {
+		priv->client_workers[i].ph = ph;
+		ret = proxy_worker_init(&priv->client_workers[i]);
+		if (ret < 0) {
+			proxy_log(ph, LOG_LEVEL_FATAL,
+				  "Failed to initialize proxy client worker #%d (%d): %s\n",
+				  i, -ret, strerror(-ret));
+
+			for (i--; i >= 0; i--)
+				proxy_worker_free(&priv->client_workers[i]);
+
+			goto proxy_open_exit_late;
+		}
+	}
+
 	priv->conn_listen.source_addr = (const char *)ph->conf.bind_addr;
 	priv->conn_listen.source_port = (const char *)priv->port_str;
 
@@ -411,7 +681,7 @@ int proxy_open(struct proxy_handle *ph)
 		proxy_log(ph, LOG_LEVEL_FATAL,
 			  "Failed to open listening port (%d): %s\n",
 			  -ret, strerror(-ret));
-		goto proxy_open_exit_late;
+		goto proxy_open_exit_later;
 	}
 
 	if (ph->conf.bind_addr == NULL)
@@ -426,6 +696,10 @@ int proxy_open(struct proxy_handle *ph)
 
 	return 0;
 
+proxy_open_exit_later:
+	for (i = 0; i < priv->num_clients; i++)
+		proxy_worker_free(&priv->client_workers[i]);
+
 proxy_open_exit_late:
 	for (i = 0; i < priv->num_clients; i++)
 		proxy_conn_free(&priv->clients[i]);
@@ -438,6 +712,9 @@ proxy_open_exit:
 	}
 
 	log_close(&priv->log);
+
+	free(priv->client_workers);
+	priv->client_workers = NULL;
 
 	free(priv->clients);
 	priv->clients = NULL;
@@ -465,8 +742,13 @@ void proxy_close(struct proxy_handle *ph)
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Closing client connections...\n");
 
 	for (i = 0; i < priv->num_clients; i++)
+		proxy_worker_free(&priv->client_workers[i]);
+
+	for (i = 0; i < priv->num_clients; i++)
 		proxy_conn_free(&priv->clients[i]);
 
+	free(priv->client_workers);
+	priv->client_workers = NULL;
 	free(priv->clients);
 	priv->clients = NULL;
 	priv->num_clients = 0;
@@ -570,7 +852,7 @@ int proxy_process(struct proxy_handle *ph)
 
 	mutex_lock_shared(&priv->usable_clients_mutex);
 	for (i = 0; i < priv->usable_clients; i++) {
-		ret = proxy_conn_accept(&priv->clients[i], conn);
+		ret = proxy_worker_accept(&priv->client_workers[i], conn);
 		if (ret != -EBUSY)
 			break;
 	}
@@ -637,6 +919,16 @@ int proxy_start(struct proxy_handle *ph)
 			proxy_log(ph, LOG_LEVEL_FATAL,
 				  "Failed to start proxy connection #%d (%d): %s\n",
 				  i, -ret, strerror(-ret));
+			goto proxy_start_exit_early;
+		}
+	}
+
+	for (i = 0; i < priv->num_clients; i++) {
+		ret = worker_start(&priv->client_workers[i].worker);
+		if (ret < 0) {
+			proxy_log(ph, LOG_LEVEL_FATAL,
+				  "Failed to start proxy worker #%d (%d): %s\n",
+				  i, -ret, strerror(-ret));
 			goto proxy_start_exit;
 		}
 	}
@@ -657,6 +949,12 @@ int proxy_start(struct proxy_handle *ph)
 	return 0;
 
 proxy_start_exit:
+	for (i--; i >= 0; i--)
+		worker_join(&priv->client_workers[i].worker);
+
+	i = priv->num_clients;
+
+proxy_start_exit_early:
 	for (i--; i >= 0; i--)
 		proxy_conn_stop(&priv->clients[i]);
 
