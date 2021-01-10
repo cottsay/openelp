@@ -73,6 +73,8 @@ jobs:
       - name: Test project
         run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t ${{matrix.test_target}}
         if: ${{matrix.test_target}}
+        env:
+          CTEST_OUTPUT_ON_FAILURE: 1
       - name: Package project
         run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t package
       - name: Upload package
