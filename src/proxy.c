@@ -75,7 +75,10 @@ struct proxy_worker {
 	/*! Connection to the currently active client */
 	struct conn_handle *conn_client;
 
-	/*! Mutex for protecting ::conn_client */
+	/*! The next ::proxy_worker in the linked list */
+	struct proxy_worker *next;
+
+	/*! Mutex for protecting proxy_worker::conn_client */
 	struct mutex_handle mutex;
 
 	/*! Worker for authenticating and processing messages */
@@ -94,6 +97,9 @@ struct proxy_priv {
 
 	/*! Array which holds all of the client connection worker handles */
 	struct proxy_worker *client_workers;
+
+	/*! Linked list of available client connection worker handles */
+	struct proxy_worker *idle_workers_head;
 
 	/*! Regular expression for matching allowed callsigns */
 	struct regex_handle *re_calls_allowed;
@@ -115,6 +121,9 @@ struct proxy_priv {
 
 	/*! Used to protect proxy_priv::usable_clients */
 	struct mutex_handle usable_clients_mutex;
+
+	/*! Used to protect proxy_priv::idle_workers_head */
+	struct mutex_handle idle_workers_mutex;
 
 	/*! Service for registering with echolink.org */
 	struct registration_service_handle reg_service;
@@ -328,6 +337,11 @@ static void proxy_worker_func(struct worker_handle *wh)
 		pw->conn_client = NULL;
 		mutex_unlock(&pw->mutex);
 
+		mutex_lock(&priv->idle_workers_mutex);
+		pw->next = priv->idle_workers_head;
+		priv->idle_workers_head = pw;
+		mutex_unlock(&priv->idle_workers_mutex);
+
 		return;
 	}
 
@@ -366,6 +380,11 @@ proxy_worker_func_exit:
 	free(pw->conn_client);
 	pw->conn_client = NULL;
 	mutex_unlock(&pw->mutex);
+
+	mutex_lock(&priv->idle_workers_mutex);
+	pw->next = priv->idle_workers_head;
+	priv->idle_workers_head = pw;
+	mutex_unlock(&priv->idle_workers_mutex);
 
 	proxy_update_registration(pw->ph);
 
@@ -503,6 +522,11 @@ int proxy_init(struct proxy_handle *ph)
 	if (ret < 0)
 		goto proxy_init_exit;
 
+	/* Initialize the idle_workers mutex */
+	ret = mutex_init(&priv->idle_workers_mutex);
+	if (ret < 0)
+		goto proxy_init_exit;
+
 	return 0;
 
 proxy_init_exit:
@@ -517,6 +541,9 @@ void proxy_free(struct proxy_handle *ph)
 		struct proxy_priv *priv = ph->priv;
 
 		proxy_close(ph);
+
+		/* Free idle_workers mutex */
+		mutex_free(&priv->idle_workers_mutex);
 
 		/* Free usable_clients mutex */
 		mutex_free(&priv->usable_clients_mutex);
@@ -671,6 +698,9 @@ int proxy_open(struct proxy_handle *ph)
 
 			goto proxy_open_exit_late;
 		}
+
+		priv->client_workers[i].next = priv->idle_workers_head;
+		priv->idle_workers_head = &priv->client_workers[i];
 	}
 
 	priv->conn_listen.source_addr = (const char *)ph->conf.bind_addr;
@@ -697,6 +727,7 @@ int proxy_open(struct proxy_handle *ph)
 	return 0;
 
 proxy_open_exit_later:
+	priv->idle_workers_head = NULL;
 	for (i = 0; i < priv->num_clients; i++)
 		proxy_worker_free(&priv->client_workers[i]);
 
@@ -741,6 +772,7 @@ void proxy_close(struct proxy_handle *ph)
 
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Closing client connections...\n");
 
+	priv->idle_workers_head = NULL;
 	for (i = 0; i < priv->num_clients; i++)
 		proxy_worker_free(&priv->client_workers[i]);
 
@@ -825,9 +857,9 @@ int proxy_log_select_medium(struct proxy_handle *ph, enum LOG_MEDIUM medium,
 int proxy_process(struct proxy_handle *ph)
 {
 	struct proxy_priv *priv = ph->priv;
-	struct conn_handle *conn = NULL;
+	struct conn_handle *conn;
+	struct proxy_worker *worker = NULL;
 	int ret = -EBUSY;
-	int i;
 	char remote_addr[54] = { 0 };
 
 	conn = calloc(1, sizeof(*conn));
@@ -851,21 +883,24 @@ int proxy_process(struct proxy_handle *ph)
 		  remote_addr);
 
 	mutex_lock_shared(&priv->usable_clients_mutex);
-	for (i = 0; i < priv->usable_clients; i++) {
-		ret = proxy_worker_accept(&priv->client_workers[i], conn);
-		if (ret != -EBUSY)
-			break;
+	mutex_lock(&priv->idle_workers_mutex);
+	if (priv->usable_clients > 0 && priv->idle_workers_head != NULL) {
+		worker = priv->idle_workers_head;
+		priv->idle_workers_head = worker->next;
 	}
+	mutex_unlock(&priv->idle_workers_mutex);
 	mutex_unlock_shared(&priv->usable_clients_mutex);
 
-	if (ret == -EBUSY) {
+	if (worker == NULL) {
 		proxy_log(ph, LOG_LEVEL_INFO,
 			  "Dropping client because there are no available slots.\n");
 		ret = 0;
 		goto conn_process_exit;
-	} else if (ret < 0) {
-		goto conn_process_exit;
 	}
+
+	ret = proxy_worker_accept(worker, conn);
+	if (ret < 0)
+		goto conn_process_exit;
 
 	return 0;
 
@@ -964,17 +999,23 @@ proxy_start_exit_early:
 void proxy_update_registration(struct proxy_handle *ph)
 {
 	struct proxy_priv *priv = ph->priv;
-	int slots_used = 0;
+	struct proxy_worker *pw;
+	int slots_used;
 	int slots_total;
-	int i;
-
-	for (i = 0; i < priv->num_clients; i++)
-		if (proxy_conn_in_use(&priv->clients[i]))
-			slots_used++;
 
 	mutex_lock_shared(&priv->usable_clients_mutex);
 	slots_total = priv->usable_clients;
+	slots_used = priv->num_clients;
 	mutex_unlock_shared(&priv->usable_clients_mutex);
+
+	mutex_lock_shared(&priv->idle_workers_mutex);
+	for (pw = priv->idle_workers_head; pw != NULL; pw = pw->next)
+		slots_used--;
+	mutex_unlock_shared(&priv->idle_workers_mutex);
+
+	proxy_log(ph, LOG_LEVEL_DEBUG,
+		  "Sending update to registrar (%d/%d)\n",
+		  slots_used, slots_total);
 
 	registration_service_update(&priv->reg_service, slots_used,
 				    slots_total);
