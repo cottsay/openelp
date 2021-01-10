@@ -28,7 +28,7 @@ macro(add_openelp_test test_name)
 
   set_tests_properties(
     ${test_name}
-    PROPERTIES ENVIRONMENT "${TEST_ENVIRONMENT}")
+    PROPERTIES ENVIRONMENT "${TEST_ENVIRONMENT}" TIMEOUT 30)
 
   list(APPEND OPENELP_TEST_TARGETS ${test_name})
 endmacro()
