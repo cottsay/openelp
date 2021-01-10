@@ -64,10 +64,13 @@
 #  include <netinet/in.h>
 #  include <netinet/tcp.h>
 #  include <arpa/inet.h>
-#  ifdef __APPLE__
-#    define SOL_TCP IPPROTO_TCP
-#    define TCP_KEEPIDLE TCP_KEEPALIVE
-#  endif
+#endif
+
+#if !defined(SOL_TCP) && defined(IPPROTO_TCP)
+#  define SOL_TCP IPPROTO_TCP
+#endif
+#if !defined(TCP_KEEPIDLE) && defined(TCP_KEEPALIVE)
+#  define TCP_KEEPIDLE TCP_KEEPALIVE
 #endif
 
 #include "conn.h"
@@ -756,8 +759,8 @@ void conn_shutdown(struct conn_handle *conn)
 
 	if (priv->sock_fd != INVALID_SOCKET) {
 		shutdown(priv->sock_fd, SHUT_RDWR);
-#ifdef _WIN32
-		/*! @TODO WIN32 Hack to cancel an in-progress accept */
+#if defined(_WIN32) || defined(__APPLE__)
+		/*! @TODO Hack to cancel an in-progress accept */
 		closesocket(priv->sock_fd);
 		priv->sock_fd = INVALID_SOCKET;
 #endif
