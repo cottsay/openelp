@@ -685,6 +685,31 @@ conn_send_to_exit:
 	return ret;
 }
 
+int conn_set_timeout(struct conn_handle *conn, uint32_t msec)
+{
+	struct conn_priv *priv = conn->priv;
+	int ret;
+
+#ifdef _WIN32
+	const DWORD val = msec;
+#else
+	struct timeval val;
+
+	val.tv_sec = msec / 1000;
+	val.tv_usec = (msec % 1000) * 1000;
+#endif
+
+	mutex_lock_shared(&priv->mutex);
+	ret = setsockopt(priv->sock_fd, SOL_SOCKET, SO_RCVTIMEO,
+			 (const void *)&val, sizeof(val));
+	if (ret == SOCKET_ERROR)
+		ret = SOCK_ERRNO;
+
+	mutex_unlock_shared(&priv->mutex);
+
+	return ret;
+}
+
 void conn_drop(struct conn_handle *conn)
 {
 	struct conn_priv *priv = conn->priv;

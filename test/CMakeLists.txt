@@ -33,6 +33,7 @@ macro(add_openelp_test test_name)
   list(APPEND OPENELP_TEST_TARGETS ${test_name})
 endmacro()
 
+add_openelp_test(test_conn test_conn.c)
 add_openelp_test(test_digest test_digest.c)
 add_openelp_test(test_md5 test_md5.c)
 add_openelp_test(test_proxy test_proxy.c)

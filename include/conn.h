@@ -213,6 +213,20 @@ int conn_send_to(struct conn_handle *conn, const uint8_t *buff,
 		 size_t buff_len, uint32_t addr, uint16_t port);
 
 /*!
+ * @brief Set the receive timeout for a connection
+ *
+ * @param[in] conn Target network connection instance
+ * @param[in,out] msec Duration to wait before returning from ::conn_recv
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ *
+ * Note that due to platform-specific behaviors, the connection should be
+ * closed when a timeout occurs. Setting the timeout to 0 disables the
+ * timeout, which is the default behavior when a connection is created.
+ */
+int conn_set_timeout(struct conn_handle *conn, uint32_t msec);
+
+/*!
  * @brief Stops socket operations but does not close the socket
  *
  * @param[in,out] conn Target network connection instance
