@@ -82,3 +82,49 @@ jobs:
         with:
           name: OpenELP-${{runner.os}}
           path: ${{runner.workspace}}/build/_CPack_Packages/${{runner.os}}/ZIP/OpenELP-${{runner.os}}/*
+
+  build_documentation:
+    name: Build Documentation
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Install Prerequisites
+        run: sudo apt-get install libclang1-9 -y
+      - name: Cache Doxygen
+        id: cache-doxygen
+        uses: actions/cache@v2
+        with:
+          path: ${{runner.workspace}}/doxygen
+          key: doxygen-1.9.1
+      - name: Download Doxygen
+        if: steps.cache-doxygen.outputs.cache-hit != 'true'
+        working-directory: ${{runner.workspace}}
+        run: |
+          wget -O - https://doxygen.nl/files/doxygen-1.9.1.linux.bin.tar.gz | tar -xz
+          mv doxygen-1.9.1 doxygen
+      - name: Clone project
+        uses: actions/checkout@v2
+      - name: Create build environment
+        shell: bash
+        working-directory: ${{runner.workspace}}
+        run: mkdir -p build && echo "WARN_AS_ERROR = FAIL_ON_WARNINGS" >> ${{github.workspace}}/doc/Doxyfile.in
+      - name: Configure project
+        working-directory: ${{runner.workspace}}/build
+        run: >
+          cmake ${{github.workspace}}
+          -Werror=dev
+          -Werror=deprecated
+          -DCMAKE_PROGRAM_PATH:PATH="${{runner.workspace}}/doxygen/bin"
+          -DBUILD_TESTING:BOOL=OFF
+          -DBUILD_SHARED_LIBS:BOOL=OFF
+          -DOPENELP_DOC_HTMLHELP:BOOL=OFF
+          -DOPENELP_BUNDLE_PCRE:BOOL=OFF
+          -DOPENELP_USE_OPENSSL:BOOL=OFF
+          -DOPENELP_EXTRA_VERSION=${{steps.get-snap-id.outputs.snap_id}}
+          -DOPENELP_DOC_INTERNAL=ON
+      - name: Build documentation
+        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t doc
+      - name: Upload documentation
+        uses: actions/upload-artifact@v2-preview
+        with:
+          name: OpenELP-HTML-Docs
+          path: ${{runner.workspace}}/build/doc/html/*
