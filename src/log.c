@@ -56,7 +56,10 @@
 #include "log_eventlog.h"
 #include "log_syslog.h"
 
+/*! Stringization macro - stage one */
 #define OCH_STR1(x) #x
+
+/*! Stringization macro - stage two */
 #define OCH_STR2(x) OCH_STR1(x)
 
 /*!

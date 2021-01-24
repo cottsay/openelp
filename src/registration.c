@@ -56,12 +56,18 @@
 #include "registration.h"
 #include "worker.h"
 
+/*! Stringization macro - stage one */
 #define OCH_STR1(x) #x
+
+/*! Stringization macro - stage two */
 #define OCH_STR2(x) OCH_STR1(x)
 
 /*! Update (at least) every 10 minutes */
 #define UPDATE_INTERVAL 600000
 
+/*!
+ * @brief Possible statuses of a proxy server to report to registrar
+ */
 enum REGISTRATION_STATUS {
 	REGISTRATION_STATUS_UNKNOWN = 0,
 	REGISTRATION_STATUS_READY,
@@ -69,20 +75,39 @@ enum REGISTRATION_STATUS {
 	REGISTRATION_STATUS_OFF
 };
 
+/*!
+ * @brief Private data for an instance of a proxy server registration service
+ */
 struct registration_service_priv {
+	/*! The name of the proxy server to report */
 	const char *reg_name;
+
+	/*! A short comment about the proxy server to report */
 	const char *reg_comment;
+
+	/*! Pre-computed static portion of the update body */
 	char *reg_suffix;
+
+	/*! 'Y' to list the server for public access, otherwise 'N' */
 	char public;
 
+	/*! Mutex for protecting the status and slot members */
 	struct mutex_handle mutex;
+
+	/*! Handle to the worker thread which services update requests */
 	struct worker_handle worker;
 
+	/*! Maximum number of clients to report on the next update */
 	size_t slots_total;
+
+	/*! Number of connected clients to report on the next update */
 	size_t slots_used;
+
+	/*! Server status to report on the next update */
 	enum REGISTRATION_STATUS status;
 };
 
+/*! First part of the HTTP message sent to the registrar */
 static const char http_message[] =
 	"POST /proxypost.jsp HTTP/1.1\r\n"
 	"Content-Type: application/x-www-form-urlencoded\r\n"
@@ -94,12 +119,20 @@ static const char http_message[] =
 	"Connection: keep-alive\r\n"
 	"Content-Length: ";
 
+/*! Host name or IP address of the registrar */
 static const char http_host[] = "www.echolink.org";
 
+/*! Salt used when computing the MD5 */
 static const char digest_salt[] = "#5A!zu";
 
+/*! Reported protocol version of this proxy server */
 static const char protocol_version[] = "1.2.3o";
 
+/*!
+ * @brief Status phrases which are sent to the registrar
+ *
+ * These entries correspond to ::REGISTRATION_STATUS indexes.
+ */
 static const char * const status_phrase[] = {
 	NULL,
 	"Ready",
@@ -107,7 +140,26 @@ static const char * const status_phrase[] = {
 	"Off",
 };
 
+/*!
+ * @brief Worker function for registration updates
+ *
+ * @param[in,out] wh The handle to the worker object
+ */
 static void registration_func(struct worker_handle *wh);
+
+/*!
+ * @brief Reports status to the registrar
+ *
+ * @param[in,out] rs Target registration service instance
+ * @param[in] status The status of the proxy to report
+ * @param[in] slots_used The number of proxy server slots currently in use
+ * @param[in] slots_total The maximum simultaneous clients the proxy can service
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+static int send_report(struct registration_service_handle *rs,
+		       enum REGISTRATION_STATUS status, size_t slots_used,
+		       size_t slots_total);
 
 static int send_report(struct registration_service_handle *rs,
 		       enum REGISTRATION_STATUS status, size_t slots_used,

@@ -68,7 +68,10 @@
 /*! Universal fallback configuration path */
 static const char config_path_default[] = "ELProxy.conf";
 
+/*! Stringization macro - stage one */
 #define OCH_STR1(x) #x
+
+/*! Stringization macro - stage two */
 #define OCH_STR2(x) OCH_STR1(x)
 
 #ifdef OPENELP_CONFIG_HINT
