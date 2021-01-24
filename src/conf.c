@@ -328,6 +328,18 @@ static int conf_parse_pair(const char *key, size_t key_len,
 		}
 
 		break;
+	case 17:
+		if (strncmp(key, "ConnectionTimeout", key_len) == 0) {
+			if (sscanf(val, "%u%1s", &conf->connection_timeout, dummy) != 1) {
+				log_printf(log, LOG_LEVEL_ERROR,
+					   "Invalid configuration value for 'ConnectionTimeout': '%.*s'\n",
+					   (int)val_len, val);
+
+				return -EINVAL;
+			}
+		}
+
+		break;
 	case 19:
 		if (strncmp(key, "ExternalBindAddress", key_len) == 0) {
 			if (conf->bind_addr_ext != NULL)

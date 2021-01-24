@@ -145,6 +145,9 @@ struct proxy_conf {
 	/*! Registered address override */
 	char *public_addr;
 
+	/*! Maximum time (in minutes) a client can be connected to the proxy */
+	uint32_t connection_timeout;
+
 	/*! Number of additional addresses specified by bind_addr_ext_add */
 	uint16_t bind_addr_ext_add_len;
 
