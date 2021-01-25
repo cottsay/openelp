@@ -37,6 +37,7 @@ add_library(openelp_objects OBJECT
   ${OPENELP_SOURCE_DIR}/conn.c
   ${OPENELP_SOURCE_DIR}/digest.c
   ${OPENELP_SOURCE_DIR}/log.c
+  ${OPENELP_SOURCE_DIR}/pearson.c
   ${OPENELP_SOURCE_DIR}/proxy.c
   ${OPENELP_SOURCE_DIR}/proxy_conn.c
   ${OPENELP_SOURCE_DIR}/rand.c
