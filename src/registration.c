@@ -187,9 +187,9 @@ static int send_report(struct registration_service_handle *rs,
 	/*! @TODO URL encoding */
 
 	/* Allocate a buffer we *know* will be big enough for the body */
-	message_body = malloc(110 + sizeof(protocol_version) +
-			      strlen(priv->reg_name) +
-			      strlen(priv->reg_comment));
+	message_body = malloc(strlen(priv->reg_name) +
+			      strlen(priv->reg_comment) +
+			      strlen(priv->reg_suffix) + 80);
 	if (message_body == NULL)
 		return -ENOMEM;
 
@@ -322,7 +322,8 @@ int registration_service_start(struct registration_service_handle *rs,
 
 	if (priv->reg_suffix != NULL)
 		free((void *)priv->reg_suffix);
-	reg_suffix = malloc(strlen(public_addr) + sizeof(protocol_version) + 50);
+	reg_suffix = malloc(strlen(public_addr) + (2 * DIGEST_LEN) +
+			    sizeof(protocol_version) + 18);
 	if (reg_suffix == NULL) {
 		ret = -ENOMEM;
 		goto registration_service_start_end;
@@ -341,8 +342,8 @@ int registration_service_start(struct registration_service_handle *rs,
 
 	digest_to_str(digest, &reg_suffix[ret]);
 
-	ret = sprintf(&reg_suffix[ret + 32], "&p=%d&v=%s", conf->port,
-		      protocol_version);
+	ret = sprintf(&reg_suffix[ret + (2 * DIGEST_LEN)],
+		      "&p=%d&v=%s", conf->port, protocol_version);
 	if (ret < 0)
 		goto registration_service_start_end;
 
