@@ -350,9 +350,19 @@ static void proxy_worker_func(struct worker_handle *wh)
 	mutex_lock_shared(&priv->usable_clients_mutex);
 	for (i = 0; i < priv->usable_clients; i++) {
 		ret = proxy_conn_accept(&priv->clients[i], pw->conn_client,
-					pw->callsign);
+					pw->callsign, 1);
 		if (ret != -EBUSY)
 			break;
+	}
+
+	if (ret == -EBUSY) {
+		for (i = 0; i < priv->usable_clients; i++) {
+			ret = proxy_conn_accept(&priv->clients[i],
+						pw->conn_client,
+						pw->callsign, 0);
+			if (ret != -EBUSY)
+				break;
+		}
 	}
 	mutex_unlock_shared(&priv->usable_clients_mutex);
 

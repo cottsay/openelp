@@ -73,6 +73,7 @@ struct proxy_conn_handle {
  * @param[in,out] pc Target proxy client connection instance
  * @param[in] conn_client Connection to a client
  * @param[in] callsign The authentication callsign given by the client
+ * @param[in] reconnect_only Non-zero to accept only if the callsign matches
  *
  * @returns 0 on success, negative ERRNO value on failure
  *
@@ -82,7 +83,8 @@ struct proxy_conn_handle {
  */
 int proxy_conn_accept(struct proxy_conn_handle *pc,
 		      struct conn_handle *conn_client,
-		      const char *callsign);
+		      const char *callsign,
+		      uint8_t reconnect_only);
 
 /*!
  * @brief Begins an orderly shutdown of all active connections

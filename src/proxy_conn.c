@@ -787,14 +787,16 @@ static int send_tcp_close(struct proxy_conn_handle *pc)
  */
 int proxy_conn_accept(struct proxy_conn_handle *pc,
 		      struct conn_handle *conn_client,
-		      const char *callsign)
+		      const char *callsign,
+		      uint8_t reconnect_only)
 {
 	struct proxy_conn_priv *priv = pc->priv;
 	int ret = 0;
 
 	mutex_lock(&priv->mutex_client);
 
-	if (priv->conn_client != NULL) {
+	if (priv->conn_client != NULL ||
+	    (reconnect_only && strcmp(priv->callsign, callsign) != 0)) {
 		mutex_unlock(&priv->mutex_client);
 		return -EBUSY;
 	}
@@ -833,9 +835,9 @@ int proxy_conn_accept(struct proxy_conn_handle *pc,
 	}
 
 	proxy_log(pc->ph, LOG_LEVEL_INFO,
-		  "Connected to client '%s', using external interface '%s'.\n",
-		  priv->callsign, pc->source_addr == NULL ? "0.0.0.0" :
-		  pc->source_addr);
+		  "%s to client '%s', using external interface '%s'.\n",
+		  reconnect_only ? "Reconnected" : "Connected", priv->callsign,
+		  pc->source_addr == NULL ? "0.0.0.0" : pc->source_addr);
 
 	return 0;
 
