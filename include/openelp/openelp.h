@@ -62,12 +62,7 @@ extern "C" {
 #  include <unistd.h>
 #endif
 
-#ifdef _WIN32
-#  ifndef OPENELP_API
-	 /// Public API decorator
-#    define OPENELP_API __declspec(dllimport)
-#  endif
-#else
+#ifndef OPENELP_API
    /// Public API decorator
 #  define OPENELP_API
 #endif

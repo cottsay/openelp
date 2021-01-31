@@ -137,6 +137,11 @@ if(WIN32)
   target_compile_options(openelp_objects PRIVATE
     "-DOPENELP_API=__declspec(dllexport)"
     )
+else()
+  target_compile_options(openelp_objects PRIVATE
+    "-DOPENELP_API=__attribute__((__visibility__(\"default\")))"
+    "-fvisibility=hidden"
+    )
 endif()
 
 if(OPENELP_BUNDLE_PCRE)
