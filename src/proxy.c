@@ -95,6 +95,13 @@ struct proxy_priv {
 	/*! Array which holds all of the proxy client connection handles */
 	struct proxy_conn_handle *clients;
 
+	/*! Linked list of available client connection handles */
+	struct proxy_conn_handle *idle_clients_head;
+
+	/*! Next pointer of last entry in the linked list of available client
+	 *  connection handles */
+	struct proxy_conn_handle **idle_clients_tail_ptr;
+
 	/*! Array which holds all of the client connection worker handles */
 	struct proxy_worker *client_workers;
 
@@ -121,6 +128,9 @@ struct proxy_priv {
 
 	/*! Used to protect proxy_priv::usable_clients */
 	struct mutex_handle usable_clients_mutex;
+
+	/*! Used to protect proxy_priv::idle_clients_head */
+	struct mutex_handle idle_clients_mutex;
 
 	/*! Used to protect proxy_priv::idle_workers_head */
 	struct mutex_handle idle_workers_mutex;
@@ -292,8 +302,7 @@ static void proxy_worker_func(struct worker_handle *wh)
 {
 	struct proxy_worker *pw = wh->func_ctx;
 	struct proxy_priv *priv = pw->ph->priv;
-	struct proxy_conn_handle *pc;
-	int i;
+	struct proxy_conn_handle *pc = NULL;
 	int ret;
 	char remote_addr[54];
 
@@ -347,33 +356,42 @@ static void proxy_worker_func(struct worker_handle *wh)
 
 	proxy_update_registration(pw->ph);
 
-	mutex_lock_shared(&priv->usable_clients_mutex);
-	for (i = 0; i < priv->usable_clients; i++) {
-		ret = proxy_conn_accept(&priv->clients[i], pw->conn_client,
-					pw->callsign, 1);
-		if (ret != -EBUSY)
-			break;
-	}
-
-	if (ret == -EBUSY) {
-		for (i = 0; i < priv->usable_clients; i++) {
-			ret = proxy_conn_accept(&priv->clients[i],
-						pw->conn_client,
-						pw->callsign, 0);
-			if (ret != -EBUSY)
-				break;
-		}
-	}
-	mutex_unlock_shared(&priv->usable_clients_mutex);
-
-	if (ret < 0) {
-		if (ret == -EBUSY)
-			proxy_log(pw->ph, LOG_LEVEL_ERROR,
-				  "State error: no available slots.\n");
+	mutex_lock(&priv->idle_clients_mutex);
+	if (priv->idle_clients_head == NULL) {
+		mutex_unlock(&priv->idle_clients_mutex);
+		proxy_log(pw->ph, LOG_LEVEL_ERROR,
+			  "Idle slot pool is empty.\n");
 		goto proxy_worker_func_exit;
 	}
 
-	pc = &priv->clients[i];
+	pc = priv->idle_clients_head;
+	/* First, check for a reconnect */
+	while (pc != NULL) {
+		ret = proxy_conn_accept(pc, pw->conn_client, pw->callsign, 1);
+		if (ret != -EBUSY)
+			break;
+		pc = pc->next;
+	}
+	/* Fall back on the oldest available slot */
+	if (pc == NULL) {
+		pc = priv->idle_clients_head;
+		ret = proxy_conn_accept(pc, pw->conn_client, pw->callsign, 0);
+	}
+	if (ret < 0) {
+		mutex_unlock(&priv->idle_clients_mutex);
+		proxy_log(pw->ph, LOG_LEVEL_ERROR,
+			  "Failed to acquire slot (%d): %s\n",
+			  -ret, strerror(-ret));
+		goto proxy_worker_func_exit;
+	}
+
+	/* Remove the slot from the pool */
+	*pc->prev_ptr = pc->next;
+	if (pc->next == NULL)
+		priv->idle_clients_tail_ptr = pc->prev_ptr;
+	else
+		pc->next->prev_ptr = pc->prev_ptr;
+	mutex_unlock(&priv->idle_clients_mutex);
 
 	do {
 		ret = proxy_conn_process(pc);
@@ -383,6 +401,14 @@ static void proxy_worker_func(struct worker_handle *wh)
 		  "Disconnected from client '%s'.\n", pw->callsign);
 
 	proxy_conn_finish(pc);
+
+	/* Put the slot back in the pool */
+	pc->next = NULL;
+	mutex_lock(&priv->idle_clients_mutex);
+	pc->prev_ptr = priv->idle_clients_tail_ptr;
+	*priv->idle_clients_tail_ptr = pc;
+	priv->idle_clients_tail_ptr = &pc->next;
+	mutex_unlock(&priv->idle_clients_mutex);
 
 proxy_worker_func_exit:
 	mutex_lock(&pw->mutex);
@@ -537,6 +563,11 @@ int proxy_init(struct proxy_handle *ph)
 	if (ret < 0)
 		goto proxy_init_exit;
 
+	/* Initialize the idle_clients mutex */
+	ret = mutex_init(&priv->idle_clients_mutex);
+	if (ret < 0)
+		goto proxy_init_exit;
+
 	/* Initialize the idle_workers mutex */
 	ret = mutex_init(&priv->idle_workers_mutex);
 	if (ret < 0)
@@ -559,6 +590,9 @@ void proxy_free(struct proxy_handle *ph)
 
 		/* Free idle_workers mutex */
 		mutex_free(&priv->idle_workers_mutex);
+
+		/* Free idle_clients mutex */
+		mutex_free(&priv->idle_clients_mutex);
 
 		/* Free usable_clients mutex */
 		mutex_free(&priv->usable_clients_mutex);
@@ -682,8 +716,17 @@ int proxy_open(struct proxy_handle *ph)
 
 	priv->clients[0].source_addr = ph->conf.bind_addr_ext;
 
-	for (i = 1; i < priv->num_clients; i++)
+	priv->clients[0].prev_ptr = &priv->idle_clients_head;
+	priv->idle_clients_head = &priv->clients[0];
+
+	for (i = 1; i < priv->num_clients; i++) {
 		priv->clients[i].source_addr = ph->conf.bind_addr_ext_add[i - 1];
+		priv->clients[i - 1].next = &priv->clients[i];
+		priv->clients[i].prev_ptr = &priv->clients[i - 1].next;
+	}
+
+	priv->clients[i - 1].next = NULL;
+	priv->idle_clients_tail_ptr = &priv->clients[i - 1].next;
 
 	for (i = 0; i < priv->num_clients; i++) {
 		priv->clients[i].ph = ph;
@@ -747,6 +790,8 @@ proxy_open_exit_later:
 		proxy_worker_free(&priv->client_workers[i]);
 
 proxy_open_exit_late:
+	priv->idle_clients_head = NULL;
+	priv->idle_clients_tail_ptr = NULL;
 	for (i = 0; i < priv->num_clients; i++)
 		proxy_conn_free(&priv->clients[i]);
 
@@ -791,6 +836,8 @@ void proxy_close(struct proxy_handle *ph)
 	for (i = 0; i < priv->num_clients; i++)
 		proxy_worker_free(&priv->client_workers[i]);
 
+	priv->idle_clients_head = NULL;
+	priv->idle_clients_tail_ptr = NULL;
 	for (i = 0; i < priv->num_clients; i++)
 		proxy_conn_free(&priv->clients[i]);
 

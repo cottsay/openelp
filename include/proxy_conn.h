@@ -65,6 +65,12 @@ struct proxy_conn_handle {
 
 	/*! Null-terminated string containing the source address for client data */
 	const char *source_addr;
+
+	/*! The next ::proxy_conn_handle in the linked list */
+	struct proxy_conn_handle *next;
+
+	/*! The pointer to this ::proxy_conn_handle in the linked list */
+	struct proxy_conn_handle **prev_ptr;
 };
 
 /*!
