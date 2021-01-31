@@ -55,6 +55,7 @@
 #include "digest.h"
 #include "log.h"
 #include "mutex.h"
+#include "pearson.h"
 #include "proxy_conn.h"
 #include "rand.h"
 #include "regex.h"
@@ -101,6 +102,9 @@ struct proxy_priv {
 	/*! Next pointer of last entry in the linked list of available client
 	 *  connection handles */
 	struct proxy_conn_handle **idle_clients_tail_ptr;
+
+	/*! Hash map of last connected callsign for each client handle */
+	struct proxy_conn_handle *clients_by_call[256];
 
 	/*! Array which holds all of the client connection worker handles */
 	struct proxy_worker *client_workers;
@@ -305,6 +309,7 @@ static void proxy_worker_func(struct worker_handle *wh)
 	struct proxy_conn_handle *pc = NULL;
 	int ret;
 	char remote_addr[54];
+	uint8_t hash;
 
 	mutex_lock_shared(&pw->mutex);
 
@@ -356,6 +361,10 @@ static void proxy_worker_func(struct worker_handle *wh)
 
 	proxy_update_registration(pw->ph);
 
+	hash = pearson_get((uint8_t *)pw->callsign, strlen(pw->callsign));
+	proxy_log(pw->ph, LOG_LEVEL_DEBUG,
+		  "Searching callsign bucket %u\n", hash);
+
 	mutex_lock(&priv->idle_clients_mutex);
 	if (priv->idle_clients_head == NULL) {
 		mutex_unlock(&priv->idle_clients_mutex);
@@ -364,13 +373,13 @@ static void proxy_worker_func(struct worker_handle *wh)
 		goto proxy_worker_func_exit;
 	}
 
-	pc = priv->idle_clients_head;
+	pc = priv->clients_by_call[hash];
 	/* First, check for a reconnect */
 	while (pc != NULL) {
 		ret = proxy_conn_accept(pc, pw->conn_client, pw->callsign, 1);
 		if (ret != -EBUSY)
 			break;
-		pc = pc->next;
+		pc = pc->next_by_call;
 	}
 	/* Fall back on the oldest available slot */
 	if (pc == NULL) {
@@ -391,6 +400,20 @@ static void proxy_worker_func(struct worker_handle *wh)
 		priv->idle_clients_tail_ptr = pc->prev_ptr;
 	else
 		pc->next->prev_ptr = pc->prev_ptr;
+
+	/* Remove the slot from the hash map */
+	if (pc->prev_by_call_ptr != NULL) {
+		*pc->prev_by_call_ptr = pc->next_by_call;
+		if (pc->next_by_call)
+			pc->next_by_call->prev_by_call_ptr = pc->prev_by_call_ptr;
+	}
+
+	/* Add the slot to the hash map */
+	pc->prev_by_call_ptr = &priv->clients_by_call[hash];
+	pc->next_by_call = priv->clients_by_call[hash];
+	if (pc->next_by_call != NULL)
+		pc->next_by_call->prev_by_call_ptr = &pc->next;
+	priv->clients_by_call[hash] = pc;
 	mutex_unlock(&priv->idle_clients_mutex);
 
 	do {
@@ -714,6 +737,8 @@ int proxy_open(struct proxy_handle *ph)
 		priv->re_calls_denied = NULL;
 	}
 
+	memset(priv->clients_by_call, 0x0, sizeof(priv->clients_by_call));
+
 	priv->clients[0].source_addr = ph->conf.bind_addr_ext;
 
 	priv->clients[0].prev_ptr = &priv->idle_clients_head;
@@ -721,6 +746,8 @@ int proxy_open(struct proxy_handle *ph)
 
 	for (i = 1; i < priv->num_clients; i++) {
 		priv->clients[i].source_addr = ph->conf.bind_addr_ext_add[i - 1];
+		priv->clients[i].prev_by_call_ptr = NULL;
+		priv->clients[i].next_by_call = NULL;
 		priv->clients[i - 1].next = &priv->clients[i];
 		priv->clients[i].prev_ptr = &priv->clients[i - 1].next;
 	}
@@ -836,6 +863,7 @@ void proxy_close(struct proxy_handle *ph)
 	for (i = 0; i < priv->num_clients; i++)
 		proxy_worker_free(&priv->client_workers[i]);
 
+	memset(priv->clients_by_call, 0x0, sizeof(priv->clients_by_call));
 	priv->idle_clients_head = NULL;
 	priv->idle_clients_tail_ptr = NULL;
 	for (i = 0; i < priv->num_clients; i++)

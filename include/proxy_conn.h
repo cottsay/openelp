@@ -71,6 +71,12 @@ struct proxy_conn_handle {
 
 	/*! The pointer to this ::proxy_conn_handle in the linked list */
 	struct proxy_conn_handle **prev_ptr;
+
+	/*! The next ::proxy_conn_handle in the linked list by callsign*/
+	struct proxy_conn_handle *next_by_call;
+
+	/*! The pointer to this ::proxy_conn_handle in the linked list by callsign */
+	struct proxy_conn_handle **prev_by_call_ptr;
 };
 
 /*!
