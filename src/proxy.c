@@ -756,6 +756,8 @@ int proxy_open(struct proxy_handle *ph)
 	priv->idle_clients_tail_ptr = &priv->clients[i - 1].next;
 
 	for (i = 0; i < priv->num_clients; i++) {
+		priv->clients[i].control_port = "5199";
+		priv->clients[i].data_port = "5198";
 		priv->clients[i].ph = ph;
 		ret = proxy_conn_init(&priv->clients[i]);
 		if (ret < 0) {

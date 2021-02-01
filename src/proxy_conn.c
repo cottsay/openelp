@@ -917,14 +917,14 @@ int proxy_conn_init(struct proxy_conn_handle *pc)
 	}
 
 	priv->conn_control.source_addr = pc->source_addr;
-	priv->conn_control.source_port = "5199";
+	priv->conn_control.source_port = pc->control_port;
 	priv->conn_control.type = CONN_TYPE_UDP;
 	ret = conn_init(&priv->conn_control);
 	if (ret != 0)
 		goto proxy_conn_init_exit;
 
 	priv->conn_data.source_addr = pc->source_addr;
-	priv->conn_data.source_port = "5198";
+	priv->conn_data.source_port = pc->data_port;
 	priv->conn_data.type = CONN_TYPE_UDP;
 	ret = conn_init(&priv->conn_data);
 	if (ret != 0)

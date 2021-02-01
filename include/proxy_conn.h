@@ -66,6 +66,12 @@ struct proxy_conn_handle {
 	/*! Null-terminated string containing the source address for client data */
 	const char *source_addr;
 
+	/*! Null-terminated struing containing the port number for control packets */
+	const char *control_port;
+
+	/*! Null-terminated struing containing the port number for data packets */
+	const char *data_port;
+
 	/*! The next ::proxy_conn_handle in the linked list */
 	struct proxy_conn_handle *next;
 
