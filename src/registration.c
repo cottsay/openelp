@@ -193,12 +193,19 @@ static int send_report(struct registration_service_handle *rs,
 	if (message_body == NULL)
 		return -ENOMEM;
 
-	body_length = sprintf(
-		message_body,
-		"name=%s&comment=%s [%lu/%lu]&public=%c&status=%s%s",
-		priv->reg_name, priv->reg_comment, (unsigned long)slots_used,
-		(unsigned long)slots_total, priv->public, status_str,
-		priv->reg_suffix);
+	if (slots_total == 1)
+		body_length = sprintf(
+			message_body,
+			"name=%s&comment=%s&public=%c&status=%s%s",
+			priv->reg_name, priv->reg_comment,
+			priv->public, status_str, priv->reg_suffix);
+	else
+		body_length = sprintf(
+			message_body,
+			"name=%s&comment=%s [%lu/%lu]&public=%c&status=%s%s",
+			priv->reg_name, priv->reg_comment,
+			(unsigned long)slots_used, (unsigned long)slots_total,
+			priv->public, status_str, priv->reg_suffix);
 	if (body_length <= 0) {
 		ret = -EINVAL; /*! @TODO */
 		goto registration_update_exit;
