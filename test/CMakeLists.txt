@@ -35,6 +35,7 @@ endmacro()
 
 add_openelp_test(test_conn test_conn.c)
 add_openelp_test(test_digest test_digest.c)
+add_openelp_test(test_e2e test_e2e.c)
 add_openelp_test(test_md5 test_md5.c)
 add_openelp_test(test_proxy test_proxy.c)
 add_openelp_test(test_regex test_regex.c)
