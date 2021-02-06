@@ -10,6 +10,7 @@ routed to unique external IP addresses, and therefore is capable of accepting
 connections from multiple clients simultaneously.
 
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/cottsay/openelp/OpenELP%20CI/main?event=push&logo=github)](https://github.com/cottsay/openelp/actions?query=workflow%3A%22OpenELP+CI%22+branch%3Amain+event%3Apush) [![AUR version](https://img.shields.io/aur/version/openelp?logo=arch%20linux)](https://aur.archlinux.org/packages/openelp/) [![EPEL package](https://img.shields.io/fedora/v/openelp/epel8?label=epel&logo=red%20hat)](https://src.fedoraproject.org/rpms/openelp) [![Fedora package](https://img.shields.io/fedora/v/openelp?logo=fedora)](https://src.fedoraproject.org/rpms/openelp)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fcottsay%2Fopenelp.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fcottsay%2Fopenelp?ref=badge_shield)
 
 Prerequisites
 -------------
@@ -69,3 +70,7 @@ All issues and feature requests should be directed to
 [the bug tracker](https://github.com/cottsay/openelp/issues). Please review any
 open issues before filing new ones.
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fcottsay%2Fopenelp.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fcottsay%2Fopenelp?ref=badge_large)
