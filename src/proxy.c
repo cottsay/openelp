@@ -516,8 +516,6 @@ int proxy_load_conf(struct proxy_handle *ph, const char *path)
 	if (ret < 0)
 		return ret;
 
-	conn_port_to_str(ph->conf.port, priv->port_str);
-
 	if (ph->conf.connection_timeout != 0) {
 		proxy_log(ph, LOG_LEVEL_WARN,
 			  "ConnectionTimeout is not supported this version of OpenELP\n");
@@ -655,6 +653,8 @@ int proxy_open(struct proxy_handle *ph)
 	struct proxy_priv *priv = ph->priv;
 	int i;
 	int ret;
+
+	conn_port_to_str(ph->conf.port, priv->port_str);
 
 	priv->num_clients = 1 + ph->conf.bind_addr_ext_add_len;
 
