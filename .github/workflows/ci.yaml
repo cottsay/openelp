@@ -128,3 +128,39 @@ jobs:
         with:
           name: OpenELP-HTML-Docs
           path: ${{runner.workspace}}/build/doc/html/*
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone project
+        uses: actions/checkout@v2
+      - name: Create build environment
+        shell: bash
+        working-directory: ${{runner.workspace}}
+        run: mkdir -p build
+      - name: Configure project
+        working-directory: ${{runner.workspace}}/build
+        run: >
+          cmake ${{github.workspace}}
+          -Wno-dev
+          -DCMAKE_BUILD_TYPE=Debug
+          -DBUILD_TESTING:BOOL=ON
+          -DBUILD_SHARED_LIBS:BOOL=ON
+          -DOPENELP_BUNDLE_PCRE:BOOL=OFF
+          -DOPENELP_USE_OPENSSL:BOOL=OFF
+          -DCMAKE_C_FLAGS="--coverage"
+      - name: Build project
+        run: cmake --build ${{runner.workspace}}/build --config Debug -j2
+      - name: Test project
+        run: cmake --build ${{runner.workspace}}/build --config Debug -j2 -t test
+        env:
+          CTEST_OUTPUT_ON_FAILURE: 1
+      - name: Upload coverage
+        uses: codecov/codecov-action@v1
+        with:
+          directory: ${{github.workspace}}
+          gcov_args: -s ${{github.workspace}}
+          gcov_path_exclude: '*/CompilerIdC/*'
+          gcov_root_dir: ${{runner.workspace}}/build
+          working-directory: ${{github.workspace}}
