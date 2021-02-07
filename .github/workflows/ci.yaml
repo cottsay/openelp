@@ -78,7 +78,7 @@ jobs:
       - name: Package project
         run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t package
       - name: Upload package
-        uses: actions/upload-artifact@v2-preview
+        uses: actions/upload-artifact@v2
         with:
           name: OpenELP-${{runner.os}}
           path: ${{runner.workspace}}/build/_CPack_Packages/${{runner.os}}/ZIP/OpenELP-${{runner.os}}/*
@@ -124,7 +124,7 @@ jobs:
       - name: Build documentation
         run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t doc
       - name: Upload documentation
-        uses: actions/upload-artifact@v2-preview
+        uses: actions/upload-artifact@v2
         with:
           name: OpenELP-HTML-Docs
           path: ${{runner.workspace}}/build/doc/html/*
