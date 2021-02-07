@@ -46,7 +46,7 @@ if(NOT CMAKE_BUILD_TYPE)
   list(GET CMAKE_CONFIGURATION_TYPES 0 CMAKE_BUILD_TYPE)
 endif()
 
-set(OPENELP_EXTRA_VERSION "dev" CACHE STRING
+set(OPENELP_EXTRA_VERSION "" CACHE STRING
   "Extra value suffixed to the version number"
   )
 
