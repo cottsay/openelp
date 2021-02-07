@@ -33,6 +33,11 @@ macro(add_openelp_test test_name)
   list(APPEND OPENELP_TEST_TARGETS ${test_name})
 endmacro()
 
+add_test(NAME test_exe_help COMMAND $<TARGET_FILE:openelpd> --help)
+add_test(NAME test_exe_invalid COMMAND $<TARGET_FILE:openelpd> --no-such-option)
+set_tests_properties(test_exe_invalid PROPERTIES WILL_FAIL TRUE)
+add_test(NAME test_exe_version COMMAND $<TARGET_FILE:openelpd> --version)
+
 add_openelp_test(test_conn test_conn.c)
 add_openelp_test(test_digest test_digest.c)
 add_openelp_test(test_e2e test_e2e.c)
