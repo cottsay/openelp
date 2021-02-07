@@ -173,6 +173,12 @@ add_compile_options(
   -DOPENELP_VERSION=${OPENELP_VERSION}
   )
 
+if(OPENELP_EXTRA_VERSION)
+  add_compile_options(
+    -DOPENELP_EXTRA_VERSION=${OPENELP_EXTRA_VERSION}
+    )
+endif()
+
 if(OPENELP_CONFIG_HINT)
   add_compile_options(
     -DOPENELP_CONFIG_HINT=${OPENELP_CONFIG_HINT}
