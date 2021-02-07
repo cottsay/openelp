@@ -548,7 +548,7 @@ static int process_control_data_message(struct proxy_conn_handle *pc,
 	int ret;
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Processing UDP_CONTROL message (%d bytes) from client '%s'\n",
+		  "Processing UDP_CONTROL message (%zu bytes) from client '%s'\n",
 		  msg_size, priv->callsign);
 
 	while (msg_size > 0) {
@@ -586,7 +586,7 @@ static int process_data_message(struct proxy_conn_handle *pc,
 	int ret;
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Processing UDP_DATA message (%d bytes) from client '%s'\n",
+		  "Processing UDP_DATA message (%zu bytes) from client '%s'\n",
 		  msg_size, priv->callsign);
 
 	while (msg_size > 0) {
@@ -663,7 +663,7 @@ static int process_tcp_data_message(struct proxy_conn_handle *pc,
 	int ret;
 
 	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Processing TCP_DATA message (%d bytes) from client '%s'\n",
+		  "Processing TCP_DATA message (%zu bytes) from client '%s'\n",
 		  msg_size, priv->callsign);
 
 	while (msg_size > 0) {

@@ -62,6 +62,10 @@
 /*! Stringization macro - stage two */
 #define OCH_STR2(x) OCH_STR1(x)
 
+#ifdef _WIN32
+#  define localtime_r(timep, result) (localtime_s(result, timep) == 0 ? result : NULL)
+#endif
+
 /*!
  * @brief Private data for an instance of logging infrastrucure
  */
@@ -391,12 +395,12 @@ void log_vprintf(struct log_handle *log, enum LOG_LEVEL lvl,
 	case LOG_MEDIUM_FILE:
 		if (priv != NULL) {
 			time_t epoch;
-			struct tm *cal_time;
+			struct tm cal_time;
 			char tstamp[16];
 
 			time(&epoch);
-			cal_time = localtime(&epoch);
-			strftime(tstamp, 16, "%b %d %H:%M:%S", cal_time);
+			localtime_r(&epoch, &cal_time);
+			strftime(tstamp, 16, "%b %d %H:%M:%S", &cal_time);
 			fprintf(priv->medium_file.fp, "%s : ", tstamp);
 
 			vfprintf(priv->medium_file.fp, fmt, args);
