@@ -73,14 +73,6 @@ static void digest_to_hex8(uint8_t data, char result[2]);
 static void digest_to_hex8_u(uint8_t data, char result[2]);
 
 /*!
- * @brief Converts a big-endian 32-bit value to a base 16 string
- *
- * @param[in] data Numeric value to convert (big-endian)
- * @param[out] result Resulting ASCII characters
- */
-static void digest_to_hex32_be(uint32_t data, char result[8]);
-
-/*!
  * @brief Converts a base 16 string to a 4-bit value
  *
  * @param[in] data ASCII character to convert
@@ -132,15 +124,10 @@ static void digest_to_hex8_u(uint8_t data, char result[2])
 
 void digest_to_hex32(uint32_t data, char result[8])
 {
-	digest_to_hex32_be(htonl(data), result);
-}
-
-static void digest_to_hex32_be(uint32_t data, char result[8])
-{
-	digest_to_hex8(data & 0xff, &result[0]);
-	digest_to_hex8(data >> 0x8 & 0xff, &result[2]);
-	digest_to_hex8(data >> 0x10 & 0xff, &result[4]);
-	digest_to_hex8(data >> 0x18 & 0xff, &result[6]);
+	digest_to_hex8(data >> 0x18 & 0xff, &result[0]);
+	digest_to_hex8(data >> 0x10 & 0xff, &result[2]);
+	digest_to_hex8(data >> 0x8 & 0xff, &result[4]);
+	digest_to_hex8(data & 0xff, &result[6]);
 }
 
 void digest_to_str(const uint8_t md5[DIGEST_LEN],
