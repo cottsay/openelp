@@ -34,8 +34,8 @@ set(PCRE_CMAKE_ARGS
   )
 
 ExternalProject_Add(pcre
-  URL "https://ftp.pcre.org/pub/pcre/pcre2-${PCRE_TARGET_VERSION}.tar.gz"
-  URL_MD5 a5d9aa7d18b61b0226696510e60c9582
+  URL "http://ftp.pcre.org/pub/pcre/pcre2-${PCRE_TARGET_VERSION}.tar.gz"
+  URL_HASH SHA256=b95ddb9414f91a967a887d69617059fb672b914f56fa3d613812c1ee8e8a1a37
   CMAKE_ARGS ${PCRE_CMAKE_ARGS}
   )
 
