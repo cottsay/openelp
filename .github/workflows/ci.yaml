@@ -7,8 +7,6 @@ on:
       - devel
       - main
       - release/*
-  schedule:
-    - cron: 0 0 1 * *
 
 jobs:
   build_and_test:
