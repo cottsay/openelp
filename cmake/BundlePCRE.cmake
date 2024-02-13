@@ -1,6 +1,6 @@
 include(ExternalProject)
 
-set(PCRE_TARGET_VERSION "10.36")
+set(PCRE_TARGET_VERSION "10.42")
 set(PCRE_DIR ${CMAKE_CURRENT_BINARY_DIR}/pcre2)
 set(PCRE_C_FLAGS ${CMAKE_C_FLAGS})
 
@@ -34,8 +34,8 @@ set(PCRE_CMAKE_ARGS
   )
 
 ExternalProject_Add(pcre
-  URL "http://ftp.pcre.org/pub/pcre/pcre2-${PCRE_TARGET_VERSION}.tar.gz"
-  URL_HASH SHA256=b95ddb9414f91a967a887d69617059fb672b914f56fa3d613812c1ee8e8a1a37
+  URL "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE_TARGET_VERSION}/pcre2-${PCRE_TARGET_VERSION}.tar.gz"
+  URL_HASH SHA256=c33b418e3b936ee3153de2c61cc638e7e4fe3156022a5c77d0711bcbb9d64f1f
   CMAKE_ARGS ${PCRE_CMAKE_ARGS}
   )
 
@@ -43,8 +43,12 @@ ExternalProject_Get_Property(pcre
   SOURCE_DIR
   )
 
-if(WIN32 AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-  set(PCRE_POSTFIX "d")
+if(WIN32)
+  if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set(PCRE_POSTFIX "-staticd")
+  else()
+    set(PCRE_POSTFIX "-static")
+  endif()
 endif()
 
 set(OPENELP_PCRE_LICENSE_PATH "${SOURCE_DIR}/LICENCE")

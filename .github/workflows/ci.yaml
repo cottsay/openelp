@@ -34,8 +34,8 @@ jobs:
       - name: Cache PCRE2
         uses: actions/cache@v2
         with:
-          path: ${{runner.workspace}}/build/pcre-prefix/src/pcre2-10.36.tar.gz
-          key: pcre2-10.36
+          path: ${{runner.workspace}}/build/pcre-prefix/src/pcre2-10.42.tar.gz
+          key: pcre2-10.42
       - name: Clone project
         uses: actions/checkout@v2
       - name: Get snapshot ID
