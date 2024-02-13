@@ -1,5 +1,7 @@
 include(ExternalProject)
 
+cmake_policy(SET CMP0135 OLD)
+
 set(PCRE_TARGET_VERSION "10.42")
 set(PCRE_DIR ${CMAKE_CURRENT_BINARY_DIR}/pcre2)
 set(PCRE_C_FLAGS ${CMAKE_C_FLAGS})
