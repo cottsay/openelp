@@ -34,9 +34,9 @@ To create a Windows installer, you will also need to install
 The only runtime dependency that OpenELP has is on the PCRE2 shared library,
 unless PCRE2 was bundled into OpenELP.
 
-To install these prerequisites on Fedora (23+) and CentOS/RHEL (6+ w/EPEL), run:
+To install these prerequisites on Fedora and RHEL (w/EPEL), run:
 ```
-sudo yum install cmake doxygen gcc pcre2-devel pkgconfig openssl-devel
+sudo dnf install cmake doxygen gcc pcre2-devel pkgconfig openssl-devel
 ```
 
 Compiling
