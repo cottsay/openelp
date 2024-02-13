@@ -9,10 +9,11 @@ find_package(Doxygen)
 #
 
 if(DOXYGEN_FOUND)
+  set(OPENELP_DOC_README "\"${OPENELP_DIR}/README.md\"")
   set(OPENELP_DOC_SOURCES "\"${OPENELP_INCLUDE_DIR}/openelp/openelp.h\" \\
     \"${OPENELP_DIR}/CONTRIBUTING.md\" \\
     \"${OPENELP_DIR}/TODO.md\" \\
-    \"${OPENELP_DIR}/README.md\"")
+    ${OPENELP_DOC_README}")
 
   if(OPENELP_DOC_INTERNAL)
     set(OPENELP_DOC_SOURCES "${OPENELP_DOC_SOURCES} \\

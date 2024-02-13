@@ -94,13 +94,13 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{runner.workspace}}/doxygen
-          key: doxygen-1.9.1
+          key: doxygen-1.9.7
       - name: Download Doxygen
         if: steps.cache-doxygen.outputs.cache-hit != 'true'
         working-directory: ${{runner.workspace}}
         run: |
-          wget -O - https://doxygen.nl/files/doxygen-1.9.1.linux.bin.tar.gz | tar -xz
-          mv doxygen-1.9.1 doxygen
+          wget -O - https://www.doxygen.nl/files/doxygen-1.9.7.linux.bin.tar.gz | tar -xz
+          mv doxygen-1.9.7 doxygen
       - name: Clone project
         uses: actions/checkout@v2
       - name: Create build environment
