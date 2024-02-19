@@ -9,7 +9,7 @@ OpenELP also has the ability to bind to multiple network interfaces which are
 routed to unique external IP addresses, and therefore is capable of accepting
 connections from multiple clients simultaneously.
 
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/cottsay/openelp/OpenELP%20CI/main?event=push&logo=github)](https://github.com/cottsay/openelp/actions?query=workflow%3A%22OpenELP+CI%22+branch%3Amain+event%3Apush) [![AUR version](https://img.shields.io/aur/version/openelp?logo=arch%20linux&&logoColor=ffffff)](https://aur.archlinux.org/packages/openelp/) [![EPEL package](https://img.shields.io/fedora/v/openelp/epel8?label=epel&logo=red%20hat)](https://src.fedoraproject.org/rpms/openelp) [![Fedora package](https://img.shields.io/fedora/v/openelp?logo=fedora)](https://src.fedoraproject.org/rpms/openelp) [![Codecov](https://img.shields.io/codecov/c/github/cottsay/openelp/main?logo=codecov&logoColor=ffffff)](https://app.codecov.io/gh/cottsay/openelp/branch/main)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/cottsay/openelp/ci.yaml?branch=main&event=push&logo=github)](https://github.com/cottsay/openelp/actions/workflows/ci.yaml?query=branch%3Amain+event%3Apush) [![AUR version](https://img.shields.io/aur/version/openelp?logo=arch%20linux&&logoColor=ffffff)](https://aur.archlinux.org/packages/openelp/) [![EPEL package](https://img.shields.io/fedora/v/openelp/epel8?label=epel&logo=red%20hat)](https://src.fedoraproject.org/rpms/openelp) [![Fedora package](https://img.shields.io/fedora/v/openelp?logo=fedora)](https://src.fedoraproject.org/rpms/openelp) [![Codecov](https://img.shields.io/codecov/c/github/cottsay/openelp/main?logo=codecov&logoColor=ffffff)](https://app.codecov.io/gh/cottsay/openelp/branch/main)
 
 Prerequisites
 -------------
@@ -34,9 +34,9 @@ To create a Windows installer, you will also need to install
 The only runtime dependency that OpenELP has is on the PCRE2 shared library,
 unless PCRE2 was bundled into OpenELP.
 
-To install these prerequisites on Fedora (23+) and CentOS/RHEL (6+ w/EPEL), run:
+To install these prerequisites on Fedora and RHEL (w/EPEL), run:
 ```
-sudo yum install cmake doxygen gcc pcre2-devel pkgconfig openssl-devel
+sudo dnf install cmake doxygen gcc pcre2-devel pkgconfig openssl-devel
 ```
 
 Compiling

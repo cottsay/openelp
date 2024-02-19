@@ -1,14 +1,14 @@
+---
 name: OpenELP CI
 
-on:
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
   pull_request:
   push:
     branches:
       - devel
       - main
       - release/*
-  schedule:
-    - cron: 0 0 1 * *
 
 jobs:
   build_and_test:
@@ -28,27 +28,30 @@ jobs:
           - os: windows-latest
             test_target: RUN_TESTS
             extra_flags: /WX
-            extra_compiler_flags: /experimental:external /external:anglebrackets /external:W0
+            extra_compiler_flags: >-
+              /experimental:external
+              /external:anglebrackets
+              /external:W0
 
     steps:
       - name: Cache PCRE2
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
-          path: ${{runner.workspace}}/build/pcre-prefix/src/pcre2-10.36.tar.gz
-          key: pcre2-10.36
+          path: ${{runner.workspace}}/build/pcre-prefix/src/pcre2-10.42.tar.gz
+          key: pcre2-10.42
       - name: Clone project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Get snapshot ID
         id: get-snap-id
         shell: bash
-        run: echo "::set-output name=snap_id::git${{github.sha}}" | cut -c-38
+        run: echo "snap_id=git${{github.sha}}" | cut -c-19 >> $GITHUB_OUTPUT
       - name: Create build environment
         shell: bash
         working-directory: ${{runner.workspace}}
         run: mkdir -p build
       - name: Configure project
         working-directory: ${{runner.workspace}}/build
-        run: >
+        run: >-
           cmake ${{github.workspace}}
           -Werror=dev
           -Werror=deprecated
@@ -67,18 +70,37 @@ jobs:
           -DCMAKE_SHARED_LINKER_FLAGS="${{matrix.extra_flags}}"
           -DCMAKE_STATIC_LINKER_FLAGS="${{matrix.extra_flags}}"
       - name: Build PCRE2
-        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t pcre
+        run: >-
+          cmake
+          --build ${{runner.workspace}}/build
+          --config ${{matrix.build_type}}
+          -j2
+          -t pcre
       - name: Build project
-        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2
+        run: >-
+          cmake
+          --build ${{runner.workspace}}/build
+          --config ${{matrix.build_type}}
+          -j2
       - name: Test project
-        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t ${{matrix.test_target}}
+        run: >-
+          cmake
+          --build ${{runner.workspace}}/build
+          --config ${{matrix.build_type}}
+          -j2
+          -t ${{matrix.test_target}}
         if: ${{matrix.test_target}}
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
       - name: Package project
-        run: cmake --build ${{runner.workspace}}/build --config ${{matrix.build_type}} -j2 -t package
+        run: >-
+          cmake
+          --build ${{runner.workspace}}/build
+          --config ${{matrix.build_type}}
+          -j2
+          -t package
       - name: Upload package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: OpenELP-${{runner.os}}
           path: ${{runner.workspace}}/build/_CPack_Packages/${{runner.os}}/ZIP/OpenELP-${{runner.os}}/*
@@ -91,25 +113,26 @@ jobs:
         run: sudo apt-get install libclang-cpp9 libclang1-9 -y
       - name: Cache Doxygen
         id: cache-doxygen
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ${{runner.workspace}}/doxygen
-          key: doxygen-1.9.1
+          key: doxygen-1.9.7
       - name: Download Doxygen
         if: steps.cache-doxygen.outputs.cache-hit != 'true'
         working-directory: ${{runner.workspace}}
         run: |
-          wget -O - https://doxygen.nl/files/doxygen-1.9.1.linux.bin.tar.gz | tar -xz
-          mv doxygen-1.9.1 doxygen
+          wget -O - https://www.doxygen.nl/files/doxygen-1.9.7.linux.bin.tar.gz | tar -xz
+          mv doxygen-1.9.7 doxygen
       - name: Clone project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Create build environment
         shell: bash
-        working-directory: ${{runner.workspace}}
-        run: mkdir -p build && echo "WARN_AS_ERROR = FAIL_ON_WARNINGS" >> ${{github.workspace}}/doc/Doxyfile.in
+        run: |
+          mkdir -p ${{runner.workspace}}/build
+          echo "WARN_AS_ERROR = FAIL_ON_WARNINGS" >> doc/Doxyfile.in
       - name: Configure project
         working-directory: ${{runner.workspace}}/build
-        run: >
+        run: >-
           cmake ${{github.workspace}}
           -Werror=dev
           -Werror=deprecated
@@ -122,9 +145,13 @@ jobs:
           -DOPENELP_EXTRA_VERSION=${{steps.get-snap-id.outputs.snap_id}}
           -DOPENELP_DOC_INTERNAL=ON
       - name: Build documentation
-        run: cmake --build ${{runner.workspace}}/build -j2 -t doc
+        run: >-
+          cmake
+          --build ${{runner.workspace}}/build
+          -j2
+          -t doc
       - name: Upload documentation
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: OpenELP-HTML-Docs
           path: ${{runner.workspace}}/build/doc/html/*
@@ -134,14 +161,14 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Clone project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Create build environment
         shell: bash
         working-directory: ${{runner.workspace}}
         run: mkdir -p build
       - name: Configure project
         working-directory: ${{runner.workspace}}/build
-        run: >
+        run: >-
           cmake ${{github.workspace}}
           -Wno-dev
           -DCMAKE_BUILD_TYPE=Debug
@@ -151,9 +178,18 @@ jobs:
           -DOPENELP_USE_OPENSSL:BOOL=OFF
           -DCMAKE_C_FLAGS="--coverage"
       - name: Build project
-        run: cmake --build ${{runner.workspace}}/build --config Debug -j2
+        run: >-
+          cmake
+          --build ${{runner.workspace}}/build
+          --config Debug
+          -j2
       - name: Test project
-        run: cmake --build ${{runner.workspace}}/build --config Debug -j2 -t test
+        run: >-
+          cmake
+          --build ${{runner.workspace}}/build
+          --config Debug
+          -j2
+          -t test
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
       - name: Upload coverage

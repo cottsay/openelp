@@ -12,12 +12,12 @@ jobs:
 
     steps:
       - name: Cache PCRE2
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
-          path: ${{runner.workspace}}\build\pcre-prefix\src\pcre2-10.36.tar.gz
-          key: pcre2-10.36
+          path: ${{runner.workspace}}\build\pcre-prefix\src\pcre2-10.42.tar.gz
+          key: pcre2-10.42
       - name: Clone project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Create build environment
         shell: bash
         working-directory: ${{runner.workspace}}
@@ -44,7 +44,7 @@ jobs:
       - name: Package project
         run: cmake --build ${{runner.workspace}}\build --config Release -j2 -t package
       - name: Upload package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: OpenELP-win64
           path: ${{runner.workspace}}\build\OpenELP-*-win64.exe
