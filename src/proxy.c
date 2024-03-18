@@ -412,7 +412,7 @@ static void proxy_worker_func(struct worker_handle *wh)
 	pc->prev_by_call_ptr = &priv->clients_by_call[hash];
 	pc->next_by_call = priv->clients_by_call[hash];
 	if (pc->next_by_call != NULL)
-		pc->next_by_call->prev_by_call_ptr = &pc->next;
+		pc->next_by_call->prev_by_call_ptr = &pc->next_by_call;
 	priv->clients_by_call[hash] = pc;
 	mutex_unlock(&priv->idle_clients_mutex);
 
