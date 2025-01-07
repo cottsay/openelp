@@ -167,6 +167,13 @@ static int proxy_worker_accept(struct proxy_worker *pw,
 static int proxy_worker_authorize(struct proxy_worker *pw);
 
 /*!
+ * @brief Begins an orderly shutdown of any active connections
+ *
+ * @param[in,out] pw Target proxy client worker instance
+ */
+static void proxy_worker_drop(struct proxy_worker *pw);
+
+/*!
  * @brief Frees data allocated by ::proxy_worker_init
  *
  * @param[in,out] pw Target proxy client worker instance
@@ -294,6 +301,16 @@ static int proxy_worker_authorize(struct proxy_worker *pw)
 	}
 
 	return 0;
+}
+
+static void proxy_worker_drop(struct proxy_worker *pw)
+{
+	mutex_lock_shared(&pw->mutex);
+
+	if (pw->conn_client != NULL)
+		conn_drop(pw->conn_client);
+
+	mutex_unlock_shared(&pw->mutex);
 }
 
 static void proxy_worker_free(struct proxy_worker *pw)
@@ -894,7 +911,7 @@ void proxy_drop(struct proxy_handle *ph)
 	proxy_log(ph, LOG_LEVEL_DEBUG, "Dropping all clients...\n");
 
 	for (i = 0; i < priv->num_clients; i++)
-		proxy_conn_drop(&priv->clients[i]);
+		proxy_worker_drop(&priv->client_workers[i]);
 }
 
 void proxy_shutdown(struct proxy_handle *ph)
