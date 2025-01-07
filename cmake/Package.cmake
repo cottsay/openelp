@@ -107,7 +107,7 @@ include(CPack)
 
 if(WIN32)
   install(FILES "${OPENELP_DIR}/LICENSE"
-    DESTINATION "./"
+    DESTINATION "."
     COMPONENT license
     RENAME "LICENSE.txt"
     )
@@ -120,7 +120,7 @@ if(WIN32)
       )
 
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.pcre"
-      DESTINATION "./"
+      DESTINATION "."
       COMPONENT license
       RENAME "LICENSE.pcre.txt"
       )
