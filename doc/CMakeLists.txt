@@ -124,7 +124,7 @@ endif()
 
 if(OPENELP_DOC_HTMLHELP AND DOXYGEN_FOUND)
   install(FILES "${OPENELP_DOC_HTMLHELP_OUT_PATH}"
-    DESTINATION "./"
+    DESTINATION "."
     COMPONENT help
     )
 endif()
