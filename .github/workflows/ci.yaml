@@ -192,11 +192,13 @@ jobs:
           -t test
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
+      - name: Aggregate coverage
+        run: >-
+          find ${{runner.workspace}}/build -name '*.gcda' |
+          xargs gcov -p -s ${{runner.workspace}}
       - name: Upload coverage
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v5
         with:
           directory: ${{github.workspace}}
-          gcov_args: -s ${{github.workspace}}
-          gcov_path_exclude: '*/CompilerIdC/*'
-          gcov_root_dir: ${{runner.workspace}}/build
+          token: ${{ secrets.CODECOV_TOKEN }}
           working-directory: ${{github.workspace}}
