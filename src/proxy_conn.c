@@ -291,6 +291,16 @@ static int process_tcp_open_message(struct proxy_conn_handle *pc,
  */
 static int send_tcp_close(struct proxy_conn_handle *pc);
 
+/*!
+ * @brief Send a ::PROXY_MSG_TYPE_TCP_STATUS message to the client
+ *
+ * @param[in,out] pc Target proxy client connection instance
+ * @param[in] status Status to report to the client
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+static int send_tcp_status(struct proxy_conn_handle *pc, uint32_t status);
+
 static void forwarder_control(struct worker_handle *wh)
 {
 	struct proxy_conn_handle *pc = wh->func_ctx;
@@ -706,8 +716,6 @@ static int process_tcp_open_message(struct proxy_conn_handle *pc,
 				    const struct proxy_msg *msg)
 {
 	struct proxy_conn_priv *priv = pc->priv;
-	uint8_t status_buf[sizeof(struct proxy_msg) + 4] = { 0 };
-	struct proxy_msg *status_msg = (struct proxy_msg *)status_buf;
 	const uint8_t *addr_sep = (const uint8_t *)&msg->address;
 	char addr[16] = "";
 	int ret;
@@ -725,6 +733,14 @@ static int process_tcp_open_message(struct proxy_conn_handle *pc,
 		return -EINVAL;
 	}
 
+	/* Disconnect any existing connection */
+	conn_close(&priv->conn_tcp);
+	ret = worker_wait_idle(&priv->worker_tcp);
+	if (ret < 0) {
+		send_tcp_status(pc, ret);
+		return ret;
+	}
+
 	/* Attempt to connect */
 	ret = conn_connect(&priv->conn_tcp, (const char *)addr, "5200");
 	if (ret < 0) {
@@ -738,26 +754,7 @@ static int process_tcp_open_message(struct proxy_conn_handle *pc,
 			conn_close(&priv->conn_tcp);
 	}
 
-	status_msg->type = PROXY_MSG_TYPE_TCP_STATUS;
-	status_msg->size = 4;
-
-	/* Unless we can figure out what the client is expecting here, the
-	 * best we can do is a "non-zero" value to indicate failure.
-	 */
-	memcpy(status_buf + sizeof(*status_msg), &ret, 4);
-
-	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
-		  "Sending TCP_STATUS message (%d) to client '%s'\n",
-		  ret, priv->callsign);
-
-	mutex_lock(&priv->mutex_client_send);
-
-	ret = conn_send(priv->conn_client, status_buf,
-			sizeof(*status_msg) + status_msg->size);
-
-	mutex_unlock(&priv->mutex_client_send);
-
-	return ret;
+	return send_tcp_status(pc, ret);
 }
 
 static int send_tcp_close(struct proxy_conn_handle *pc)
@@ -776,6 +773,35 @@ static int send_tcp_close(struct proxy_conn_handle *pc)
 
 	ret = conn_send(priv->conn_client, (uint8_t *)&message,
 			sizeof(struct proxy_msg));
+
+	mutex_unlock(&priv->mutex_client_send);
+
+	return ret;
+}
+
+static int send_tcp_status(struct proxy_conn_handle *pc, uint32_t status)
+{
+	struct proxy_conn_priv *priv = pc->priv;
+	uint8_t status_buf[sizeof(struct proxy_msg) + 4] = { 0 };
+	struct proxy_msg *status_msg = (struct proxy_msg *)status_buf;
+	int ret;
+
+	status_msg->type = PROXY_MSG_TYPE_TCP_STATUS;
+	status_msg->size = 4;
+
+	/* Unless we can figure out what the client is expecting here, the
+	 * best we can do is a "non-zero" value to indicate failure.
+	 */
+	memcpy(status_buf + sizeof(*status_msg), &status, 4);
+
+	proxy_log(pc->ph, LOG_LEVEL_DEBUG,
+		  "Sending TCP_STATUS message (%d) to client '%s'\n",
+		  status, priv->callsign);
+
+	mutex_lock(&priv->mutex_client_send);
+
+	ret = conn_send(priv->conn_client, status_buf,
+			sizeof(struct proxy_msg) + status_msg->size);
 
 	mutex_unlock(&priv->mutex_client_send);
 
