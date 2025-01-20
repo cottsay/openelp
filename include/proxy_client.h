@@ -49,6 +49,8 @@
 
 #include <stdint.h>
 
+#include "proxy_msg.h"
+
 /*!
  * @brief Represents an instance of a client connection
  *
@@ -105,5 +107,30 @@ void proxy_client_free(struct proxy_client_handle *ch);
  * @returns 0 on success, negative ERRNO value on failure
  */
 int proxy_client_init(struct proxy_client_handle *ch);
+
+/*!
+ * @brief Copies a message which has been sent from the proxy server
+ *
+ * @param[in] ch Target client connection instance
+ * @param[out] msg Received message header
+ * @param[out] buff Buffer to copy received into
+ * @param[in] buff_len Maximum number of bytes of data to read
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+int proxy_client_recv(struct proxy_client_handle *ch, struct proxy_msg *msg,
+		      uint8_t *buff, size_t buff_len);
+
+/*!
+ * @brief Send a message to the connected proxy server
+ *
+ * @param[in] ch Target client connection instance
+ * @param[in] msg Message header to send
+ * @param[in] buff Buffer containing data to be sent
+ *
+ * @returns 0 on success, negative ERRNO value on failure
+ */
+int proxy_client_send(struct proxy_client_handle *ch,
+		      const struct proxy_msg *msg, const uint8_t *buff);
 
 #endif /* PROXY_CLIENT_H_ */

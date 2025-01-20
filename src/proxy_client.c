@@ -101,7 +101,7 @@ int proxy_client_connect(struct proxy_client_handle *ch)
 	ret = conn_send(&priv->conn, (uint8_t *)"\n", 1);
 	if (ret < 0)
 		goto proxy_client_connection_exit;
-		
+
 	ret = conn_send(&priv->conn, response, PROXY_PASS_RES_LEN);
 	if (ret < 0)
 		goto proxy_client_connection_exit;
@@ -164,6 +164,35 @@ proxy_client_init_exit:
 
 	free(ch->priv);
 	ch->priv = NULL;
+
+	return ret;
+}
+
+int proxy_client_recv(struct proxy_client_handle *ch, struct proxy_msg *msg,
+                      uint8_t *buff, size_t buff_len)
+{
+	struct proxy_client_priv *priv = ch->priv;
+	int ret;
+
+	ret = conn_recv(&priv->conn, (uint8_t *)msg, sizeof(*msg));
+	if (ret >= 0 && msg->size > 0) {
+		if (msg->size > buff_len)
+			return -ENOSPC;
+		ret = conn_recv(&priv->conn, buff, msg->size);
+	}
+
+	return ret;
+}
+
+int proxy_client_send(struct proxy_client_handle *ch,
+		      const struct proxy_msg *msg, const uint8_t *buff)
+{
+	struct proxy_client_priv *priv = ch->priv;
+	int ret;
+
+	ret = conn_send(&priv->conn, (uint8_t *)msg, sizeof(*msg));
+	if (ret >= 0 && msg->size > 0)
+		ret = conn_send(&priv->conn, buff, msg->size);
 
 	return ret;
 }

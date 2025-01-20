@@ -54,6 +54,7 @@
 #include "digest.h"
 #include "mutex.h"
 #include "proxy_conn.h"
+#include "proxy_msg.h"
 #include "rand.h"
 #include "thread.h"
 #include "worker.h"
@@ -68,93 +69,6 @@
 
 /*! Maximum amount of data to process not including the message header */
 #define CONN_BUFF_LEN_HEADERLESS (CONN_BUFF_LEN - sizeof(struct proxy_msg))
-
-/*!
- * @brief Message types used in communication between the proxy and the client
- */
-enum PROXY_MSG_TYPE {
-	/*!
-	 * @brief The proxy should open a new TCP connection
-	 *
-	 * * Sent by: client
-	 * * Expected data: 0 bytes
-	 */
-	PROXY_MSG_TYPE_TCP_OPEN = 1,
-
-	/*!
-	 * @brief Data which has been sent or should be sent over the TCP connection
-	 *
-	 * The address field is ignored in this message
-	 *
-	 * * Sent by: client or proxy
-	 * * Expected data: 1 or more bytes
-	 */
-	PROXY_MSG_TYPE_TCP_DATA,
-
-	/*!
-	 * @brief The TCP has been, or should be closed
-	 *
-	 * The address field is ignored in this message
-	 *
-	 * When the client requests that the TCP connection be closed, the proxy
-	 * responds with another ::PROXY_MSG_TYPE_TCP_CLOSE message
-	 *
-	 * * Sent by: client or proxy
-	 * * Expected data: 0 bytes
-	 */
-	PROXY_MSG_TYPE_TCP_CLOSE,
-
-	/*!
-	 * @brief The status of the TCP connection
-	 *
-	 * The address field is ignored in this message
-	 *
-	 * The data included with this message should be zeroed when the TCP connection
-	 * was opened successfully, and non-zero otherwise
-	 *
-	 * * Sent by: proxy
-	 * * Expected data: 4 bytes
-	 */
-	PROXY_MSG_TYPE_TCP_STATUS,
-
-	/*!
-	 * @brief Data which has been or should be sent of the UDP Data connection
-	 *
-	 * * Sent by: client or proxy
-	 * * Expected data: 1 or more bytes
-	 */
-	PROXY_MSG_TYPE_UDP_DATA,
-
-	/*!
-	 * @brief Data which has been or should be sent of the UDP Control connection
-	 *
-	 * * Sent by: client or proxy
-	 * * Expected data: 1 or more bytes
-	 */
-	PROXY_MSG_TYPE_UDP_CONTROL
-};
-
-#ifdef _WIN32
-#  pragma pack(push, 1)
-#endif
-/*!
- * @brief Proxy message header
- */
-struct proxy_msg {
-	/*! Type of proxy message, should be one of ::PROXY_MSG_TYPE */
-	uint8_t type;
-
-	/*! 32-bit IPv4 address, if applicable */
-	uint32_t address;
-
-	/*! Number of bytes in proxy_msg::data */
-	uint32_t size;
-#ifdef _WIN32
-};
-#  pragma pack(pop)
-#else
-} __attribute__((packed));
-#endif
 
 /*!
  * @brief Private data for an instance of a proxy client connection
