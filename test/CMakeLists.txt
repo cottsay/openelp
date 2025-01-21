@@ -1,17 +1,21 @@
-macro(add_openelp_test test_name)
-  add_executable(${test_name} ${ARGN} $<TARGET_OBJECTS:openelp_objects>)
+macro(add_openelp_exe exe_name)
+  add_executable(${exe_name} ${ARGN} $<TARGET_OBJECTS:openelp_objects>)
 
   get_target_property(OPENELP_INCLUDE_DIRECTORIES openelp_objects INCLUDE_DIRECTORIES)
-  target_include_directories(${test_name} PRIVATE ${OPENELP_INCLUDE_DIRECTORIES})
+  target_include_directories(${exe_name} PRIVATE ${OPENELP_INCLUDE_DIRECTORIES})
 
   get_target_property(OPENELP_LIBRARIES openelp LINK_LIBRARIES)
-  target_link_libraries(${test_name} ${OPENELP_LIBRARIES})
+  target_link_libraries(${exe_name} ${OPENELP_LIBRARIES})
 
   if(WIN32)
-    target_compile_options(${test_name} PRIVATE
+    target_compile_options(${exe_name} PRIVATE
       "-DOPENELP_API=__declspec(dllexport)"
       )
   endif()
+endmacro()
+
+macro(add_openelp_test test_name)
+  add_openelp_exe(${test_name} ${ARGN})
 
   add_test(NAME ${test_name} COMMAND ${test_name})
 
